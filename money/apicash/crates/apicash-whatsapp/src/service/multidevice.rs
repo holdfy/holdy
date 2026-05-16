@@ -185,6 +185,9 @@ pub async fn start_multidevice_bridge(
                             Some(IncomingBody::ContactPhoneDigits(digits)) => {
                                 WhatsAppEvent::with_contact_phone(peer, mid, digits)
                             }
+                            Some(IncomingBody::TextAndContact { text, digits }) => {
+                                WhatsAppEvent::with_text_and_contact(peer, mid, text, digits)
+                            }
                             None => return,
                         };
                         if tx.send(ev).await.is_err() {

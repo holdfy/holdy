@@ -8,6 +8,8 @@ use chrono::{DateTime, Utc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use crate::handlers::order_flow;
+
 /// Estado da conversa de pedido protegido.
 #[derive(Debug, Clone)]
 pub enum OrderFlowState {
@@ -124,6 +126,14 @@ impl UserSession {
     }
 }
 
+/// Proposta pendente para o comprador aceitar (B).
+#[derive(Debug, Clone)]
+pub struct PendingBuyerProposal {
+    pub seller_peer_key: String,
+    pub amount: String,
+    pub description: String,
+}
+
 /// Armazenamento em memória (substituir por Redis/Postgres em produção).
 #[derive(Clone, Default)]
 pub struct SessionManager {
@@ -158,6 +168,67 @@ impl SessionManager {
     pub async fn reset(&self, peer_id: &str) {
         let mut map = self.inner.write().await;
         map.remove(peer_id);
+    }
+
+    /// Localiza proposta pendente quando a chave do peer do comprador difere (PN vs LID / dígito).
+    pub async fn find_pending_proposal_for_buyer(
+        &self,
+        buyer_peer: &str,
+    ) -> Option<PendingBuyerProposal> {
+        let map = self.inner.read().await;
+        for sess in map.values() {
+            if let OrderFlowState::BuyerPendingSellerProposal {
+                seller_peer_key,
+                amount,
+                description,
+            } = &sess.state
+            {
+                if order_flow::peers_same_phone(&sess.peer_id, buyer_peer) {
+                    return Some(PendingBuyerProposal {
+                        seller_peer_key: seller_peer_key.clone(),
+                        amount: amount.clone(),
+                        description: description.clone(),
+                    });
+                }
+            }
+        }
+        for sess in map.values() {
+            if let OrderFlowState::CreatingOrder {
+                step: CreatingOrderStep::WaitingBuyerAccept,
+                draft,
+            } = &sess.state
+            {
+                if draft.counterparty_peer_key.as_ref().is_some_and(|bpk| {
+                    order_flow::peers_same_phone(bpk, buyer_peer)
+                }) {
+                    return Some(PendingBuyerProposal {
+                        seller_peer_key: sess.peer_id.clone(),
+                        amount: draft.amount.clone().unwrap_or_else(|| "?".into()),
+                        description: draft
+                            .description
+                            .clone()
+                            .unwrap_or_else(|| "HoldFy".into()),
+                    });
+                }
+            }
+        }
+        None
+    }
+
+    /// Garante estado `BuyerPendingSellerProposal` na chave de peer que acabou de falar.
+    pub async fn sync_buyer_proposal_peer(
+        &self,
+        buyer_peer: &str,
+        proposal: &PendingBuyerProposal,
+    ) {
+        let mut sess = self.session_for(buyer_peer).await;
+        sess.state = OrderFlowState::BuyerPendingSellerProposal {
+            seller_peer_key: proposal.seller_peer_key.clone(),
+            amount: proposal.amount.clone(),
+            description: proposal.description.clone(),
+        };
+        sess.touch();
+        self.update(buyer_peer, sess).await;
     }
 
     /// Resolve vendedor/comprador/valor a partir de sessões com `active_order_id` (fallback após restart).

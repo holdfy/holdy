@@ -10,10 +10,10 @@
 #   · Sem Gatebox ativo + GATEBOX_BASE_URL, o rail simulado não obtém PIX (pedidos falham ao criar instrução).
 #
 # Uso:
-#   ./runapp.sh                    # restart completo (default)
-#   ./runapp.sh start [apicash|gatebox|banco|all]
+#   ./runapp.sh                    # = stop all + start all (scope all, default)
+#   ./runapp.sh restart [scope]    # idem: para tudo no scope e sobe de novo (+ build no start)
 #   ./runapp.sh stop [apicash|gatebox|banco|all]   (stop apicash não para o Gatebox)
-#   ./runapp.sh restart [apicash|gatebox|banco|all]
+#   ./runapp.sh start [apicash|gatebox|banco|all]
 #   ./runapp.sh status
 #   ./runapp.sh build [apicash|banco|all]
 #   ./runapp.sh logs [apicash|gatebox|banco|all]
@@ -831,9 +831,9 @@ usage() {
 Usage: ${MONEY}/runapp.sh [command] [scope]
 
 Commands:
-  restart (default)  Para e volta a construir/subir backends conforme scope
-  start              Sobe backends (APICash faz build antes se restart completo)
-  stop               Para processos no host
+  restart (default)  stop <scope> + start <scope> (sem argumentos: stop all + start all)
+  start              Sobe backends (scope all/apicash: cargo build antes de subir)
+  stop               Para processos no host (scope all: banco + gatebox + APICash)
   status             Estado das apps + docker compose ps
   build              cargo build conforme scope (APICash ou gatebox)
   logs [scope]       tail -F dos logs
@@ -857,7 +857,8 @@ Env útil:
 
 Fluxo típico:
   ${MONEY}/setup-env.sh     # cria/atualiza money/.env + symlinks + infra Docker
-  ${MONEY}/runapp.sh start
+  ${MONEY}/runapp.sh        # stop all + start all (recomendado após mudar código)
+  ${MONEY}/runapp.sh start  # só sobe (sem parar antes)
 USAGE
 }
 
@@ -965,6 +966,7 @@ whatsapp-pair)
   ;;
 restart)
   ac_setup_whatsapp_qr_dir || true
+  log "restart ${SCOPE}: stop then start"
   run_stop
   run_start
   run_status

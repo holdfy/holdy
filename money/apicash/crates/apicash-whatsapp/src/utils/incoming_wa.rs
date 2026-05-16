@@ -39,9 +39,10 @@ pub fn extract_phone_from_vcard(vcard: &str) -> Option<String> {
 }
 
 fn phone_from_contact_message(cm: &wa::message::ContactMessage) -> Option<String> {
-    cm.vcard
-        .as_deref()
-        .and_then(|v| extract_phone_from_vcard(v))
+    cm.vcard.as_deref().and_then(|v| {
+        extract_phone_from_vcard(v)
+            .and_then(|digits| crate::handlers::holdfy::normalize_br_mobile(&digits))
+    })
 }
 
 /// Texto digitado ou dígitos obtidos de cartão de contato.
@@ -49,33 +50,41 @@ fn phone_from_contact_message(cm: &wa::message::ContactMessage) -> Option<String
 pub enum IncomingBody {
     Text(String),
     ContactPhoneDigits(String),
+    /// Legenda + cartão de contacto (ex.: "fazer um holdfy de 20" + vCard).
+    TextAndContact { text: String, digits: String },
+}
+
+fn contact_digits_from_message(msg: &wa::Message) -> Option<String> {
+    let base = msg.get_base_message();
+    if let Some(cm) = base.contact_message.as_ref() {
+        if let Some(d) = phone_from_contact_message(cm) {
+            return Some(d);
+        }
+    }
+    if let Some(arr) = base.contacts_array_message.as_ref() {
+        for c in &arr.contacts {
+            if let Some(d) = phone_from_contact_message(c) {
+                return Some(d);
+            }
+        }
+    }
+    None
 }
 
 /// Interpreta mensagem recebida (texto, um contacto ou lista de contactos).
 #[must_use]
 pub fn parse_incoming_message(msg: &wa::Message) -> Option<IncomingBody> {
-    if let Some(t) = msg.text_content() {
-        let s = t.trim();
-        if !s.is_empty() {
-            return Some(IncomingBody::Text(s.to_string()));
-        }
+    let text = msg
+        .text_content()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string);
+    let contact = contact_digits_from_message(msg);
+
+    match (text, contact) {
+        (Some(t), Some(d)) => Some(IncomingBody::TextAndContact { text: t, digits: d }),
+        (Some(t), None) => Some(IncomingBody::Text(t)),
+        (None, Some(d)) => Some(IncomingBody::ContactPhoneDigits(d)),
+        (None, None) => None,
     }
-
-    let base = msg.get_base_message();
-
-    if let Some(cm) = base.contact_message.as_ref() {
-        if let Some(d) = phone_from_contact_message(cm) {
-            return Some(IncomingBody::ContactPhoneDigits(d));
-        }
-    }
-
-    if let Some(arr) = base.contacts_array_message.as_ref() {
-        for c in &arr.contacts {
-            if let Some(d) = phone_from_contact_message(c) {
-                return Some(IncomingBody::ContactPhoneDigits(d));
-            }
-        }
-    }
-
-    None
 }

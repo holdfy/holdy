@@ -8,7 +8,7 @@ use whatsapp_cloud_api::models::{Interactive, InteractiveActionButton, Message, 
 use whatsapp_cloud_api::WhatsappClient;
 
 use crate::utils::masking::mask_whatsapp_peer;
-use crate::wa_peer::peer_to_delivery_jid;
+use crate::wa_peer::resolve_delivery_jid;
 
 pub enum Outbound {
     /// Transporte alinhado: mensagens via socket Web (sem Graph API).
@@ -50,31 +50,40 @@ impl Outbound {
         }
     }
 
-    pub async fn send_text(&self, to: &str, body: impl AsRef<str>) {
+    /// Envia texto; em modo Rust devolve `true` se o servidor aceitou o envio.
+    pub async fn send_text(&self, to: &str, body: impl AsRef<str>) -> bool {
         let body = body.as_ref();
         match self {
-            Outbound::Rust { client, sqlite_uri } => {
-                match peer_to_delivery_jid(to, sqlite_uri.as_deref()) {
+            Outbound::Rust { client, .. } => {
+                match resolve_delivery_jid(client.as_ref(), to).await {
                     Ok(jid) => {
                         let m = wa::Message {
                             conversation: Some(body.to_string()),
                             ..Default::default()
                         };
-                        if let Err(e) = client.send_message(jid, m).await {
-                            tracing::error!(
-                                error = %e,
-                                peer = %mask_whatsapp_peer(to),
-                                "whatsapp-rust: send_text falhou"
-                            );
-                        } else {
-                            tracing::info!(
-                                peer = %mask_whatsapp_peer(to),
-                                "whatsapp-rust: send_text ok"
-                            );
+                        match client.send_message(jid.clone(), m).await {
+                            Err(e) => {
+                                tracing::error!(
+                                    error = %e,
+                                    peer = %mask_whatsapp_peer(to),
+                                    delivery = %jid,
+                                    "whatsapp-rust: send_text falhou"
+                                );
+                                false
+                            }
+                            Ok(_) => {
+                                tracing::info!(
+                                    peer = %mask_whatsapp_peer(to),
+                                    delivery = %jid,
+                                    "whatsapp-rust: send_text ok"
+                                );
+                                true
+                            }
                         }
                     }
                     Err(e) => {
-                        tracing::error!(peer = %mask_whatsapp_peer(to), %e, "whatsapp-rust: jid inválido")
+                        tracing::error!(peer = %mask_whatsapp_peer(to), %e, "whatsapp-rust: jid inválido");
+                        false
                     }
                 }
             }
@@ -82,11 +91,15 @@ impl Outbound {
                 let msg = Message::from_text(to, Text::new(body), None);
                 if let Err(e) = client.send_message(&msg).await {
                     tracing::error!(error = %e, "send_text failed");
+                    false
+                } else {
+                    true
                 }
             }
             Outbound::Stub => {
                 let to_hint = mask_whatsapp_peer(to);
                 tracing::info!(to = %to_hint, %body, "whatsapp stub: text");
+                true
             }
         }
     }
@@ -94,7 +107,7 @@ impl Outbound {
     /// Envia PNG como mídia (upload Graph + mensagem imagem). Em stub apenas registra log.
     pub async fn send_image_bytes(&self, to: &str, bytes: &[u8], caption: Option<&str>) {
         match self {
-            Outbound::Rust { client, sqlite_uri } => match peer_to_delivery_jid(to, sqlite_uri.as_deref()) {
+            Outbound::Rust { client, .. } => match resolve_delivery_jid(client.as_ref(), to).await {
                 Ok(jid) => {
                     match client.upload(bytes.to_vec(), MediaType::Image).await {
                         Ok(upload) => {

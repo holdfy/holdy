@@ -10,13 +10,15 @@ use rust_decimal::Decimal;
 #[test]
 fn new_order_commands() {
     assert!(order_flow::is_new_order("novo pedido"));
-    assert!(order_flow::is_new_order("NOVO PEDIDO"));
+    assert!(order_flow::is_new_order("fazer um holdfy"));
+    assert!(order_flow::is_new_order("gerar cobrança holdfy"));
     assert!(!order_flow::is_new_order("oi"));
 }
 
 #[test]
 fn accept_and_reject_proposal() {
     assert!(order_flow::is_accept_proposal("Aceito"));
+    assert!(order_flow::is_accept_proposal("aceito."));
     assert!(order_flow::is_accept_proposal("SIM"));
     assert!(order_flow::is_accept_proposal("gera pix"));
     assert!(!order_flow::is_accept_proposal("talvez"));
@@ -93,7 +95,11 @@ fn parse_phone_peer_key_br() {
         order_flow::parse_phone_peer_key("5541987134374").as_deref(),
         Some("5541987134374")
     );
-    assert!(order_flow::parse_phone_peer_key("12345").is_none());
+    assert_eq!(
+        order_flow::parse_phone_peer_key("41987134374").as_deref(),
+        Some("5541987134374")
+    );
+    assert!(order_flow::parse_phone_peer_key("123").is_none());
 }
 
 #[test]
@@ -111,5 +117,22 @@ fn extract_phone_from_vcard_waid() {
     assert_eq!(
         incoming_wa::extract_phone_from_vcard(v).as_deref(),
         Some("5541987134374")
+    );
+}
+
+#[test]
+fn holdfy_merge_contact_when_asking_phone() {
+    use apicash_whatsapp::handlers::holdfy::{next_collect_step, parse_loose_fields, HoldfyCollectStep};
+
+    let (a, p) = parse_loose_fields("fazer um holdfy de 20", None);
+    assert_eq!(a.as_deref(), Some("20"));
+    assert!(p.is_none());
+
+    let ev = WhatsAppEvent::with_contact_phone("5511", "mid", "41999999999");
+    let (_, p2) = parse_loose_fields("", Some(&ev));
+    assert_eq!(p2.as_deref(), Some("5541999999999"));
+    assert_eq!(
+        next_collect_step(a.as_deref(), p2.as_deref()),
+        HoldfyCollectStep::Ready
     );
 }

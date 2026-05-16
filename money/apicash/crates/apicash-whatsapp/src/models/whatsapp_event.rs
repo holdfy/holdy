@@ -40,4 +40,19 @@ impl WhatsAppEvent {
             contact_phone_digits: Some(digits.into()),
         }
     }
+
+    /// Texto (ex.: intenção Holdfy + valor) e cartão de contacto na mesma mensagem.
+    pub fn with_text_and_contact(
+        sender_id: impl Into<String>,
+        message_id: impl Into<String>,
+        body: impl Into<String>,
+        contact_digits: impl Into<String>,
+    ) -> Self {
+        Self {
+            sender_id: sender_id.into(),
+            message_id: message_id.into(),
+            body: body.into(),
+            contact_phone_digits: Some(contact_digits.into()),
+        }
+    }
 }

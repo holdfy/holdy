@@ -99,35 +99,76 @@ pub fn peer_to_jid(peer: &str) -> Result<Jid, String> {
     }
 }
 
-/// Preferência LID quando o cliente já mapeou PN↔LID (mensagens recentes do WhatsApp).
-pub fn peer_to_delivery_jid(peer: &str, sqlite_uri: Option<&str>) -> Result<Jid, String> {
+/// Resolve JID de entrega via servidor WhatsApp (`is_on_whatsapp` + `get_user_info`).
+/// Evita enviar para LID/PN errado quando só temos dígitos digitados ou do cartão de contacto.
+pub async fn resolve_delivery_jid(
+    client: &whatsapp_rust::Client,
+    peer: &str,
+) -> Result<Jid, String> {
     let p = peer.trim();
     if p.contains('@') {
         return peer_to_jid(p);
     }
-    let digits: String = p.chars().filter(|c| c.is_ascii_digit()).collect();
-    if digits.is_empty() {
-        return Err("peer vazio ou sem dígitos".into());
-    }
-    if let Some(uri) = sqlite_uri {
-        if let Some(path) = sqlite_path_from_uri(uri) {
-            if let Some(lid_user) = pn_to_lid_user(&path, &digits) {
-                return Jid::from_str(&format!("{lid_user}@lid")).map_err(|e| e.to_string());
+
+    let pn = crate::handlers::holdfy::canonical_peer_key(p)
+        .ok_or_else(|| format!("número inválido ({})", mask_whatsapp_peer(p)))?;
+
+    match client.contacts().is_on_whatsapp(&[&pn]).await {
+        Ok(results) => {
+            if let Some(r) = results.first() {
+                if r.is_registered {
+                    tracing::info!(
+                        pn = %mask_whatsapp_peer(&pn),
+                        delivery = %r.jid,
+                        "whatsapp: destino confirmado (is_on_whatsapp)"
+                    );
+                    if let Err(e) = client.contacts().get_user_info(&[r.jid.clone()]).await {
+                        tracing::warn!(error = %e, "whatsapp: get_user_info após is_on_whatsapp falhou (ignorado)");
+                    }
+                    return Ok(r.jid.clone());
+                }
+                return Err(format!(
+                    "o número {} não está registado no WhatsApp",
+                    mask_whatsapp_peer(&pn)
+                ));
             }
+            tracing::warn!(
+                pn = %mask_whatsapp_peer(&pn),
+                "whatsapp: is_on_whatsapp sem resultado; usa PN"
+            );
+            peer_to_jid(&pn)
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                pn = %mask_whatsapp_peer(&pn),
+                "whatsapp: is_on_whatsapp falhou; usa PN"
+            );
+            peer_to_jid(&pn)
         }
     }
-    peer_to_jid(&digits)
 }
 
-fn pn_to_lid_user(db_path: &Path, pn_digits: &str) -> Option<String> {
-    let conn = Connection::open(db_path).ok()?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT lid FROM lid_pn_mapping WHERE phone_number = ?1 OR phone_number LIKE '%' || ?1 ORDER BY updated_at DESC LIMIT 1",
-        )
-        .ok()?;
-    let lid: Result<String, _> = stmt.query_row([pn_digits], |row| row.get(0));
-    lid.ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+/// Dígitos PN canónicos confirmados pelo WhatsApp (via `is_on_whatsapp`).
+pub async fn canonical_whatsapp_peer_digits(
+    client: &whatsapp_rust::Client,
+    peer: &str,
+) -> Option<String> {
+    let jid = resolve_delivery_jid(client, peer).await.ok()?;
+    let d: String = jid.user.chars().filter(|c| c.is_ascii_digit()).collect();
+    (!d.is_empty()).then_some(d)
+}
+
+/// Fallback síncrono (sem consulta ao servidor) — preferir [`resolve_delivery_jid`].
+pub fn peer_to_delivery_jid(peer: &str, _sqlite_uri: Option<&str>) -> Result<Jid, String> {
+    let p = peer.trim();
+    if p.contains('@') {
+        return peer_to_jid(p);
+    }
+    let pn = crate::handlers::holdfy::canonical_peer_key(p).unwrap_or_else(|| {
+        p.chars().filter(|c| c.is_ascii_digit()).collect()
+    });
+    peer_to_jid(&pn)
 }
 
 #[cfg(test)]

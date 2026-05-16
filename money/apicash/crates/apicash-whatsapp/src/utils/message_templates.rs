@@ -5,38 +5,58 @@ pub fn welcome() -> &'static str {
 }
 
 pub fn menu_hint() -> &'static str {
-    "Digite *novo pedido* para começar."
+    "Digite *holdfy*, *fazer um holdfy* ou *novo pedido* para começar."
 }
 
 pub fn welcome_help() -> &'static str {
     "*Resumo*\n\
-     Vendedor manda número do comprador → valor.\n\
+     Ex.: *fazer um holdfy de 20 para (41) 99999-9999* — ou envie o *cartão de contacto* do comprador (com ou sem valor na legenda).\n\
      Comprador responde *ACEITO* ou *RECUSO*.\n\
      PIX só depois do aceite; avisamos os dois quando o pagamento for confirmado.\n\n\
-     *Comandos:* novo pedido, ajuda, cancelar"
+     *Comandos:* holdfy, ajuda, cancelar"
 }
 
 pub fn start_order_intro() -> &'static str {
-    "Envie o *WhatsApp do comprador* ou um *cartão de contato*; em seguida o *valor*. O PIX só sai depois do comprador responder *ACEITO* aqui."
+    "Vamos criar um *HoldFy*. Informe *valor* e *celular do comprador* (pode ser numa frase só ou em mensagens separadas). O PIX só sai depois do comprador responder *ACEITO*."
 }
 
 pub fn ask_counterparty() -> &'static str {
-    "Informe o *WhatsApp do comprador*:\n\
-     número com DDI (ex. *5541999999999*) **ou** *cartão de contato*."
+    ask_holdfy_phone()
+}
+
+pub fn ask_holdfy_phone() -> &'static str {
+    "Para qual número de celular devo enviar o Holdfy?\n\
+     Ex.: *(41) 99999-9999* ou *5541999999999* (cartão de contacto também vale)."
 }
 
 pub fn invalid_counterparty_phone() -> &'static str {
-    "Número inválido. Envie *10 a 15 dígitos* (com DDI) ou um cartão de contato."
+    invalid_holdfy_phone()
+}
+
+pub fn invalid_holdfy_phone() -> &'static str {
+    "Esse número parece inválido. Informe um celular com DDD ou envie outro *cartão de contacto*, por exemplo: *(41) 99999-9999*."
+}
+
+pub fn buyer_whatsapp_unreachable(masked_buyer: &str) -> String {
+    format!(
+        "Não consegui enviar a proposta Holdfy para *{masked_buyer}*.\n\
+         Confirme se o número tem *WhatsApp* activo e está correcto (com DDD).\n\
+         Pode reenviar o *cartão de contacto* do comprador ou o número com DDI *55*."
+    )
+}
+
+pub fn ask_amount() -> &'static str {
+    ask_holdfy_amount()
+}
+
+pub fn ask_holdfy_amount() -> &'static str {
+    "Qual o *valor* do Holdfy? (ex. *20*, *R$ 20,00*, *20 reais*)"
 }
 
 pub fn counterparty_same_as_sender() -> &'static str {
     "O comprador tem de ser *outro* WhatsApp (outro número).\n\
      Não dá para cobrar o *mesmo* número que está a falar com o HoldFy.\n\n\
      Envie *cancelar* e recomece com o telefone de quem vai pagar."
-}
-
-pub fn ask_amount() -> &'static str {
-    "Qual o *valor*? (ex. *150,00*)"
 }
 
 /// Proposta ao comprador (B) antes de existir pedido na API.
@@ -71,6 +91,11 @@ pub fn seller_proposal_cancelled_by_buyer(amount: &str) -> String {
 
 pub fn seller_still_waiting_buyer() -> &'static str {
     "Aguardando o comprador: *ACEITO* ou *RECUSO*."
+}
+
+pub fn seller_waiting_buyer_must_accept() -> &'static str {
+    "O *comprador* precisa responder *ACEITO* no *WhatsApp dele* (não neste chat do vendedor).\n\
+     Envie a proposta de novo se ele não recebeu a mensagem."
 }
 
 /// Mensagem só com UUID (copiar inteira).

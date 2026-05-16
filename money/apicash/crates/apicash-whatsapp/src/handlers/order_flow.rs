@@ -5,16 +5,17 @@ use rust_decimal::Decimal;
 use crate::models::WhatsAppEvent;
 use crate::session::OrderFlowState;
 
-/// Normaliza texto do usuário (minúsculas, trim).
+/// Normaliza texto do usuário (minúsculas, trim, sem pontuação final).
 pub fn normalize_cmd(s: &str) -> String {
-    s.trim().to_lowercase()
+    let mut t = s.trim().to_lowercase();
+    while t.ends_with(['.', '!', '?', ',']) {
+        t.pop();
+    }
+    t
 }
 
 pub fn is_new_order(cmd: &str) -> bool {
-    matches!(
-        normalize_cmd(cmd).as_str(),
-        "novo pedido" | "novo pagamento" | "pedido" | "/novo" | "novo_pedido"
-    )
+    crate::handlers::holdfy::is_create_holdfy_intent(cmd)
 }
 
 pub fn is_help(cmd: &str) -> bool {
@@ -131,17 +132,20 @@ pub fn is_dispute(cmd: &str) -> bool {
 
 /// Valor monetário como string decimal normalizada (sem `f64`).
 pub fn parse_amount(s: &str) -> Option<String> {
-    let t = s.trim().replace(',', ".");
-    if t.is_empty() {
-        return None;
-    }
-    let d = Decimal::from_str_exact(&t)
-        .or_else(|_| t.parse::<Decimal>())
-        .ok()?;
-    if d <= Decimal::ZERO {
-        return None;
-    }
-    Some(d.round_dp(2).normalize().to_string())
+    crate::handlers::holdfy::extract_amount_from_text(s)
+        .or_else(|| {
+            let t = s.trim().replace(',', ".");
+            if t.is_empty() {
+                return None;
+            }
+            let d = Decimal::from_str_exact(&t)
+                .or_else(|_| t.parse::<Decimal>())
+                .ok()?;
+            if d <= Decimal::ZERO {
+                return None;
+            }
+            Some(d.round_dp(2).normalize().to_string())
+        })
 }
 
 pub fn parse_cpf(s: &str) -> Option<String> {
@@ -173,15 +177,10 @@ pub fn parse_social_links(s: &str) -> Vec<String> {
         .collect()
 }
 
-/// Telefone do comprador (B): dígitos apenas, 10–15 (com DDI).
+/// Telefone do comprador (B): normalização BR (DDI 55, só dígitos).
 #[must_use]
 pub fn parse_phone_peer_key(raw: &str) -> Option<String> {
-    let digits: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
-    if (10..=15).contains(&digits.len()) {
-        Some(digits)
-    } else {
-        None
-    }
+    crate::handlers::holdfy::normalize_br_mobile(raw)
 }
 
 /// Resolve número do comprador a partir de texto ou cartão de contacto.
