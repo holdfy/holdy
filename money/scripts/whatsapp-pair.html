@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HoldFy — Parear WhatsApp</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; text-align: center; }
+    h1 { font-size: 1.25rem; }
+    img { width: min(100%, 320px); height: auto; border: 1px solid #ccc; border-radius: 8px; }
+    p { color: #444; line-height: 1.5; }
+    .hint { font-size: 0.9rem; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Parear WhatsApp (HoldFy)</h1>
+  <p>No telemóvel: <strong>WhatsApp → Aparelhos ligados → Ligar um aparelho</strong> e escaneie o QR abaixo.</p>
+  <p><img id="qr" src="whatsapp-pairing-qr.png" alt="QR de pareamento" /></p>
+  <p class="hint">O QR renova a cada ~20 s. Esta página atualiza a imagem automaticamente.</p>
+  <script>
+    setInterval(function () {
+      document.getElementById('qr').src = 'whatsapp-pairing-qr.png?t=' + Date.now();
+    }, 3000);
+  </script>
+</body>
+</html>

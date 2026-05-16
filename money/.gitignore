@@ -1,0 +1,3 @@
+# Estado local (apps + symlink targets)
+.env
+.runapp/

@@ -1,0 +1,31 @@
+[package]
+name = "apicash-custody"
+description = "Escrow custody, yield accrual, and release logic for APICash (Soroban/Stellar integration planned)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+# Sem `soroban`, apenas [`MockSorobanBridge`] (comportamento mock; nome explícito para CI/docs).
+mock = []
+# Compila `LiveSorobanBridge` + integração com CLI `stellar` e `APICASH_SOROBAN_*`.
+soroban = []
+# Alias legado.
+stellar-prep = ["soroban"]
+
+[dependencies]
+apicash-shared = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true, features = ["serde-with-str"] }
+serde = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

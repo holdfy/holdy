@@ -1,0 +1,103 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [main, master, ethereum_inicio]
+    paths:
+      - 'gatebox-rust/**'
+      - 'simulador_rust/**'
+      - '.github/workflows/rust-ci.yml'
+  pull_request:
+    branches: [main, master, ethereum_inicio]
+    paths:
+      - 'gatebox-rust/**'
+      - 'simulador_rust/**'
+      - '.github/workflows/rust-ci.yml'
+
+jobs:
+  gatebox-rust:
+    name: gatebox-rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            gatebox-rust/target
+          key: ${{ runner.os }}-gatebox-rust-${{ hashFiles('gatebox-rust/Cargo.lock', 'gatebox-rust/Cargo.toml') }}
+
+      - name: Build
+        run: cargo build --manifest-path gatebox-rust/Cargo.toml
+
+      - name: Test
+        run: cargo test --manifest-path gatebox-rust/Cargo.toml
+
+      - name: Clippy
+        run: cargo clippy --manifest-path gatebox-rust/Cargo.toml -- -D warnings
+        continue-on-error: true
+
+  gatebox-rust-pulsar:
+    name: gatebox-rust (pulsar)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Build with pulsar
+        run: cargo build --manifest-path gatebox-rust/Cargo.toml --features pulsar
+
+  simulador-rust:
+    name: simulador_rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            simulador_rust/target
+          key: ${{ runner.os }}-simulador-rust-${{ hashFiles('simulador_rust/**/Cargo.toml') }}
+
+      - name: Build
+        run: cargo build --manifest-path simulador_rust/Cargo.toml
+
+      - name: Build seventrust
+        run: cargo build -p seventrust --manifest-path simulador_rust/Cargo.toml
+
+      - name: Build sulcred
+        run: cargo build -p sulcred --manifest-path simulador_rust/Cargo.toml
+
+      - name: Build client-simulator
+        run: cargo build -p client-simulator --manifest-path simulador_rust/Cargo.toml
+
+      - name: Test
+        run: cargo test --manifest-path simulador_rust/Cargo.toml
+
+      - name: Clippy
+        run: cargo clippy --manifest-path simulador_rust/Cargo.toml -- -D warnings
+        continue-on-error: true

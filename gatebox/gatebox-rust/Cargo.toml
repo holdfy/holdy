@@ -1,0 +1,49 @@
+[package]
+name = "gatebox-rust"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["pulsar"]
+pulsar = ["dep:pulsar"]
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+axum = { version = "0.7", features = ["macros", "json"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["timeout"] }
+sqlx = { version = "0.7", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "chrono",
+    "uuid",
+    "macros",
+    "migrate",
+    "rust_decimal",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1", features = ["serde"] }
+anyhow = "1"
+thiserror = "1"
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+prometheus = "0.13"
+rand = "0.8"
+hex = "0.4"
+jsonwebtoken = "9"
+lapin = "2"
+futures = "0.3"
+redis = { version = "0.24", features = ["tokio-comp"] }
+sha2 = "0.10"
+regex = "1"
+hmac = "0.12"
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+# Pulsar: mensageria default do projeto (exige protoc: apt-get install protobuf-compiler)
+pulsar = { version = "6", optional = true, default-features = false, features = ["tokio-rustls-runtime"] }
+utoipa = { version = "4", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7", features = ["axum"] }
+base64 = "0.22"

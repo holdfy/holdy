@@ -1,0 +1,8426 @@
+{
+	"info": {
+		"_postman_id": "d2057d17-63b6-45af-bea3-73e96f9843db",
+		"name": "Estudo",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45931655",
+		"_collection_link": "https://silvio-6460047.postman.co/workspace/Silvio's-Workspace~2475ab6c-d82d-4c60-88e2-3f6f216bb99c/collection/45931655-d2057d17-63b6-45af-bea3-73e96f9843db?action=share&source=collection_link&creator=45931655"
+	},
+	"item": [
+		{
+			"name": "USER_RESTRICTIONS 🎯",
+			"item": [
+				{
+					"name": "GetUser_restrictions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_restrictions?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_restrictions"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_restrictionsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_restrictions/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_restrictions",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_restrictionsByRestrictionCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_restrictions/restrictioncode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_restrictions",
+								"restrictioncode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User_restrictionsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"restriction_code\":\"\",\"user_id\": 0,\"id_restriction_type\": 0,\"restriction_reason\":\"\",\"restrictions\":\"\",\"is_active\": false,\"expires_at\": \"0000-12-31T21:25:56-02:34\",\"created_by\": 0,\"removed_by\": 0,\"removed_at\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_restrictions",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_restrictions"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "User_restrictionsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"restriction_code\":\"\",\"user_id\": 0,\"id_restriction_type\": 0,\"restriction_reason\":\"\",\"restrictions\":\"\",\"is_active\": false,\"expires_at\": \"0000-12-31T21:25:56-02:34\",\"created_by\": 0,\"removed_by\": 0,\"removed_at\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_restrictions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_restrictions",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "User_restrictions Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_restrictions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_restrictions",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "RESTRICTION_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetRestriction_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/restriction_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"restriction_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetRestriction_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/restriction_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"restriction_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetRestriction_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/restriction_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"restriction_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Restriction_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"affects_transactions\": false,\"affects_login\": false,\"affects_biometric\": false,\"can_auto_expire\": false,\"default_duration_hours\": 0,\"severity_level\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/restriction_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"restriction_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Restriction_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"affects_transactions\": false,\"affects_login\": false,\"affects_biometric\": false,\"can_auto_expire\": false,\"default_duration_hours\": 0,\"severity_level\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/restriction_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"restriction_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Restriction_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/restriction_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"restriction_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "SECURITY_EVENTS 🎯",
+			"item": [
+				{
+					"name": "GetSecurity_events",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_events?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_events"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSecurity_eventsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_events/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_events",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSecurity_eventsBySecurityEventCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_events/securityeventcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_events",
+								"securityeventcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Security_eventsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"security_event_code\":\"\",\"user_id\": 0,\"id_event_type\": 0,\"id_severity\": 0,\"description\":\"\",,\"device_info\":\"\",\"metadata\":\"\",\"is_resolved\": false,\"resolved_at\": \"0000-12-31T21:25:56-02:34\",\"resolved_by\": 0,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/security_events",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_events"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Security_eventsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"security_event_code\":\"\",\"user_id\": 0,\"id_event_type\": 0,\"id_severity\": 0,\"description\":\"\",,\"device_info\":\"\",\"metadata\":\"\",\"is_resolved\": false,\"resolved_at\": \"0000-12-31T21:25:56-02:34\",\"resolved_by\": 0,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/security_events/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_events",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Security_events Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_events/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_events",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "SECURITY_SEVERITY_LEVELS 🎯",
+			"item": [
+				{
+					"name": "GetSecurity_severity_levels",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_severity_levels?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_severity_levels"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSecurity_severity_levelsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_severity_levels/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_severity_levels",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSecurity_severity_levelsBySeverityCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_severity_levels/severitycode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_severity_levels",
+								"severitycode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Security_severity_levelsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"severity_code\":\"\",\"name\":\"\",\"description\":\"\",\"level_number\": 0,\"notification_required\": false,\"escalation_required\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/security_severity_levels",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_severity_levels"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Security_severity_levelsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"severity_code\":\"\",\"name\":\"\",\"description\":\"\",\"level_number\": 0,\"notification_required\": false,\"escalation_required\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/security_severity_levels/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_severity_levels",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Security_severity_levels Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_severity_levels/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_severity_levels",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "SECURITY_EVENT_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetSecurity_event_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_event_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_event_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSecurity_event_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_event_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_event_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSecurity_event_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_event_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_event_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Security_event_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"default_severity\": 0,\"auto_block\": false,\"requires_investigation\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/security_event_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_event_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Security_event_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"default_severity\": 0,\"auto_block\": false,\"requires_investigation\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/security_event_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_event_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Security_event_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/security_event_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"security_event_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "USER_SESSIONS 🎯",
+			"item": [
+				{
+					"name": "GetUser_sessions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_sessions?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_sessions"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_sessionsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_sessions/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_sessions",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_sessionsBySessionCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_sessions/sessioncode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_sessions",
+								"sessioncode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User_sessionsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"session_code\":\"\",\"user_id\": 0,\"application_id\": 0,\"session_token\":\"\",\"device_fingerprint\":\"\",\"id_device_type\": 0,\"device_info\":\"\",,\"location_data\":\"\",\"id_status\": 0,\"expires_at\": \"0000-12-31T21:25:56-02:34\",\"last_activity\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_sessions",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_sessions"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "User_sessionsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"session_code\":\"\",\"user_id\": 0,\"application_id\": 0,\"session_token\":\"\",\"device_fingerprint\":\"\",\"id_device_type\": 0,\"device_info\":\"\",,\"location_data\":\"\",\"id_status\": 0,\"expires_at\": \"0000-12-31T21:25:56-02:34\",\"last_activity\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_sessions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_sessions",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "User_sessions Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_sessions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_sessions",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "DEVICE_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetDevice_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/device_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"device_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetDevice_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/device_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"device_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetDevice_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/device_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"device_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Device_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_mobile\": false,\"security_level\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/device_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"device_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Device_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_mobile\": false,\"security_level\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/device_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"device_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Device_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/device_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"device_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "SESSION_STATUS 🎯",
+			"item": [
+				{
+					"name": "GetSession_status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/session_status?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"session_status"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSession_statusById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/session_status/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"session_status",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSession_statusByStatusCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/session_status/statuscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"session_status",
+								"statuscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Session_statusInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"allows_activity\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/session_status",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"session_status"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Session_statusUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"allows_activity\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/session_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"session_status",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Session_status Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/session_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"session_status",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "AUDIT_LOG 🎯",
+			"item": [
+				{
+					"name": "GetAudit_log",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_log?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_log"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAudit_logById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_log/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_log",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAudit_logByAuditCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_log/auditcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_log",
+								"auditcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Audit_logInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"audit_code\":\"\",\"id_table\": 0,\"record_id\": 0,\"id_action\": 0,\"old_values\":\"\",\"new_values\":\"\",\"changed_fields\":\"\",\"user_id\": 0,\"application_id\": 0,,\"user_agent\":\"\",\"session_id\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/audit_log",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_log"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Audit_logUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"audit_code\":\"\",\"id_table\": 0,\"record_id\": 0,\"id_action\": 0,\"old_values\":\"\",\"new_values\":\"\",\"changed_fields\":\"\",\"user_id\": 0,\"application_id\": 0,,\"user_agent\":\"\",\"session_id\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/audit_log/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_log",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Audit_log Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_log/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_log",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "AUDIT_TABLES 🎯",
+			"item": [
+				{
+					"name": "GetAudit_tables",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_tables?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_tables"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAudit_tablesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_tables/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_tables",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAudit_tablesByTableCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_tables/tablecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_tables",
+								"tablecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Audit_tablesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"table_code\":\"\",\"name\":\"\",\"description\":\"\",\"sensitivity_level\": 0,\"retention_days\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/audit_tables",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_tables"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Audit_tablesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"table_code\":\"\",\"name\":\"\",\"description\":\"\",\"sensitivity_level\": 0,\"retention_days\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/audit_tables/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_tables",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Audit_tables Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_tables/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_tables",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "AUDIT_ACTIONS 🎯",
+			"item": [
+				{
+					"name": "GetAudit_actions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_actions?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_actions"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAudit_actionsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_actions/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_actions",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAudit_actionsByActionCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_actions/actioncode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_actions",
+								"actioncode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Audit_actionsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"action_code\":\"\",\"name\":\"\",\"description\":\"\",\"severity_level\": 0,\"requires_user\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/audit_actions",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_actions"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Audit_actionsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"action_code\":\"\",\"name\":\"\",\"description\":\"\",\"severity_level\": 0,\"requires_user\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/audit_actions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_actions",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Audit_actions Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/audit_actions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"audit_actions",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "NOTIFICATION_HISTORY 🎯",
+			"item": [
+				{
+					"name": "GetNotification_history",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_history?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_history"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetNotification_historyById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_history/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_history",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetNotification_historyByNotificationCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_history/notificationcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_history",
+								"notificationcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Notification_historyInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"notification_code\":\"\",\"user_id\": 0,\"transaction_id\": 0,\"template_id\": 0,\"id_channel\": 0,\"recipient\":\"\",\"subject\":\"\",\"message_body\":\"\",\"id_status\": 0,\"provider_response\":\"\",\"sent_at\": \"0000-12-31T21:25:56-02:34\",\"delivered_at\": \"0000-12-31T21:25:56-02:34\",\"failed_at\": \"0000-12-31T21:25:56-02:34\",\"failure_reason\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/notification_history",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_history"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Notification_historyUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"notification_code\":\"\",\"user_id\": 0,\"transaction_id\": 0,\"template_id\": 0,\"id_channel\": 0,\"recipient\":\"\",\"subject\":\"\",\"message_body\":\"\",\"id_status\": 0,\"provider_response\":\"\",\"sent_at\": \"0000-12-31T21:25:56-02:34\",\"delivered_at\": \"0000-12-31T21:25:56-02:34\",\"failed_at\": \"0000-12-31T21:25:56-02:34\",\"failure_reason\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/notification_history/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_history",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Notification_history Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_history/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_history",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "NOTIFICATION_STATUS 🎯",
+			"item": [
+				{
+					"name": "GetNotification_status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_status?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_status"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetNotification_statusById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_status/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_status",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetNotification_statusByStatusCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_status/statuscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_status",
+								"statuscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Notification_statusInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_final\": false,\"is_success\": false,\"requires_retry\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/notification_status",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_status"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Notification_statusUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_final\": false,\"is_success\": false,\"requires_retry\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/notification_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_status",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Notification_status Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_status",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "NOTIFICATION_TEMPLATES 🎯",
+			"item": [
+				{
+					"name": "GetNotification_templates",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_templates?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_templates"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetNotification_templatesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_templates/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_templates",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetNotification_templatesByTemplateCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_templates/templatecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_templates",
+								"templatecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Notification_templatesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"template_code\":\"\",\"application_id\": 0,\"template_key\":\"\",\"id_channel\": 0,\"subject\":\"\",\"template_body\":\"\",\"template_variables\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/notification_templates",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_templates"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Notification_templatesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"template_code\":\"\",\"application_id\": 0,\"template_key\":\"\",\"id_channel\": 0,\"subject\":\"\",\"template_body\":\"\",\"template_variables\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/notification_templates/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_templates",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Notification_templates Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_templates/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_templates",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "NOTIFICATION_CHANNELS 🎯",
+			"item": [
+				{
+					"name": "GetNotification_channels",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_channels?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_channels"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetNotification_channelsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_channels/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_channels",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetNotification_channelsByChannelCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_channels/channelcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_channels",
+								"channelcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Notification_channelsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"channel_code\":\"\",\"name\":\"\",\"description\":\"\",\"requires_subject\": false,\"max_body_length\": 0,\"delivery_time_seconds\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/notification_channels",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_channels"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Notification_channelsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"channel_code\":\"\",\"name\":\"\",\"description\":\"\",\"requires_subject\": false,\"max_body_length\": 0,\"delivery_time_seconds\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/notification_channels/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_channels",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Notification_channels Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/notification_channels/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"notification_channels",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "GATEWAY_TRANSACTIONS 🎯",
+			"item": [
+				{
+					"name": "GetGateway_transactions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateway_transactions?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_transactions"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetGateway_transactionsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateway_transactions/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_transactions",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetGateway_transactionsByGatewayTransactionCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateway_transactions/gatewaytransactioncode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_transactions",
+								"gatewaytransactioncode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Gateway_transactionsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"gateway_transaction_code\":\"\",\"transaction_id\": 0,\"id_gateway\": 0,\"gateway_transaction_id\":\"\",\"id_gateway_status\": 0,\"gateway_response\":\"\",\"gateway_request\":\"\",\"processing_time_ms\": 0,\"retry_count\": 0,\"last_retry_at\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/gateway_transactions",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_transactions"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Gateway_transactionsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"gateway_transaction_code\":\"\",\"transaction_id\": 0,\"id_gateway\": 0,\"gateway_transaction_id\":\"\",\"id_gateway_status\": 0,\"gateway_response\":\"\",\"gateway_request\":\"\",\"processing_time_ms\": 0,\"retry_count\": 0,\"last_retry_at\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/gateway_transactions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_transactions",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Gateway_transactions Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateway_transactions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_transactions",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "GATEWAY_STATUS_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetGateway_status_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateway_status_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_status_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetGateway_status_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateway_status_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_status_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetGateway_status_typesByStatusCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateway_status_types/statuscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_status_types",
+								"statuscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Gateway_status_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_success\": false,\"is_final\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/gateway_status_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_status_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Gateway_status_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_success\": false,\"is_final\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/gateway_status_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_status_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Gateway_status_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateway_status_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateway_status_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "GATEWAYS 🎯",
+			"item": [
+				{
+					"name": "GetGateways",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateways?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateways"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetGatewaysById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateways/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateways",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetGatewaysByGatewayCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateways/gatewaycode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateways",
+								"gatewaycode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GatewaysInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"gateway_code\":\"\",\"name\":\"\",\"description\":\"\",\"api_endpoint\":\"\",\"timeout_seconds\": 0,\"max_retries\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/gateways",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateways"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "GatewaysUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"gateway_code\":\"\",\"name\":\"\",\"description\":\"\",\"api_endpoint\":\"\",\"timeout_seconds\": 0,\"max_retries\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/gateways/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateways",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Gateways Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/gateways/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"gateways",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "TRANSACTION_STATUS_HISTORY 🎯",
+			"item": [
+				{
+					"name": "GetTransaction_status_history",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_status_history?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status_history"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTransaction_status_historyById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_status_history/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status_history",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTransaction_status_historyByStatusHistoryCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_status_history/statushistorycode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status_history",
+								"statushistorycode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Transaction_status_historyInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_history_code\":\"\",\"transaction_id\": 0,\"id_previous_status\": 0,\"id_new_status\": 0,\"reason\":\"\",\"id_changed_by\": 0,\"gateway_response\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/transaction_status_history",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status_history"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Transaction_status_historyUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_history_code\":\"\",\"transaction_id\": 0,\"id_previous_status\": 0,\"id_new_status\": 0,\"reason\":\"\",\"id_changed_by\": 0,\"gateway_response\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/transaction_status_history/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status_history",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Transaction_status_history Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_status_history/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status_history",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "CHANGE_ACTORS 🎯",
+			"item": [
+				{
+					"name": "GetChange_actors",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/change_actors?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"change_actors"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetChange_actorsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/change_actors/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"change_actors",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetChange_actorsByActorCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/change_actors/actorcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"change_actors",
+								"actorcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change_actorsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"actor_code\":\"\",\"name\":\"\",\"description\":\"\",\"can_auto_approve\": false,\"priority_level\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/change_actors",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"change_actors"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Change_actorsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"actor_code\":\"\",\"name\":\"\",\"description\":\"\",\"can_auto_approve\": false,\"priority_level\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/change_actors/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"change_actors",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Change_actors Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/change_actors/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"change_actors",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "TRANSACTIONS 🎯",
+			"item": [
+				{
+					"name": "GetTransactions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transactions?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transactions"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTransactionsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transactions/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transactions",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTransactionsByTransactionCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transactions/transactioncode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transactions",
+								"transactioncode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "TransactionsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"transaction_code\":\"\",\"wallet_id\": 0,\"external_transaction_id\":\"\",\"id_transaction_type\": 0,\"id_payment_method\": 0,\"id_status\": 0,\"amount\": 0.00,\"id_currency\": 0,\"fee_amount\": 0.00,\"net_amount\": 0.00,\"payer_user_id\": 0,\"payer_wallet_id\": 0,\"payee_user_id\": 0,\"payee_wallet_id\": 0,\"payee_external_account\":\"\",\"payment_method_id\": 0,\"merchant_id\":\"\",\"merchant_name\":\"\",\"merchant_category\":\"\",\"device_id\":\"\",\"device_info\":\"\",\"location_data\":\"\",,\"requires_signature\": false,\"signature_provided\": false,\"id_signature_method\": 0,\"authorized_at\": \"0000-12-31T21:25:56-02:34\",\"completed_at\": \"0000-12-31T21:25:56-02:34\",\"cancelled_at\": \"0000-12-31T21:25:56-02:34\",\"description\":\"\",\"metadata\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/transactions",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "TransactionsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"transaction_code\":\"\",\"wallet_id\": 0,\"external_transaction_id\":\"\",\"id_transaction_type\": 0,\"id_payment_method\": 0,\"id_status\": 0,\"amount\": 0.00,\"id_currency\": 0,\"fee_amount\": 0.00,\"net_amount\": 0.00,\"payer_user_id\": 0,\"payer_wallet_id\": 0,\"payee_user_id\": 0,\"payee_wallet_id\": 0,\"payee_external_account\":\"\",\"payment_method_id\": 0,\"merchant_id\":\"\",\"merchant_name\":\"\",\"merchant_category\":\"\",\"device_id\":\"\",\"device_info\":\"\",\"location_data\":\"\",,\"requires_signature\": false,\"signature_provided\": false,\"id_signature_method\": 0,\"authorized_at\": \"0000-12-31T21:25:56-02:34\",\"completed_at\": \"0000-12-31T21:25:56-02:34\",\"cancelled_at\": \"0000-12-31T21:25:56-02:34\",\"description\":\"\",\"metadata\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/transactions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transactions",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Transactions Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transactions/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transactions",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "TRANSACTION_STATUS 🎯",
+			"item": [
+				{
+					"name": "GetTransaction_status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_status?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTransaction_statusById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_status/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTransaction_statusByStatusCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_status/statuscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status",
+								"statuscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Transaction_statusInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_final\": false,\"is_success\": false,\"allows_refund\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/transaction_status",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Transaction_statusUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_final\": false,\"is_success\": false,\"allows_refund\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/transaction_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Transaction_status Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_status",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "SIGNATURE_METHODS 🎯",
+			"item": [
+				{
+					"name": "GetSignature_methods",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/signature_methods?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"signature_methods"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSignature_methodsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/signature_methods/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"signature_methods",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSignature_methodsByMethodCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/signature_methods/methodcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"signature_methods",
+								"methodcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Signature_methodsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"method_code\":\"\",\"name\":\"\",\"description\":\"\",\"security_level\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/signature_methods",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"signature_methods"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Signature_methodsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"method_code\":\"\",\"name\":\"\",\"description\":\"\",\"security_level\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/signature_methods/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"signature_methods",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Signature_methods Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/signature_methods/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"signature_methods",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "PAYMENT_METHODS 🎯",
+			"item": [
+				{
+					"name": "GetPayment_methods",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/payment_methods?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"payment_methods"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetPayment_methodsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/payment_methods/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"payment_methods",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetPayment_methodsByMethodCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/payment_methods/methodcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"payment_methods",
+								"methodcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Payment_methodsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"method_code\":\"\",\"name\":\"\",\"description\":\"\",\"requires_external_auth\": false,\"processing_time_minutes\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/payment_methods",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"payment_methods"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Payment_methodsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"method_code\":\"\",\"name\":\"\",\"description\":\"\",\"requires_external_auth\": false,\"processing_time_minutes\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/payment_methods/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"payment_methods",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Payment_methods Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/payment_methods/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"payment_methods",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "TRANSACTION_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetTransaction_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTransaction_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTransaction_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Transaction_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"affects_balance\": false,\"requires_recipient\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/transaction_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Transaction_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"affects_balance\": false,\"requires_recipient\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/transaction_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Transaction_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/transaction_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"transaction_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "EXTERNAL_WALLETS 🎯",
+			"item": [
+				{
+					"name": "GetExternal_wallets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/external_wallets?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"external_wallets"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetExternal_walletsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/external_wallets/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"external_wallets",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetExternal_walletsByExternalWalletCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/external_wallets/externalwalletcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"external_wallets",
+								"externalwalletcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "External_walletsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"external_wallet_code\":\"\",\"user_id\": 0,\"id_provider\": 0,\"external_account_id\":\"\",\"account_info\":\"\",\"access_token_encrypted\":\"\",\"refresh_token_encrypted\":\"\",\"token_expires_at\": \"0000-12-31T21:25:56-02:34\",\"is_active\": false,\"last_sync\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/external_wallets",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"external_wallets"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "External_walletsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"external_wallet_code\":\"\",\"user_id\": 0,\"id_provider\": 0,\"external_account_id\":\"\",\"account_info\":\"\",\"access_token_encrypted\":\"\",\"refresh_token_encrypted\":\"\",\"token_expires_at\": \"0000-12-31T21:25:56-02:34\",\"is_active\": false,\"last_sync\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/external_wallets/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"external_wallets",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "External_wallets Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/external_wallets/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"external_wallets",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "WALLET_PROVIDERS 🎯",
+			"item": [
+				{
+					"name": "GetWallet_providers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_providers?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_providers"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWallet_providersById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_providers/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_providers",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWallet_providersByProviderCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_providers/providercode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_providers",
+								"providercode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Wallet_providersInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"provider_code\":\"\",\"name\":\"\",\"description\":\"\",\"api_endpoint\":\"\",\"requires_token\": false,\"token_duration_hours\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallet_providers",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_providers"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Wallet_providersUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"provider_code\":\"\",\"name\":\"\",\"description\":\"\",\"api_endpoint\":\"\",\"requires_token\": false,\"token_duration_hours\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallet_providers/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_providers",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Wallet_providers Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_providers/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_providers",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "USER_BANK_ACCOUNTS 🎯",
+			"item": [
+				{
+					"name": "GetUser_bank_accounts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_bank_accounts?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_bank_accounts"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_bank_accountsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_bank_accounts/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_bank_accounts",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_bank_accountsByBankAccountCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_bank_accounts/bankaccountcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_bank_accounts",
+								"bankaccountcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User_bank_accountsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"bank_account_code\":\"\",\"user_id\": 0,\"wallet_id\": 0,\"id_bank\": 0,\"agency\":\"\",\"account_number\":\"\",\"id_account_type\": 0,\"holder_name\":\"\",\"holder_document\":\"\",\"consent_id\":\"\",\"consent_expires_at\": \"0000-12-31T21:25:56-02:34\",\"is_verified\": false,\"is_active\": false,\"last_used\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_bank_accounts",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_bank_accounts"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "User_bank_accountsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"bank_account_code\":\"\",\"user_id\": 0,\"wallet_id\": 0,\"id_bank\": 0,\"agency\":\"\",\"account_number\":\"\",\"id_account_type\": 0,\"holder_name\":\"\",\"holder_document\":\"\",\"consent_id\":\"\",\"consent_expires_at\": \"0000-12-31T21:25:56-02:34\",\"is_verified\": false,\"is_active\": false,\"last_used\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_bank_accounts/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_bank_accounts",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "User_bank_accounts Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_bank_accounts/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_bank_accounts",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "ACCOUNT_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetAccount_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/account_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"account_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAccount_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/account_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"account_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAccount_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/account_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"account_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Account_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"requires_verification\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/account_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"account_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Account_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"requires_verification\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/account_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"account_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Account_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/account_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"account_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "BANKS 🎯",
+			"item": [
+				{
+					"name": "GetBanks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/banks?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"banks"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetBanksById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/banks/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"banks",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetBanksByBankCodeInternal",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/banks/bankcodeinternal/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"banks",
+								"bankcodeinternal",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "BanksInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"bank_code_internal\":\"\",\"bank_code\":\"\",\"name\":\"\",\"full_name\":\"\",\"website\":\"\",\"is_open_finance\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/banks",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"banks"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "BanksUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"bank_code_internal\":\"\",\"bank_code\":\"\",\"name\":\"\",\"full_name\":\"\",\"website\":\"\",\"is_open_finance\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/banks/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"banks",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Banks Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/banks/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"banks",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "USER_CARDS 🎯",
+			"item": [
+				{
+					"name": "GetUser_cards",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_cards?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_cards"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_cardsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_cards/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_cards",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_cardsByCardCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_cards/cardcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_cards",
+								"cardcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User_cardsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"card_code\":\"\",\"user_id\": 0,\"wallet_id\": 0,\"card_token\":\"\",\"id_card_brand\": 0,\"masked_number\":\"\",\"holder_name\":\"\",\"expiry_month\": 0,\"expiry_year\": 0,\"id_card_type\": 0,\"id_acquirer\": 0,\"is_primary\": false,\"is_active\": false,\"last_used\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_cards",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_cards"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "User_cardsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"card_code\":\"\",\"user_id\": 0,\"wallet_id\": 0,\"card_token\":\"\",\"id_card_brand\": 0,\"masked_number\":\"\",\"holder_name\":\"\",\"expiry_month\": 0,\"expiry_year\": 0,\"id_card_type\": 0,\"id_acquirer\": 0,\"is_primary\": false,\"is_active\": false,\"last_used\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_cards/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_cards",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "User_cards Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_cards/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_cards",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "ACQUIRERS 🎯",
+			"item": [
+				{
+					"name": "GetAcquirers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/acquirers?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"acquirers"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAcquirersById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/acquirers/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"acquirers",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAcquirersByAcquirerCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/acquirers/acquirercode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"acquirers",
+								"acquirercode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "AcquirersInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"acquirer_code\":\"\",\"name\":\"\",\"description\":\"\",\"api_endpoint\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/acquirers",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"acquirers"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "AcquirersUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"acquirer_code\":\"\",\"name\":\"\",\"description\":\"\",\"api_endpoint\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/acquirers/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"acquirers",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Acquirers Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/acquirers/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"acquirers",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "CARD_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetCard_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/card_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetCard_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/card_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetCard_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/card_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Card_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"default_daily_limit\": 0.00,\"default_monthly_limit\": 0.00,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/card_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Card_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"default_daily_limit\": 0.00,\"default_monthly_limit\": 0.00,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/card_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Card_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/card_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "CARD_BRANDS 🎯",
+			"item": [
+				{
+					"name": "GetCard_brands",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/card_brands?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_brands"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetCard_brandsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/card_brands/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_brands",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetCard_brandsByBrandCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/card_brands/brandcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_brands",
+								"brandcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Card_brandsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"brand_code\":\"\",\"name\":\"\",\"description\":\"\",\"logo_url\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/card_brands",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_brands"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Card_brandsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"brand_code\":\"\",\"name\":\"\",\"description\":\"\",\"logo_url\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/card_brands/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_brands",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Card_brands Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/card_brands/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"card_brands",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "WALLET_BALANCE_HISTORY 🎯",
+			"item": [
+				{
+					"name": "GetWallet_balance_history",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_balance_history?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_balance_history"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWallet_balance_historyById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_balance_history/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_balance_history",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWallet_balance_historyByBalanceHistoryCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_balance_history/balancehistorycode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_balance_history",
+								"balancehistorycode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Wallet_balance_historyInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"balance_history_code\":\"\",\"wallet_id\": 0,\"previous_balance\": 0.00,\"new_balance\": 0.00,\"change_amount\": 0.00,\"id_change_type\": 0,\"reference_id\": 0,\"description\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallet_balance_history",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_balance_history"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Wallet_balance_historyUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"balance_history_code\":\"\",\"wallet_id\": 0,\"previous_balance\": 0.00,\"new_balance\": 0.00,\"change_amount\": 0.00,\"id_change_type\": 0,\"reference_id\": 0,\"description\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallet_balance_history/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_balance_history",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Wallet_balance_history Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_balance_history/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_balance_history",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "BALANCE_CHANGE_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetBalance_change_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/balance_change_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"balance_change_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetBalance_change_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/balance_change_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"balance_change_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetBalance_change_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/balance_change_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"balance_change_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Balance_change_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_positive\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/balance_change_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"balance_change_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Balance_change_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_positive\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/balance_change_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"balance_change_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Balance_change_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/balance_change_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"balance_change_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "WALLETS 🎯",
+			"item": [
+				{
+					"name": "GetWallets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallets?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallets"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWalletsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallets/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallets",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWalletsByWalletCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallets/walletcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallets",
+								"walletcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "WalletsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"wallet_code\":\"\",\"user_id\": 0,\"application_id\": 0,\"name\":\"\",\"id_wallet_type\": 0,\"id_currency\": 0,\"id_status\": 0,\"balance\": 0.00,\"available_balance\": 0.00,\"daily_limit\": 0.00,\"monthly_limit\": 0.00,\"signature_required_above\": 0.00,\"is_primary\": false,\"metadata\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallets",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallets"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "WalletsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"wallet_code\":\"\",\"user_id\": 0,\"application_id\": 0,\"name\":\"\",\"id_wallet_type\": 0,\"id_currency\": 0,\"id_status\": 0,\"balance\": 0.00,\"available_balance\": 0.00,\"daily_limit\": 0.00,\"monthly_limit\": 0.00,\"signature_required_above\": 0.00,\"is_primary\": false,\"metadata\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallets/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallets",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Wallets Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallets/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallets",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "CURRENCIES 🎯",
+			"item": [
+				{
+					"name": "GetCurrencies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/currencies?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"currencies"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetCurrenciesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/currencies/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"currencies",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetCurrenciesByCurrencyCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/currencies/currencycode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"currencies",
+								"currencycode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "CurrenciesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"currency_code\":\"\",\"iso_code\":\"\",\"name\":\"\",\"symbol\":\"\",\"decimal_places\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/currencies",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"currencies"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "CurrenciesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"currency_code\":\"\",\"iso_code\":\"\",\"name\":\"\",\"symbol\":\"\",\"decimal_places\": 0,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/currencies/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"currencies",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Currencies Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/currencies/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"currencies",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "WALLET_STATUS 🎯",
+			"item": [
+				{
+					"name": "GetWallet_status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_status?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_status"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWallet_statusById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_status/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_status",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWallet_statusByStatusCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_status/statuscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_status",
+								"statuscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Wallet_statusInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"allows_transactions\": false,\"allows_deposits\": false,\"allows_withdrawals\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallet_status",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_status"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Wallet_statusUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"allows_transactions\": false,\"allows_deposits\": false,\"allows_withdrawals\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallet_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_status",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Wallet_status Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_status",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "WALLET_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetWallet_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWallet_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetWallet_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Wallet_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"default_daily_limit\": 0.00,\"default_monthly_limit\": 0.00,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallet_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Wallet_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"default_daily_limit\": 0.00,\"default_monthly_limit\": 0.00,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/wallet_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Wallet_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/wallet_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"wallet_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "BIOMETRIC_ATTEMPTS 🎯",
+			"item": [
+				{
+					"name": "GetBiometric_attempts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/biometric_attempts?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"biometric_attempts"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetBiometric_attemptsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/biometric_attempts/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"biometric_attempts",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetBiometric_attemptsByAttemptCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/biometric_attempts/attemptcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"biometric_attempts",
+								"attemptcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Biometric_attemptsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"attempt_code\":\"\",\"user_id\": 0,\"palm_hash\":\"\",\"accuracy_score\": 0.00,\"device_id\":\"\",\"id_attempt_result\": 0,\"id_failure_reason\": 0,,\"user_agent\":\"\",\"location_data\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/biometric_attempts",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"biometric_attempts"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Biometric_attemptsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"attempt_code\":\"\",\"user_id\": 0,\"palm_hash\":\"\",\"accuracy_score\": 0.00,\"device_id\":\"\",\"id_attempt_result\": 0,\"id_failure_reason\": 0,,\"user_agent\":\"\",\"location_data\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/biometric_attempts/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"biometric_attempts",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Biometric_attempts Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/biometric_attempts/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"biometric_attempts",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "FAILURE_REASONS 🎯",
+			"item": [
+				{
+					"name": "GetFailure_reasons",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/failure_reasons?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"failure_reasons"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetFailure_reasonsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/failure_reasons/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"failure_reasons",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetFailure_reasonsByReasonCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/failure_reasons/reasoncode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"failure_reasons",
+								"reasoncode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Failure_reasonsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"reason_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_critical\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/failure_reasons",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"failure_reasons"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Failure_reasonsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"reason_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_critical\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/failure_reasons/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"failure_reasons",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Failure_reasons Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/failure_reasons/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"failure_reasons",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "ATTEMPT_RESULTS 🎯",
+			"item": [
+				{
+					"name": "GetAttempt_results",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/attempt_results?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"attempt_results"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAttempt_resultsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/attempt_results/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"attempt_results",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAttempt_resultsByResultCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/attempt_results/resultcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"attempt_results",
+								"resultcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Attempt_resultsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"result_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_success\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/attempt_results",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"attempt_results"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Attempt_resultsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"result_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_success\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/attempt_results/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"attempt_results",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Attempt_results Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/attempt_results/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"attempt_results",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "PALM_BIOMETRICS 🎯",
+			"item": [
+				{
+					"name": "GetPalm_biometrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/palm_biometrics?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"palm_biometrics"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetPalm_biometricsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/palm_biometrics/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"palm_biometrics",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetPalm_biometricsByBiometricCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/palm_biometrics/biometriccode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"palm_biometrics",
+								"biometriccode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Palm_biometricsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"biometric_code\":\"\",\"user_id\": 0,\"palm_hash\":\"\",\"accuracy_score\": 0.00,\"id_hand_type\": 0,\"enrollment_device_id\":\"\",\"bitmap_signature\":\"\",\"is_primary\": false,\"is_active\": false,\"registered_at\": \"0000-12-31T21:25:56-02:34\",\"last_used\": \"0000-12-31T21:25:56-02:34\",\"usage_count\": 0,\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/palm_biometrics",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"palm_biometrics"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Palm_biometricsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"biometric_code\":\"\",\"user_id\": 0,\"palm_hash\":\"\",\"accuracy_score\": 0.00,\"id_hand_type\": 0,\"enrollment_device_id\":\"\",\"bitmap_signature\":\"\",\"is_primary\": false,\"is_active\": false,\"registered_at\": \"0000-12-31T21:25:56-02:34\",\"last_used\": \"0000-12-31T21:25:56-02:34\",\"usage_count\": 0,\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/palm_biometrics/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"palm_biometrics",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Palm_biometrics Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/palm_biometrics/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"palm_biometrics",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "HAND_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetHand_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/hand_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"hand_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetHand_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/hand_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"hand_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetHand_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/hand_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"hand_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Hand_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/hand_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"hand_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Hand_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/hand_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"hand_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Hand_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/hand_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"hand_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "USER_ADDRESSES 🎯",
+			"item": [
+				{
+					"name": "GetUser_addresses",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_addresses?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_addresses"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_addressesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_addresses/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_addresses",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_addressesByAddressCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_addresses/addresscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_addresses",
+								"addresscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User_addressesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"address_code\":\"\",\"user_id\": 0,\"id_address_type\": 0,\"street\":\"\",\"number\":\"\",\"complement\":\"\",\"neighborhood\":\"\",\"city\":\"\",\"state\":\"\",\"zip_code\":\"\",\"country\":\"\",\"is_primary\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_addresses",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_addresses"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "User_addressesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"address_code\":\"\",\"user_id\": 0,\"id_address_type\": 0,\"street\":\"\",\"number\":\"\",\"complement\":\"\",\"neighborhood\":\"\",\"city\":\"\",\"state\":\"\",\"zip_code\":\"\",\"country\":\"\",\"is_primary\": false,\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_addresses/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_addresses",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "User_addresses Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_addresses/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_addresses",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "ADDRESS_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetAddress_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/address_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"address_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAddress_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/address_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"address_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetAddress_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/address_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"address_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Address_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/address_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"address_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Address_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/address_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"address_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Address_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/address_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"address_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "USER_DOCUMENTS 🎯",
+			"item": [
+				{
+					"name": "GetUser_documents",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_documents?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_documents"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_documentsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_documents/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_documents",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_documentsByDocumentCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_documents/documentcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_documents",
+								"documentcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User_documentsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"document_code\":\"\",\"user_id\": 0,\"id_document_type\": 0,\"document_number\":\"\",\"file_path\":\"\",\"file_hash\":\"\",\"id_status_documents\": 0,\"verified_at\": \"0000-12-31T21:25:56-02:34\",\"verified_by\": 0,\"rejection_reason\":\"\",\"metadata\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_documents",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_documents"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "User_documentsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"document_code\":\"\",\"user_id\": 0,\"id_document_type\": 0,\"document_number\":\"\",\"file_path\":\"\",\"file_hash\":\"\",\"id_status_documents\": 0,\"verified_at\": \"0000-12-31T21:25:56-02:34\",\"verified_by\": 0,\"rejection_reason\":\"\",\"metadata\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_documents/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_documents",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "User_documents Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_documents/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_documents",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "DOCUMENT_STATUS 🎯",
+			"item": [
+				{
+					"name": "GetDocument_status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/document_status?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_status"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetDocument_statusById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/document_status/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_status",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetDocument_statusByStatusCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/document_status/statuscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_status",
+								"statuscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Document_statusInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_final\": false,\"requires_action\": false,\"next_possible_status\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/document_status",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_status"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Document_statusUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_final\": false,\"requires_action\": false,\"next_possible_status\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/document_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_status",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Document_status Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/document_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_status",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "DOCUMENT_TYPES 🎯",
+			"item": [
+				{
+					"name": "GetDocument_types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/document_types?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_types"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetDocument_typesById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/document_types/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_types",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetDocument_typesByTypeCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/document_types/typecode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_types",
+								"typecode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Document_typesInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_required\": false,\"max_file_size_mb\": 0,\"allowed_extensions\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/document_types",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_types"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Document_typesUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_required\": false,\"max_file_size_mb\": 0,\"allowed_extensions\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/document_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_types",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Document_types Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/document_types/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"document_types",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "USERS 🎯",
+			"item": [
+				{
+					"name": "GetUsers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/users?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"users"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUsersById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/users/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"users",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUsersByUserCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/users/usercode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"users",
+								"usercode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "UsersInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"user_code\":\"\",\"cpf\":\"\",\"full_name\":\"\",\"email\":\"\",\"phone\":\"\",\"birth_date\": \"0000-12-31\",\"id_status\": 0,\"id_kyc_status\": 0,\"kyc_level\": 0,\"app_password_hash\":\"\",\"biometric_failures\": 0,\"last_login\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/users",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"users"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "UsersUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"user_code\":\"\",\"cpf\":\"\",\"full_name\":\"\",\"email\":\"\",\"phone\":\"\",\"birth_date\": \"0000-12-31\",\"id_status\": 0,\"id_kyc_status\": 0,\"kyc_level\": 0,\"app_password_hash\":\"\",\"biometric_failures\": 0,\"last_login\": \"0000-12-31T21:25:56-02:34\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/users/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"users",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Users Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/users/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"users",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "KYC_STATUS 🎯",
+			"item": [
+				{
+					"name": "GetKyc_status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/kyc_status?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"kyc_status"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetKyc_statusById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/kyc_status/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"kyc_status",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetKyc_statusByStatusCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/kyc_status/statuscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"kyc_status",
+								"statuscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Kyc_statusInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"allows_transactions\": false,\"max_transaction_amount\": 0.00,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/kyc_status",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"kyc_status"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "Kyc_statusUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"allows_transactions\": false,\"max_transaction_amount\": 0.00,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/kyc_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"kyc_status",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Kyc_status Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/kyc_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"kyc_status",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "USER_STATUS 🎯",
+			"item": [
+				{
+					"name": "GetUser_status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_status?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_status"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_statusById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_status/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_status",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetUser_statusByStatusCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_status/statuscode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_status",
+								"statuscode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User_statusInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_status",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_status"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "User_statusUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status_code\":\"\",\"name\":\"\",\"description\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/user_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_status",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "User_status Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/user_status/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"user_status",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "SYSTEM_CONFIGURATIONS 🎯",
+			"item": [
+				{
+					"name": "GetSystem_configurations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/system_configurations?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"system_configurations"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSystem_configurationsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/system_configurations/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"system_configurations",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetSystem_configurationsByConfigCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/system_configurations/configcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"system_configurations",
+								"configcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "System_configurationsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"config_code\":\"\",\"application_id\": 0,\"config_key\":\"\",\"config_value\":\"\",\"config_type\":\"\",\"description\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/system_configurations",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"system_configurations"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "System_configurationsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"config_code\":\"\",\"application_id\": 0,\"config_key\":\"\",\"config_value\":\"\",\"config_type\":\"\",\"description\":\"\",\"is_active\": false,\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/system_configurations/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"system_configurations",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "System_configurations Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/system_configurations/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"system_configurations",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+]
+},
+{
+			"name": "APPLICATIONS 🎯",
+			"item": [
+				{
+					"name": "GetApplications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/applications?offset=0&limit=10000",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"applications"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetApplicationsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/applications/2",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"applications",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetApplicationsByAppCode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/applications/appcode/teste11",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"applications",
+								"appcode",
+								"seuvaloraqui"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ApplicationsInsert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"app_code\":\"\",\"name\":\"\",\"code\":\"\",\"description\":\"\",\"api_key\":\"\",\"is_active\": false,\"settings\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+							    }
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/applications",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"applications"
+							]
+						}
+					},
+					"response": []
+					},
+				{
+					"name": "ApplicationsUpdate",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"app_code\":\"\",\"name\":\"\",\"code\":\"\",\"description\":\"\",\"api_key\":\"\",\"is_active\": false,\"settings\":\"\",\"created_at\": \"0000-12-31T21:25:56-02:34\",\"updated_at\": \"0000-12-31T21:25:56-02:34\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8000/api/applications/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"applications",
+							"12345678"
+							]
+						}
+					},
+					"response": []
+					},
+
+				{
+					"name": "Applications Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8000/api/applications/12345678",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"applications",
+								"12345678"
+							]
+						}
+					},
+					"response": []
+				}
+	        ]
+ 		}
+	]
+}

@@ -1,0 +1,31 @@
+[package]
+name = "client-simulator"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "client-simulator"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7", features = ["macros", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+tower-http = { version = "0.5", features = ["cors"] }
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "8", features = ["axum"] }
+lapin = "2"
+futures = "0.3"
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.8"
+# Pulsar (sistema de mensageria principal; exige protoc: apt-get install protobuf-compiler)
+pulsar = { version = "6", default-features = false, features = ["tokio-rustls-runtime"] }

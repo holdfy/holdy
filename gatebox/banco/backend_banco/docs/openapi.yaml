@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: Banco Saczuck API
+  version: 1.0.0-sandbox
+servers:
+  - url: http://localhost:8091
+paths:
+  /accounts:
+    post:
+      summary: Criar conta bancaria simulada (PF/PJ com CPF/CNPJ)
+  /accounts/me:
+    get:
+      summary: Consultar dados do usuario
+  /accounts/me/balance:
+    get:
+      summary: Consultar saldo
+  /accounts/me/topup:
+    post:
+      summary: Adicionar saldo manual na propria conta ou em conta de destino
+  /transactions:
+    get:
+      summary: Listar extrato
+  /transactions/{id}:
+    get:
+      summary: Consultar transacao
+  /payments/validate:
+    post:
+      summary: Validar cobranca no Gatebox
+  /payments/pix:
+    post:
+      summary: Pagar PIX copia e cola
+  /payments/qrcode:
+    post:
+      summary: Pagar QR Code PIX
+  /payments/link:
+    post:
+      summary: Pagar link de pagamento
+  /payments/{id}/approve:
+    post:
+      summary: Simular aprovado
+  /payments/{id}/reject:
+    post:
+      summary: Simular recusado
+  /payments/{id}/pending:
+    post:
+      summary: Simular pendente
+  /payments/{id}/refund:
+    post:
+      summary: Simular estorno/reembolso
+  /webhooks/gatebox:
+    post:
+      summary: Receber webhook do Gatebox
+  /simulation/settings:
+    get:
+      summary: Ler configuracoes de simulacao
+    put:
+      summary: Atualizar configuracoes de simulacao
+

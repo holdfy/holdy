@@ -1,0 +1,29 @@
+[package]
+name = "apicash-antifraude"
+description = "Anti-fraud, user score, SEFAZ/Receita and social validation for APICash"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+# Deterministic validators without outbound HTTP (for unit tests and CI).
+mock = []
+
+[dependencies]
+apicash-shared = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+rust_decimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

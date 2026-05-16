@@ -1,0 +1,81 @@
+[package]
+name = "apicash-frontend"
+description = "Dashboard administrativo HoldFy (Leptos SSR + hydration)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "apicash-frontend"
+path = "src/main.rs"
+required-features = ["ssr"]
+
+[dependencies]
+leptos = { workspace = true }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true, optional = true }
+tracing = { workspace = true }
+wasm-bindgen = { workspace = true, optional = true }
+console_error_panic_hook = { workspace = true, optional = true }
+
+[features]
+default = ["ssr", "hydrate"]
+ssr = [
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "dep:reqwest",
+    "dep:leptos_axum",
+    "dep:axum",
+    "dep:tower-http",
+    "dep:tokio",
+    "dep:leptos_config",
+    "dep:tracing-subscriber",
+]
+hydrate = [
+    "leptos/hydrate",
+    "dep:wasm-bindgen",
+    "dep:console_error_panic_hook",
+]
+
+[dependencies.leptos_axum]
+workspace = true
+optional = true
+
+[dependencies.axum]
+version = "0.7"
+default-features = false
+features = ["macros", "tokio", "http1"]
+optional = true
+
+[dependencies.tower-http]
+workspace = true
+features = ["fs", "trace"]
+optional = true
+
+[dependencies.tokio]
+workspace = true
+optional = true
+
+[dependencies.leptos_config]
+workspace = true
+optional = true
+
+[dependencies.tracing-subscriber]
+workspace = true
+features = ["env-filter"]
+optional = true
+
+[package.metadata.leptos]
+output-name = "apicash_frontend"
+site-root = "."
+site-pkg-dir = "pkg"
+site-addr = "0.0.0.0:3002"
+env = "DEV"

@@ -1,0 +1,25 @@
+[package]
+name = "apicash-auth"
+description = "Autenticação e segurança APICash (JWT, claims, middleware Axum)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["antifraude"]
+antifraude = ["dep:apicash-antifraude"]
+
+[dependencies]
+apicash-shared = { workspace = true }
+apicash-antifraude = { workspace = true, optional = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+http = { workspace = true }
+jsonwebtoken = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true, features = ["v5"] }

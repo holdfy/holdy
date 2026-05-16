@@ -1,0 +1,211 @@
+/**
+ * Estilos utilitários inspirados em Tailwind (sem pipeline obrigatório).
+ * Para build completo Tailwind: `npx tailwindcss -i ./styles/tailwind.css -o ./styles/output.css`
+ */
+
+:root {
+  --bg: #0f1419;
+  --surface: #1a2332;
+  --surface2: #243044;
+  --text: #e8eef5;
+  --muted: #8b9cb3;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --border: #334155;
+  --radius: 10px;
+  --font: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+.ap-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.ap-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 1rem 0;
+}
+
+.ap-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ap-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+
+.ap-main {
+  flex: 1;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.ap-brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0 1rem 1rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+
+.ap-nav-item {
+  display: block;
+  padding: 0.6rem 1.25rem;
+  color: var(--muted);
+  border-left: 3px solid transparent;
+}
+.ap-nav-item:hover,
+.ap-nav-item[data-active="true"] {
+  color: var(--text);
+  background: rgba(59, 130, 246, 0.08);
+  border-left-color: var(--accent);
+}
+
+.ap-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.ap-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.ap-card-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 0 0 0.35rem;
+}
+
+.ap-card-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ap-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ap-table th,
+.ap-table td {
+  padding: 0.65rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.ap-table th {
+  background: var(--surface2);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ap-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.ap-btn:hover {
+  border-color: var(--accent);
+}
+.ap-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.ap-btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.ap-input {
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.ap-muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.ap-chart {
+  height: 200px;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.ap-bar {
+  flex: 1;
+  min-width: 8px;
+  background: linear-gradient(180deg, var(--accent), #1e40af);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+}

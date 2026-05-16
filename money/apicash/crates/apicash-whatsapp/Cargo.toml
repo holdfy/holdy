@@ -1,0 +1,46 @@
+[package]
+name = "apicash-whatsapp"
+description = "HoldFy Agent — bot conversacional WhatsApp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "apicash_whatsapp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "apicash-whatsapp"
+path = "src/main.rs"
+
+[dependencies]
+apicash-shared = { workspace = true }
+apicash-core = { workspace = true }
+apicash-antifraude = { workspace = true, features = ["mock"] }
+apicash-custody = { workspace = true }
+apicash-auth = { workspace = true }
+whatsapp-rust = { workspace = true, features = ["sqlite-storage"] }
+whatsapp-rust-tokio-transport = { workspace = true }
+whatsapp-rust-ureq-http-client = { workspace = true }
+wacore = { workspace = true }
+waproto = { workspace = true }
+whatsapp-cloud-api = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true, features = ["multipart"] }
+rust_decimal = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+thiserror = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["png"] }
+qrcode = "0.14"
+rusqlite = { version = "0.32", default-features = false, features = ["bundled"] }
+
+[dev-dependencies]
+tempfile = "3"

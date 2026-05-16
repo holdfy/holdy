@@ -1,0 +1,20 @@
+[package]
+name = "apicash-soroban-contracts"
+description = "Contratos Soroban APICash — custódia (escrow) e distribuição de yield (70/10/20)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[package.metadata.stellar]
+# Metadados para `stellar contract build` (CLI Stellar)
+contract-name = "apicash_escrow"

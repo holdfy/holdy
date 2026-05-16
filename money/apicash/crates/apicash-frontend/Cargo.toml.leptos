@@ -1,0 +1,9 @@
+# Configuração lida por `leptos_config::get_configuration` e por `cargo-leptos`.
+# Mantido alinhado a `[package.metadata.leptos]` do Cargo.toml.
+
+[package.metadata.leptos]
+output-name = "apicash_frontend"
+site-root = "."
+site-pkg-dir = "pkg"
+site-addr = "0.0.0.0:3002"
+env = "DEV"

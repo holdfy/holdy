@@ -1,0 +1,42 @@
+[package]
+name = "apicash-admin-backend"
+description = "Backend administrativo APICash (API interna / dashboard)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "apicash-admin-backend"
+path = "src/main.rs"
+
+[dependencies]
+apicash-auth = { workspace = true }
+apicash-shared = { workspace = true }
+apicash-core = { workspace = true }
+apicash-custody = { workspace = true }
+apicash-antifraude = { workspace = true }
+apicash-disputes = { workspace = true }
+apicash-events = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true }
+dotenvy = { workspace = true }
+rust_decimal = { workspace = true }
+reqwest = { workspace = true }
+
+[dev-dependencies]
+apicash-shared = { workspace = true }
+http-body-util = "0.1"
+rust_decimal = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tower = { workspace = true, features = ["util"] }

@@ -1,0 +1,126 @@
+[workspace]
+resolver = "2"
+# 13 crates: bibliotecas de domínio, APIs, UI, CLI e integrações.
+members = [
+    "soroban-contracts",
+    "crates/apicash-admin-backend",
+    "crates/apicash-anchor",
+    "crates/apicash-antifraude",
+    "crates/apicash-auth",
+    "crates/apicash-cli",
+    "crates/apicash-core",
+    "crates/apicash-custody",
+    "crates/apicash-disputes",
+    "crates/apicash-events",
+    "crates/apicash-frontend",
+    "crates/apicash-notifications",
+    "crates/apicash-shared",
+    "crates/apicash-whatsapp",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.85"
+
+[workspace.dependencies]
+# CLI
+clap = { version = "4", features = ["derive"] }
+# Async / runtime
+tokio = { version = "1.40", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# HTTP / API
+axum = "0.8"
+axum-extra = { version = "0.10", features = ["typed-header"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "fs", "request-id"] }
+tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
+hyper = "1"
+http = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Data / persistence
+# Pin 0.8.6; sem `migrate` no workspace (mantém o grafo só Postgres).
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "postgres", "chrono", "uuid", "rust_decimal"] }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+
+# Serialization / errors
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_with = "3"
+thiserror = "2"
+anyhow = "1"
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# IDs / time / money
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+rust_decimal = { version = "1", features = ["serde"] }
+
+# Config / env
+config = "0.14"
+dotenvy = "0.15"
+
+# Crypto / auth (services)
+jsonwebtoken = "9"
+argon2 = "0.5"
+base64 = "0.22"
+
+# Stellar / Soroban (SDK Rust oficial; contratos Soroban usam soroban-sdk)
+stellar-rpc-client = "25.1"
+stellar-xdr = "25.0.1"
+soroban-sdk = "23.5"
+
+# Messaging — Apache Pulsar (crate `pulsar`, upstream streamnative/pulsar-rs)
+pulsar = { version = "6.7", default-features = false, features = ["tokio-runtime", "auth-oauth2", "compression"] }
+
+# WhatsApp — `whatsapp-rust` (multi-device). `apicash-whatsapp` ativa `sqlite-storage` localmente.
+whatsapp-rust = { version = "0.5", default-features = false, features = ["moka-cache", "tokio-transport", "tokio-runtime", "ureq-client", "tokio-native", "signal"] }
+whatsapp-rust-tokio-transport = { version = "0.5", default-features = false }
+whatsapp-rust-ureq-http-client = { version = "0.5", default-features = false }
+wacore = { version = "0.5.0", default-features = false }
+waproto = { version = "0.5.0", default-features = false }
+whatsapp-cloud-api = "0.5"
+
+# UI (admin) — SSR compila no host; CSR/wasm será configurado depois
+leptos = { version = "0.7", features = ["ssr"] }
+leptos_router = { version = "0.7", features = ["ssr"] }
+leptos_meta = { version = "0.7", features = ["ssr"] }
+leptos_axum = "0.7"
+leptos_config = "0.7"
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+
+# Crates internos (referência única para { workspace = true })
+apicash-admin-backend = { path = "crates/apicash-admin-backend" }
+apicash-anchor = { path = "crates/apicash-anchor" }
+apicash-antifraude = { path = "crates/apicash-antifraude" }
+apicash-auth = { path = "crates/apicash-auth" }
+apicash-cli = { path = "crates/apicash-cli" }
+apicash-core = { path = "crates/apicash-core" }
+apicash-custody = { path = "crates/apicash-custody" }
+apicash-disputes = { path = "crates/apicash-disputes" }
+apicash-events = { path = "crates/apicash-events" }
+apicash-frontend = { path = "crates/apicash-frontend" }
+apicash-notifications = { path = "crates/apicash-notifications" }
+apicash-shared = { path = "crates/apicash-shared" }
+apicash-whatsapp = { path = "crates/apicash-whatsapp" }
+
+# crates.io `whatsapp-rust-sqlite-storage` 0.5 fixa libsqlite3-sys 0.35; no mesmo workspace que
+# sqlx 0.8 isso impede unificar `links = "sqlite3"`. O patch vende o crate com libsqlite3-sys 0.30.1.
+[patch.crates-io]
+whatsapp-rust-sqlite-storage = { path = "patches/whatsapp-rust-sqlite-storage" }
+
+# Binários de serviço: otimização e binários menores em produção.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

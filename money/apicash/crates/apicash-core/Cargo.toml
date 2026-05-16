@@ -1,0 +1,44 @@
+[package]
+name = "apicash-core"
+description = "Main REST API for APICash (Axum)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+# Anti-fraud `mock` feature enables deterministic validators without outbound HTTP (tests/local helpers).
+default = []
+mock = ["apicash-antifraude/mock"]
+# Enable Soroban live bridge (requires env + `APICASH_SOROBAN_ENABLED=1` at runtime).
+soroban = ["apicash-custody/soroban", "apicash-anchor/soroban"]
+
+[lib]
+name = "apicash_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "apicash-core"
+path = "src/main.rs"
+
+[dependencies]
+apicash-auth = { workspace = true }
+apicash-shared = { workspace = true }
+apicash-custody = { workspace = true }
+apicash-anchor = { workspace = true }
+apicash-antifraude = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+dotenvy = { workspace = true }
+reqwest = { workspace = true }
+rust_decimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true, features = ["util"] }
+tower-http = { workspace = true }
+tower_governor = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }

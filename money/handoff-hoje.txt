@@ -1,0 +1,26 @@
+CHECKPOINT — continuar mais tarde (mesmo dia, abril 2026)
+
+Último estado da sessão
+------------------------
+• Infra: `./runinfra.sh start` OK — Postgres apicash (5432), Redis, Pulsar; migração
+  `20260428120000_orders_funding_instruction` aplicada.
+• Env: em `money/.env`, `APICASH_FIAT_RAIL` está como **anchor** (antes simulated causava
+  panic no arranque do apicash-core — já corrigido).
+• Apps: `./runapp.sh stop apicash` + `./runapp.sh start apicash` executados depois do fix;
+  último status: **running** com HTTP 200 em core :3000, admin :3001, frontend :3002,
+  whatsapp webhook :3010.
+• Logs em `apicash/.runapp/logs/*.log`.
+
+Pontos a rever quando voltares
+------------------------------
+• WhatsApp: no histórico de logs apareceu “health … Address already in use” e
+  conflict=replaced — vale confirmar sessão única / porta livre.
+• Frontend: avisos Leptos/reactivity nos logs (já existiam).
+• Gatebox: fluxos no `runapp.sh` estão stubs/código legado comentado; anchor-only na stack.
+
+Comandos úteis para retomar
+---------------------------
+  cd money && ./runinfra.sh status
+  cd money && ./runapp.sh status
+  cd money && ./runapp.sh logs apicash
+  tail -f apicash/.runapp/logs/apicash-core.log

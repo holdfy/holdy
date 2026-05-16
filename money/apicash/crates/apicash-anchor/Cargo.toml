@@ -1,0 +1,38 @@
+[package]
+name = "apicash-anchor"
+description = "Stellar network, Horizon, Anchor SEP on/off-ramp (PIX ↔ BRLx) for APICash"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+# Inclui `soroban-sdk` opcional para integração com contratos / host (árvore de dependências maior).
+soroban = ["dep:soroban-sdk"]
+# Alias retrocompatível.
+soroban-prep = ["soroban"]
+
+[dependencies]
+apicash-shared = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+dotenvy = { workspace = true }
+reqwest = { workspace = true }
+rust_decimal = { workspace = true, features = ["serde-with-str"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+# Stellar: crates.io `stellar-rpc-client` (ecossistema “Stellar Rust SDK” / RPC Soroban).
+stellar-rpc-client = { workspace = true }
+stellar-xdr = { workspace = true }
+
+soroban-sdk = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+wiremock = "0.6"

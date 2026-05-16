@@ -1,0 +1,75 @@
+<mxfile host="app.diagrams.net" pages="2">
+  <diagram name="Página-1" id="pPGxdDAUP6-xpWDT0mS3">
+    <mxGraphModel dx="1387" dy="689" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="o2eB2tysq2s77RVNne7x-1" parent="1" style="swimlane;html=1;childLayout=stackLayout;resizeParent=1;resizeParentMax=0;horizontal=0;startSize=20;horizontalStack=0;whiteSpace=wrap;" value="Pool" vertex="1">
+          <mxGeometry height="930" width="730" x="60" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-2" parent="o2eB2tysq2s77RVNne7x-1" style="swimlane;html=1;startSize=20;horizontal=0;" value="Comprador Cliente" vertex="1">
+          <mxGeometry height="120" width="710" x="20" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-8" parent="o2eB2tysq2s77RVNne7x-2" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="&lt;div&gt;Iniciar pedido CPF&amp;nbsp;&lt;/div&gt;&lt;div&gt;dados anti-fraude&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="230" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-9" parent="o2eB2tysq2s77RVNne7x-2" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=standard;symbol=general;" value="" vertex="1">
+          <mxGeometry height="50" width="50" x="60" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-5" parent="o2eB2tysq2s77RVNne7x-1" style="swimlane;startSize=20;horizontal=0;html=1;whiteSpace=wrap;" value="APICache-Core" vertex="1">
+          <mxGeometry height="120" width="710" x="20" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-10" parent="o2eB2tysq2s77RVNne7x-5" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="Receber e validar pedido&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="214" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-3" parent="o2eB2tysq2s77RVNne7x-1" style="swimlane;html=1;startSize=20;horizontal=0;" value="ApiCach-Antifraude" vertex="1">
+          <mxGeometry height="120" width="710" x="20" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-11" parent="o2eB2tysq2s77RVNne7x-3" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="Calcular User Score e risco&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="214" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-12" parent="o2eB2tysq2s77RVNne7x-3" style="rhombus;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="80" width="80" x="380" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-4" parent="o2eB2tysq2s77RVNne7x-1" style="swimlane;html=1;startSize=20;horizontal=0;" value="APICache-Anchor" vertex="1">
+          <mxGeometry height="200" width="710" x="20" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-13" parent="o2eB2tysq2s77RVNne7x-4" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="Calcular User Score e risco&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="380" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-15" parent="o2eB2tysq2s77RVNne7x-4" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="transfer_brlx_to_escrow&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="390" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-14" edge="1" parent="o2eB2tysq2s77RVNne7x-1" source="o2eB2tysq2s77RVNne7x-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.367;entryY=0.06;entryDx=0;entryDy=0;entryPerimeter=0;" target="o2eB2tysq2s77RVNne7x-13" value="Sim — Approve ou Review">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-16" parent="o2eB2tysq2s77RVNne7x-1" style="swimlane;startSize=20;horizontal=0;html=1;whiteSpace=wrap;" value="apicash-custody (+ Soroban opc.)" vertex="1">
+          <mxGeometry height="250" width="710" x="20" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-17" parent="o2eB2tysq2s77RVNne7x-16" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="lock_funds&amp;lt;br/&amp;gt;estado InCustody&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="390" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-18" parent="o2eB2tysq2s77RVNne7x-16" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="Yield acumula em custódia&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="390" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-19" parent="o2eB2tysq2s77RVNne7x-16" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="&lt;div&gt;Libertação idempotente&lt;/div&gt;&lt;div&gt;confirm_release / API custódia&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="390" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-20" parent="o2eB2tysq2s77RVNne7x-1" style="swimlane;startSize=20;horizontal=0;html=1;whiteSpace=wrap;" value="apicash-anchor" vertex="1">
+          <mxGeometry height="120" width="710" x="20" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="o2eB2tysq2s77RVNne7x-21" parent="o2eB2tysq2s77RVNne7x-20" style="points=[[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=1;expand=0;collapsible=0;taskMarker=abstract;" value="Off-ramp quando aplicável&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="400" y="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="OJ4wWj7o3r5qZvIyfGWH" name="Página-2">
+    <mxGraphModel dx="1387" dy="689" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

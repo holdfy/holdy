@@ -1,0 +1,100 @@
+# =============================================================================
+# APICash — ficheiros e pastas que não devem ir para o Git
+# (A raiz do monorepo em ../../.gitignore espelha estas regras quando o Git
+#  estiver em pos-nearx/; este ficheiro aplica-se quando a raiz do repo é só
+#  apicash/.)
+# =============================================================================
+
+# --- Rust / Cargo ---
+/target/
+**/target/
+**/*.rs.bk
+# Descomente se quiser ignorar o lock numa lib pura (em apps/binários costuma-se commitar):
+# Cargo.lock
+
+# --- Ambiente e segredos (nunca commitar) ---
+.env
+.env.*
+!env.template
+# Legado: scripts já não carregam isto — junte tudo em `.env` e pode apagar.
+.env.local
+.envrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.asc
+secrets/
+*.secret
+stellar.secret
+**/stellar.secret
+
+# --- IDEs e editores ---
+.idea/
+.vscode/
+*.iml
+*.code-workspace
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+.fleet/
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- runapp (pids, logs, SQLite WA local) ---
+.runapp/
+
+# --- Logs e temporários ---
+*.log
+logs/
+/tmp/
+/run/
+*.tmp
+*.bak
+*.orig
+
+# --- SQLx (dados offline de compile-time; regenerar com sqlx prepare) ---
+.sqlx/
+
+# --- Testes / cobertura ---
+tarpaulin-report.html
+coverage/
+*.profraw
+*.profdata
+lcov.info
+*.gcda
+*.gcno
+
+# --- Frontend / Leptos / WASM ---
+dist/
+pkg/
+/site/
+.trunk/
+node_modules/
+.pnpm-store/
+
+# --- Docker (artefatos locais) ---
+.docker/
+
+# --- Bases de dados locais (dev) ---
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Ferramentas / CI local ---
+.cache/
+.turbo/
+.vercel/
+playwright-report/
+test-results/
+
+# --- Stellar / Soroban (artefatos de build locais; o Wasm versionado pode estar fora de target) ---
+# Descomente se gerar .wasm na raiz do projeto:
+# *.wasm

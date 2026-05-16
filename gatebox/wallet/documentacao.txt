@@ -1,0 +1,76 @@
+------------------------------------------------------------
+1. Core da Carteira
+wallets → Registro principal da carteira do usuário.
+wallet_types → Tipos de carteiras (pessoal, empresarial, pré-paga).
+wallet_status → Status da carteira (ativa, bloqueada).
+currencies → Moedas suportadas (BRL, USD, etc.).
+wallet_balance_history → Histórico de alterações de saldo.
+balance_change_types → Tipos de mudanças de saldo (crédito, débito, taxa).
+------------------------------------------------------------
+2. Transações e Pagamentos
+transactions → Registro das transações.
+transaction_types → Tipos de transações (compra, saque, depósito).
+transaction_status → Status da transação (pendente, concluída, falha).
+transaction_status_history → Histórico de status das transações.
+payment_methods → Métodos de pagamento (PIX, cartão, boleto).
+signature_methods → Métodos de autenticação de transações (senha, OTP, biometria).
+user_pix_keys (nova) → Armazenamento das chaves Pix do usuário (CPF, e-mail, telefone, EVP).
+------------------------------------------------------------
+3. Integração com Gateways
+gateways → Gateways de pagamento integrados (Cielo, Stripe).
+gateway_transactions → Transações processadas via gateway.
+gateway_status_types → Status vindos do gateway.
+acquirers → Instituições adquirentes (processadoras de cartão).
+------------------------------------------------------------
+4. Meios de Pagament
+user_cards → Cartões salvos pelo usuário.
+card_types → Tipo de cartão (crédito, débito).
+card_brands → Bandeiras (Visa, Mastercard).
+user_bank_accounts → Contas bancárias do usuário.
+account_types → Tipos de conta (corrente, poupança).
+banks → Lista de bancos.
+external_wallets → Outras carteiras digitais vinculadas.
+wallet_providers → Provedores das carteiras externas.
+------------------------------------------------------------
+5. Cadastro, Identidade e KYC
+users → Dados do usuário (nome, CPF, telefone, e-mail, senha).
+user_status → Status do usuário (ativo, bloqueado).
+kyc_status → Status da verificação de identidade.
+user_documents → Documentos enviados pelo usuário.
+document_types → Tipos de documentos (RG, CNH, passaporte).
+document_status → Status dos documentos (aprovado, pendente, recusado).
+user_addresses → Endereços cadastrados.
+address_types → Tipos de endereço (residencial, comercial).
+face_biometrics (nova) → Armazenamento de biometria facial.
+user_transaction_pin (nova) → Senha transacional de 4 dígitos.
+otp_codes (nova) → Códigos OTP temporários para autenticação.
+------------------------------------------------------------
+6. Biometria e Segurança
+palm_biometrics → Biometria da palma da mão.
+hand_types → Tipo da mão (direita, esquerda).
+biometric_attempts → Tentativas de autenticação biométrica.
+attempt_results → Resultado da tentativa (sucesso, falha).
+failure_reasons → Motivos de falha na autenticação.
+------------------------------------------------------------
+7. Notificações e Mensagens
+user_notifications (nova) → Armazenamento de notificações para o usuário (transações, avisos de segurança).
+system_configurations → Configurações gerais (mensagens padrão, limites, taxas).
+------------------------------------------------------------
+8. Auditoria e Controle
+change_actors → Registra quem fez alterações (usuário, admin, sistema).
+applications → Aplicações integradas ao sistema (multi-app, API).
+Funcionalidades contempladas com essas tabelas
+Cadastro de usuário completo (nome, CPF, telefone, e-mail, senha, endereço, documentos, selfie).
+Upload de documentos e foto facial.
+KYC e verificação de identidade.
+Confirmação via OTP.
+Senha transacional de 4 dígitos.
+Cadastro e validação de cartões (com 3DS).
+Cadastro de conta bancária e Pix.
+Consulta de saldo e extrato.
+Histórico completo de transações e status.
+Notificações no app.
+Biometria de palma e facial para login/transações.
+Integração com gateways e adquirentes.
+Auditoria de ações e configurações.
+------------------------------------------------------------

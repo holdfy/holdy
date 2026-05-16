@@ -1,0 +1,173 @@
+# =============================================================================
+# pos-nearx — monorepo (gatebox + money/apicash + whatsapp_qrcode)
+# =============================================================================
+
+# --- Ambiente e segredos (nunca commitar) ---
+.env
+.env.*
+!.env.example
+!**/.env.example
+!env.template
+.env.local
+.envrc
+config.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.csr
+*.jks
+*.asc
+**/secrets/
+*.secret
+**/stellar.secret
+**/certificados/**/*.pfx
+**/certificados/**/*.key
+**/certificados/**/*.pem
+
+# Credenciais / notas pessoais com passwords (ex.: money/github.txt)
+**/github.txt
+**/*credentials*
+**/*_secret*
+**/importante.txt
+**/importante*.txt
+**/conversa_gpt
+
+# --- Rust / Cargo ---
+**/target/
+**/*.rs.bk
+
+# --- Go ---
+*.test
+*.out
+go.work
+vendor/
+**/vendor/
+main
+/bin/
+**/bin/
+gateboxgo_debug
+**/*_debug
+*.a
+*.o
+
+# --- Node / frontend ---
+**/node_modules/
+**/.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+*.tsbuildinfo
+**/.next/
+**/out/
+**/.nuxt/
+**/.parcel-cache/
+
+# --- Flutter / Dart / Android ---
+**/.dart_tool/
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+**/.gradle/
+**/local.properties
+**/*.apk
+**/*.aab
+**/*.ipa
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/.kotlin/
+
+# --- runapp / runtime local (money + apicash) ---
+**/.runapp/
+
+# --- Logs e temporários ---
+*.log
+**/*.log
+**/logs/
+**/tmp/
+**/temp/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*~
+*.swp
+*.swo
+
+# --- SQLx ---
+**/.sqlx/
+
+# --- IDEs e editores ---
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.code-workspace
+.project
+.classpath
+.settings/
+.fleet/
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Testes / cobertura ---
+tarpaulin-report.html
+**/coverage/
+.nyc_output/
+*.lcov
+*.profraw
+*.profdata
+lcov.info
+*.gcda
+*.gcno
+
+# --- Frontend / Leptos / WASM / Trunk ---
+**/dist/
+**/pkg/
+**/site/
+**/.trunk/
+
+# --- Docker (overrides locais) ---
+**/.docker/
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# --- Bases de dados locais ---
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Ferramentas / CI local ---
+**/.cache/
+**/.turbo/
+**/.vercel/
+**/playwright-report/
+**/test-results/
+
+# --- Soroban / Stellar ---
+**/test_snapshots/
+
+# --- Backups e artefactos pesados (não versionar) ---
+*.tar.gz
+*.tar
+*.zip
+*.7z
+*.rar
+
+# --- Dados de validador / chain local ---
+**/test-chain*/
+**/validator*-data/

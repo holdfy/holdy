@@ -1,0 +1,1371 @@
+INSTRUÇÃO IMPORTANTE
+
+Começaremos exatamente como você pediu: montando as estruturas dos projetos separadamente.
+Depois de executar cada prompt no Cursor, responda apenas com:
+próximo ou next
+
+Eu vou te entregar o próximo prompt imediatamente.
+Vamos construir um módulo/crate por vez para você não se perder.
+
+
+PROMPT #1 – Criar a estrutura raiz do Workspace (Cargo Workspace)
+
+Você é um arquiteto Rust senior especializado em fintech e sistemas de pagamento com escrow.
+
+Crie do zero um **Cargo workspace completo** chamado **apicash**.
+
+Estrutura exata que deve ser criada:
+
+apicash/
+├── Cargo.toml                  # workspace root
+├── Cargo.lock
+├── README.md
+├── .gitignore
+├── env.template
+├── docker-compose.yml          # (para pulsar, postgres, redis)
+├── infra/                      # (vazio por enquanto)
+├── crates/
+│   ├── apicash-shared/         # tipos comuns, erros, configs
+│   ├── apicash-core/           # API Principal (Axum)
+│   ├── apicash-whatsapp/       # WhatsApp Agent (whatsapp-rust + business)
+│   ├── apicash-custody/        # Serviço de Custódia + yield logic
+│   ├── apicash-anchor/         # Integração Stellar + Anchor (on/off-ramp)
+│   ├── apicash-antifraude/     # Anti-Fraude + User Score + SEFAZ + redes sociais
+│   ├── apicash-disputes/       # Serviço de Disputas
+│   ├── apicash-events/         # Pulsar producers/consumers
+│   ├── apicash-notifications/  # Notificações (WhatsApp, email, sms)
+│   ├── apicash-auth/           # Autenticação e Segurança
+│   ├── apicash-admin-backend/  # Backend Administrativo (APIs internas)
+│   ├── apicash-frontend/       # Frontend Administrativo (Leptos)
+│   └── apicash-cli/            # Ferramentas internas e CLI
+└── docs/
+    └── arquitetura.md
+
+No arquivo **Cargo.toml raiz** configure um workspace completo com:
+- members = todos os crates acima
+- resolver = "2"
+- [workspace.package] com versão 0.1.0, edition = "2021", license = "MIT"
+- [workspace.dependencies] com versões padronizadas para:
+  - tokio, axum, tower, sqlx, serde, thiserror, tracing, etc.
+  - stellar-rust-sdk, soroban-sdk, pulsar-rs, whatsapp-rust, etc. (inclua os principais que vamos usar)
+
+Crie também:
+- Um .gitignore completo para Rust + fintech
+- Um README.md com descrição do projeto, como rodar e como usar o workspace
+- Um env.template com variáveis principais (DATABASE_URL, STELLAR_ANCHOR_URL, WHATSAPP_TOKEN, etc.)
+- Um docker-compose.yml básico (postgres, redis, pulsar)
+
+Após criar toda a estrutura, confirme com a mensagem:
+"✅ Workspace APICash criado com sucesso! Estrutura de 13 crates pronta. Pronto para o próximo prompt."
+
+Não gere código de lógica ainda — apenas a estrutura de pastas e arquivos de configuração.
+
+
+
+//////////////////////////////////
+Aqui está o Prompt #2 – bem detalhado e otimizado para o Cursor.
+
+PROMPT #2 – Criar o crate apicash-shared (Base comum do projeto)
+
+Você é um arquiteto Rust senior especializado em fintech.
+
+Agora vamos criar o primeiro crate do workspace APICash: **apicash-shared**.
+
+Este crate será a biblioteca central de tipos, erros, configurações, constantes e utilitários compartilhados por todos os outros crates.
+
+Crie a estrutura completa do crate `crates/apicash-shared/` com a seguinte organização:
+
+
+apicash-shared/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── config/
+│   │   ├── mod.rs
+│   │   └── app_config.rs
+│   ├── error/
+│   │   ├── mod.rs
+│   │   └── apicash_error.rs
+│   ├── models/
+│   │   ├── mod.rs
+│   │   ├── order.rs
+│   │   ├── payment.rs
+│   │   ├── custody.rs
+│   │   ├── user.rs
+│   │   ├── score.rs          # Para User Score
+│   │   └── dispute.rs
+│   ├── types/
+│   │   ├── mod.rs
+│   │   ├── money.rs          # Decimal seguro para valores financeiros
+│   │   └── status.rs
+│   ├── constants.rs
+│   └── utils/
+│       ├── mod.rs
+│       └── stellar.rs        # helpers para Stellar (testnet/mainnet, etc.)
+├── README.md
+└── examples/
+└── config_example.rs
+
+
+
+
+**Requisitos específicos:**
+
+1. No **Cargo.toml**:
+   - Dependências essenciais: serde, serde_json, thiserror, chrono, rust_decimal, tracing, dotenvy, config (crate), uuid, etc.
+   - Defina `[package]` com name = "apicash-shared", version = "0.1.0", edition = "2021"
+
+2. No **src/lib.rs**:
+   - Publique todos os módulos
+   - Crie um re-export limpo (`pub use ...`)
+
+3. Crie structs principais bem documentadas:
+   - `AppConfig` (com campos para database, stellar, whatsapp, pulsar, antifraude, etc.)
+   - `ApiCashError` (enum com variantes detalhadas para diferentes tipos de erro)
+   - `Order` (id, buyer_id, seller_id, amount, status, created_at, etc.)
+   - `Custody` (order_id, amount, status, locked_at, released_at, yield_earned)
+   - `UserScore` (user_id, score: u32, risk_level: enum, last_updated, factors)
+   - `PaymentStatus`, `CustodyStatus`, `DisputeStatus` (enums)
+   - `Money` wrapper usando rust_decimal para valores financeiros
+
+4. Use boas práticas:
+   - Derive necessário (Debug, Clone, Serialize, Deserialize, etc.)
+   - Implemente Display e From traits onde fizer sentido
+   - Use rust_decimal para todo dinheiro (nunca f64)
+   - Inclua comentários claros em inglês
+
+5. Crie um arquivo `constants.rs` com valores importantes (ex: yield_distribution: (70, 10, 20), default_custody_days: 7, etc.)
+
+Após terminar, responda exatamente com:
+"✅ apicash-shared criado com sucesso! Tipos, erros e configurações base prontos."
+
+Não avance para outros crates ainda.
+
+
+////////////////////////////
+Aqui está o Prompt #3 – agora vamos criar o módulo de Anti-Fraude & Risco, que é crítico para o APICash (inclui User Score, validação SEFAZ e redes sociais).
+
+Você é um arquiteto Rust senior especializado em fintech e sistemas anti-fraude.
+
+Agora crie o crate **apicash-antifraude** dentro do workspace APICash.
+
+Este módulo é responsável por calcular o User Score, realizar validações SEFAZ/Receita Federal e validações em redes sociais, antes de permitir qualquer on-ramp na Stellar.
+
+Estrutura exata que deve ser criada:
+
+
+apicash-antifraude/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── service/
+│   │   ├── mod.rs
+│   │   └── antifraude_service.rs
+│   ├── score/
+│   │   ├── mod.rs
+│   │   ├── user_score.rs
+│   │   ├── score_calculator.rs
+│   │   └── risk_factors.rs
+│   ├── validation/
+│   │   ├── mod.rs
+│   │   ├── sefaz_validator.rs      # CPF / CNPJ via Receita Federal
+│   │   ├── social_validator.rs     # Instagram, TikTok, Facebook
+│   │   └── validation_result.rs
+│   ├── models/
+│   │   ├── mod.rs
+│   │   ├── user_profile.rs
+│   │   └── antifraude_event.rs
+│   └── repository/
+│       └── score_repository.rs
+├── README.md
+└── tests/
+└── score_test.rs
+
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: apicash-shared (workspace = true), reqwest, serde, chrono, rust_decimal, tokio, tracing, sqlx (se necessário), serde_json
+   - Adicione feature "mock" para testes
+
+2. Crie os seguintes componentes principais:
+
+   - **`UserScore`** struct com:
+     - score: u32 (0-1000)
+     - risk_level: enum (Low, Medium, High, Critical)
+     - factors: Vec<RiskFactor>
+     - last_updated: DateTime
+
+   - **`RiskFactor`** enum com pesos (ex: sefaz_status, social_account_age, transaction_history, etc.)
+
+   - **`AntiFraudeService`** com método principal:
+     ```rust
+     pub async fn calculate_score(&self, user_id: Uuid, cpf: &str, social_links: &[String]) -> Result<UserScore>
+
+
+SefazValidator: simula/consulta status do CPF/CNPJ (use mock + estrutura pronta para integração real com API como FiscalAPI ou similar)
+SocialValidator: valida links de Instagram/TikTok (verifica existência, idade da conta, consistência de nome). Use mocks realistas.
+
+
+Implemente lógica de pontuação:
+CPF Regular = +300 pontos
+Conta social com mais de 6 meses = +150
+Histórico de disputas = penalidade forte
+Score final decide: Approve, Review, Block
+
+No lib.rs faça re-export claro:
+
+pub use crate::service::AntiFraudeService;
+pub use crate::score::{UserScore, RiskLevel};
+
+
+1. Inclua testes unitários básicos no diretório tests/.
+
+Após concluir, responda exatamente com:
+"✅ apicash-antifraude criado com sucesso! User Score, validações SEFAZ e redes sociais implementados."
+Não crie nenhum outro crate ainda.
+
+
+---
+
+
+////////////////////////////
+Aqui está o Prompt #4 – agora vamos criar o coração financeiro do projeto.
+
+PROMPT #4 – Criar o crate apicash-custody (Serviço de Custódia + Yield)
+
+Você é um arquiteto Rust senior especializado em fintech e blockchain.
+
+Agora crie o crate **apicash-custody** dentro do workspace APICash.
+
+Este módulo é responsável por toda a lógica de custódia (escrow), bloqueio de fundos, cálculo e distribuição de yield enquanto o dinheiro está travado na Stellar (usando Soroban).
+
+Estrutura exata que deve ser criada:
+
+
+apicash-custody/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── service/
+│   │   ├── mod.rs
+│   │   └── custody_service.rs
+│   ├── models/
+│   │   ├── mod.rs
+│   │   ├── custody.rs
+│   │   ├── yield_distribution.rs
+│   │   └── release_request.rs
+│   ├── yield/
+│   │   ├── mod.rs
+│   │   ├── yield_calculator.rs
+│   │   └── distribution.rs
+│   ├── repository/
+│   │   └── custody_repository.rs
+│   └── errors.rs
+├── README.md
+└── tests/
+└── custody_test.rs
+
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: apicash-shared (workspace = true), tokio, sqlx, rust_decimal, chrono, tracing, uuid, serde
+   - Adicione `soroban-sdk` e `stellar-rust-sdk` (vamos usar mais pra frente, mas já deixe preparado)
+
+2. Crie os seguintes componentes principais:
+
+   - **`Custody`** struct:
+     - order_id, amount (Money), status (enum: Locked, Released, Disputed, Expired)
+     - locked_at, expected_release_at, actual_release_at
+     - yield_earned (opcional)
+
+   - **`YieldDistribution`** struct:
+     - seller_share: Decimal (70%)
+     - buyer_cashback: Decimal (10%)
+     - platform_share: Decimal (20%)
+
+   - **`CustodyService`** com métodos chave:
+     ```rust
+     pub async fn lock_funds(&self, order: &Order) -> Result<Custody>;
+     pub async fn release_funds(&self, order_id: Uuid, confirmation: ReleaseConfirmation) -> Result<ReleaseResult>;
+     pub async fn calculate_yield(&self, custody: &Custody, days: i64) -> Result<YieldDistribution>;
+
+
+Lógica de yield:
+Simule rendimento diário (ex: 0.5% a.m. configurável)
+Divisão automática 70/10/20 quando liberado
+Registre yield_earned separadamente
+
+
+
+Use rust_decimal para todos cálculos financeiros (nunca f64).
+Crie enum CustodyStatus com estados claros.
+
+No lib.rs faça re-exports limpos:Rust
+
+
+pub use crate::service::CustodyService;
+pub use crate::models::{Custody, CustodyStatus, YieldDistribution};
+
+Inclua comentários claros explicando que esta lógica será integrada com Soroban Smart Contracts da Stellar no futuro.
+
+
+Após concluir, responda exatamente com:
+"✅ apicash-custody criado com sucesso! Lógica de escrow e yield pronta."
+Não avance para outros crates.
+
+
+
+---
+
+////////////////////////////////////////////////////////
+✅ Ótimo! Vamos continuar.
+Aqui está o Prompt #5 – agora vamos criar a integração com a Stellar, que é o coração técnico do APICash.
+PROMPT #5 – Criar o crate apicash-anchor (Integração com Stellar + On/Off-Ramp)
+
+Você é um arquiteto Rust senior especializado em blockchain e fintech, com forte experiência em Stellar.
+
+Agora crie o crate **apicash-anchor** dentro do workspace APICash.
+
+Este módulo é responsável por toda a integração com a rede Stellar: On-Ramp (PIX → BRLx), Off-Ramp (BRLx → PIX), interação com Anchors e preparação para Soroban.
+
+Estrutura exata que deve ser criada:
+
+apicash-anchor/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── service/
+│   │   ├── mod.rs
+│   │   └── anchor_service.rs
+│   ├── client/
+│   │   ├── mod.rs
+│   │   ├── stellar_client.rs
+│   │   └── anchor_client.rs
+│   ├── models/
+│   │   ├── mod.rs
+│   │   ├── on_ramp.rs
+│   │   ├── off_ramp.rs
+│   │   └── stellar_transaction.rs
+│   ├── config/
+│   │   └── stellar_config.rs
+│   └── utils/
+│       └── sep24.rs          # helpers para SEP-6/SEP-24 (deposit/withdraw)
+├── README.md
+└── tests/
+└── anchor_test.rs
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: apicash-shared (workspace = true), stellar-rust-sdk, soroban-sdk, reqwest, serde, tokio, tracing, rust_decimal, uuid, chrono
+
+2. Crie os seguintes componentes principais:
+
+   - **`StellarConfig`** com:
+     - network (Testnet ou Mainnet)
+     - anchor_url
+     - asset_code ("BRLx" ou similar)
+     - horizon_url
+     - secret_key (para contas operacionais - usar com muito cuidado)
+
+   - **`AnchorService`** com métodos principais:
+     ```rust
+     pub async fn deposit_pix(&self, amount: Money, memo: String) -> Result<OnRampResponse>;
+     pub async fn withdraw_to_pix(&self, token_amount: Money, destination_pix_key: String) -> Result<OffRampResponse>;
+     pub async fn get_transaction_status(&self, tx_id: &str) -> Result<StellarTransaction>;
+
+
+Modelos:
+OnRampResponse (contém stellar_tx_hash, status, estimated_time)
+OffRampResponse (tx_hash, status, received_pix)
+StellarTransaction (id, amount, asset, from, to, memo)
+
+
+
+Implemente lógica clara separando:
+Chamadas ao Anchor (on/off-ramp via PIX)
+Chamadas diretas ao Stellar Horizon
+Preparação para integração futura com Soroban (lock/unlock)
+
+Use environment variables para chaves e URLs (nunca hardcode).
+Crie mocks bons para testes (use feature "mock").
+No lib.rs faça re-exports claros:
+
+pub use crate::service::AnchorService;
+pub use crate::models::{OnRampResponse, OffRampResponse};
+
+
+pub use crate::service::AnchorService;
+pub use crate::models::{OnRampResponse, OffRampResponse};
+
+
+Adicione comentários explicando que este módulo é o principal ponto de contato com a Stellar Network e que o dinheiro real fica tokenizado como BRLx.
+
+Após concluir, responda exatamente com:
+"✅ apicash-anchor criado com sucesso! Integração com Stellar e Anchor (on/off-ramp) pronta."
+Não avance para outros crates.
+
+
+---
+
+**Ação agora:**
+
+1. Copie **todo o prompt acima**.
+2. Cole no Cursor.
+3. Aguarde ele criar o crate completo.
+4. Quando terminar, responda aqui com apenas:
+
+**`próximo`**
+
+Vou entregar o Prompt #6 em seguida (o `apicash-core` – API Principal).
+
+Pronto? Cole o Prompt #5 no Cursor agora.  
+
+Depois digite **`próximo`**.
+
+////////////////////////////////////////////////////////
+Aqui está o Prompt #6 – agora vamos criar o coração da API, o módulo mais importante para expor funcionalidades.
+PROMPT #6 – Criar o crate apicash-core (API Principal / Backend Core)
+
+Você é um arquiteto Rust senior especializado em APIs financeiras de alta performance.
+
+Agora crie o crate **apicash-core** dentro do workspace APICash.
+
+Este é o módulo principal da aplicação: uma API REST robusta usando Axum que orquestra todos os outros serviços (custody, anchor, antifraude, etc.).
+
+Estrutura exata que deve ser criada:
+
+
+apicash-core/
+├── Cargo.toml
+├── src/
+│   ├── main.rs                    # entry point da API
+│   ├── lib.rs
+│   ├── config/
+│   │   └── app_config.rs
+│   ├── router/
+│   │   ├── mod.rs
+│   │   └── routes.rs
+│   ├── handlers/
+│   │   ├── mod.rs
+│   │   ├── order_handler.rs
+│   │   ├── payment_handler.rs
+│   │   └── custody_handler.rs
+│   ├── middleware/
+│   │   ├── mod.rs
+│   │   └── auth_middleware.rs
+│   ├── state/
+│   │   └── app_state.rs           # Application state com todos os serviços
+│   └── dto/
+│       ├── mod.rs
+│       ├── create_order.rs
+│       ├── order_response.rs
+│       └── release_request.rs
+├── README.md
+└── tests/
+└── api_test.rs
+
+
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: apicash-shared, apicash-custody, apicash-anchor, apicash-antifraude (todos com workspace = true)
+   - axum, tower, tower-http, serde, tokio, tracing, tracing-subscriber, sqlx, uuid, dotenvy
+
+2. Configure uma API Axum completa com:
+   - Router modular
+   - Estado compartilhado (`AppState`) que injeta:
+     - AntiFraudeService
+     - CustodyService  
+     - AnchorService
+   - Middleware básico de tracing e autenticação (preparado para expansão)
+
+3. Crie as seguintes rotas principais (usando handlers):
+   - `POST /orders`          → Criar pedido protegido (chama antifraude primeiro)
+   - `GET  /orders/:id`      → Consultar status do pedido
+   - `POST /payments/pix`    → Gerar QR Code PIX protegido
+   - `POST /custody/release` → Liberar pagamento (após confirmação)
+   - `GET  /health`          → Health check
+
+4. No handler de criação de pedido:
+   - Primeiro chama `antifraude.calculate_score()`
+   - Se score OK → chama `custody.lock_funds()`
+   - Depois chama `anchor.deposit_pix()`
+
+5. Use DTOs claros (CreateOrderRequest, OrderResponse, etc.) com validação.
+6. Implemente tracing adequado (info, error) em todas as rotas principais.
+7. No `main.rs` configure o servidor Axum para rodar na porta 3000 por padrão, com graceful shutdown.
+
+No `lib.rs` faça re-exports úteis.
+
+Após concluir, responda exatamente com:
+"✅ apicash-core criado com sucesso! API Principal com Axum e rotas principais pronta."
+
+Não avance para outros crates ainda.
+
+
+
+////////////////////////////////////////////////////////
+Aqui está o Prompt #7 – agora vamos criar o WhatsApp Agent, que é um dos diferenciais mais importantes do APICash.
+
+PROMPT #7 – Criar o crate apicash-whatsapp (WhatsApp Agent)
+
+Você é um arquiteto Rust senior especializado em integrações conversacionais e bots.
+
+Agora crie o crate **apicash-whatsapp** dentro do workspace APICash.
+
+Este módulo é responsável pelo "APICash Agent" — o bot conversacional completo no WhatsApp que permite criar pedidos protegidos, enviar QR Code PIX, receber confirmações do comprador e gerenciar fluxo simples de disputa.
+
+Estrutura exata que deve ser criada:
+
+apicash-whatsapp/
+├── Cargo.toml
+├── src/
+│   ├── main.rs                    # entry point do bot (pode rodar como serviço separado)
+│   ├── lib.rs
+│   ├── service/
+│   │   ├── mod.rs
+│   │   └── whatsapp_service.rs
+│   ├── handlers/
+│   │   ├── mod.rs
+│   │   ├── message_handler.rs
+│   │   ├── order_flow.rs
+│   │   └── confirmation_handler.rs
+│   ├── models/
+│   │   ├── mod.rs
+│   │   └── whatsapp_event.rs
+│   ├── session/
+│   │   └── session_manager.rs
+│   └── utils/
+│       ├── qr_code.rs             # Geração de QR Code PIX
+│       └── message_templates.rs
+├── README.md
+└── tests/
+└── flow_test.rs
+
+
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: apicash-shared, apicash-core, apicash-antifraude, apicash-custody (workspace = true)
+   - whatsapp-rust (ou bailey-rs / equivalente moderno), tokio, serde, image (para QR Code), qrcode, tracing
+
+2. Crie os seguintes componentes principais:
+
+   - **`WhatsAppService`** com:
+     - Inicialização do cliente WhatsApp (multi-device)
+     - Listener de mensagens recebidas
+     - Envio de mensagens, imagens e botões interativos
+
+   - **`MessageHandler`** que processa diferentes tipos de mensagens:
+     - Comando "novo pedido" → inicia fluxo de criação
+     - Recebimento de dados (valor, descrição)
+     - Confirmação "recebi o produto"
+
+   - Fluxo conversacional principal (`OrderFlow`):
+     1. Usuário inicia pedido
+     2. Coleta CPF + links sociais (se necessário)
+     3. Chama API Principal (`apicash-core`) para criar pedido + calcular score
+     4. Gera QR Code PIX protegido e envia como imagem + copia-e-cola
+     5. Aguarda confirmação do comprador
+     6. Ao confirmar → chama liberação via custody service
+
+   - Utilitário para gerar QR Code PIX (`qr_code.rs`)
+
+3. Implemente templates de mensagens claras e profissionais em português:
+   - "Seu pagamento protegido foi criado! Escaneie o QR Code abaixo:"
+   - "Confirme que recebeu o produto digitando *CONFIRMAR*"
+
+4. No `main.rs` configure o bot para rodar como serviço separado (pode usar tokio::spawn).
+
+5. No `lib.rs` faça re-exports úteis.
+
+Após concluir, responda exatamente com:
+"✅ apicash-whatsapp criado com sucesso! WhatsApp Agent com fluxo conversacional pronto."
+
+Não avance para outros crates.
+
+
+
+
+////////////////////////////////////////////////////////
+PROMPT #8 – Criar o crate apicash-events (Eventos e Mensageria com Pulsar)
+Você é um arquiteto Rust senior especializado em sistemas distribuídos e mensageria de alta performance.
+
+Agora crie o crate **apicash-events** dentro do workspace APICash.
+
+Este módulo é responsável por toda a mensageria assíncrona usando Apache Pulsar. Ele conecta todos os serviços de forma desacoplada (ex: pagamento recebido → custódia → antifraude update).
+
+Estrutura exata que deve ser criada:
+
+apicash-events/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── producer/
+│   │   ├── mod.rs
+│   │   └── event_producer.rs
+│   ├── consumer/
+│   │   ├── mod.rs
+│   │   ├── custody_consumer.rs
+│   │   ├── antifraude_consumer.rs
+│   │   └── release_consumer.rs
+│   ├── models/
+│   │   ├── mod.rs
+│   │   ├── events.rs              # Todos os eventos do sistema
+│   │   └── event_types.rs
+│   ├── config/
+│   │   └── pulsar_config.rs
+│   └── utils/
+│       └── pulsar_client.rs
+├── README.md
+└── tests/
+└── event_test.rs
+
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: apicash-shared (workspace = true), pulsar-rs, tokio, serde, serde_json, tracing, uuid, chrono
+
+2. Defina uma enum rica de eventos no `models/events.rs`:
+
+   ```rust
+   pub enum ApicashEvent {
+       OrderCreated(OrderCreatedEvent),
+       PaymentReceived(PaymentReceivedEvent),
+       ScoreCalculated(ScoreCalculatedEvent),
+       FundsLocked(FundsLockedEvent),
+       DeliveryConfirmed(DeliveryConfirmedEvent),
+       YieldCalculated(YieldCalculatedEvent),
+       FundsReleased(FundsReleasedEvent),
+       DisputeOpened(DisputeOpenedEvent),
+       // ... outros eventos importantes
+   }
+
+
+Crie EventProducer com métodos simples e tipados:
+publish_order_created(&self, event: OrderCreatedEvent)
+publish_payment_received(...)
+publish_funds_released(...)
+
+
+Crie consumers básicos:
+CustodyConsumer → escuta PaymentReceived e chama lock_funds
+AntiFraudeConsumer → atualiza score após transações
+ReleaseConsumer → processa liberação final
+
+
+Configure conexão com Pulsar (host, tenant, namespace) via config.
+Use tracing extensivo em producers e consumers.
+No lib.rs faça re-exports claros:
+
+pub use crate::producer::EventProducer;
+pub use crate::models::ApicashEvent;
+
+Após concluir, responda exatamente com:
+"✅ apicash-events criado com sucesso! Sistema de mensageria com Pulsar pronto."
+Não avance para outros crates ainda.
+
+////////////////////////////////////////////////////////
+PROMPT #9 – Criar o crate apicash-disputes (Serviço de Disputas)
+
+Você é um arquiteto Rust senior especializado em fintech e sistemas de escrow.
+
+Agora crie o crate **apicash-disputes** dentro do workspace APICash.
+
+Este módulo gerencia todo o fluxo de disputas (quando comprador reclama que não recebeu o produto ou o produto veio com problema). Ele mantém o dinheiro travado na Stellar via Soroban até a resolução.
+
+Estrutura exata que deve ser criada:
+
+
+apicash-disputes/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── service/
+│   │   ├── mod.rs
+│   │   └── dispute_service.rs
+│   ├── models/
+│   │   ├── mod.rs
+│   │   ├── dispute.rs
+│   │   ├── evidence.rs
+│   │   └── resolution.rs
+│   ├── repository/
+│   │   └── dispute_repository.rs
+│   ├── handlers/
+│   │   └── dispute_handler.rs
+│   └── utils/
+│       └── timeout_manager.rs
+├── README.md
+└── tests/
+└── dispute_test.rs
+text
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: apicash-shared, apicash-custody, apicash-events (workspace = true), sqlx, tokio, chrono, uuid, serde, tracing
+
+2. Crie os modelos principais:
+
+   - **`Dispute`** struct com:
+     - id, order_id, opened_by (buyer/seller), reason, status (Open, UnderReview, Resolved, Closed)
+     - evidence: Vec<Evidence>
+     - opened_at, resolved_at
+     - resolution_type (RefundBuyer, ReleaseToSeller, Split, Manual)
+
+   - **`Evidence`** (foto, código de rastreio, mensagem, etc.)
+
+   - Enum `DisputeStatus` e `ResolutionType`
+
+3. **`DisputeService`** com métodos chave:
+   ```rust
+   pub async fn open_dispute(&self, order_id: Uuid, reason: String, evidence: Vec<Evidence>) -> Result<Dispute>;
+   pub async fn resolve_dispute(&self, dispute_id: Uuid, resolution: ResolutionType, notes: Option<String>) -> Result<()>;
+   pub async fn auto_resolve_timeout(&self);   // para disputas que passam do prazo
+
+
+4. Integração importante:
+Ao abrir disputa → publica evento via apicash-events
+Ao abrir disputa → chama apicash-custody para manter o lock (não permite liberação)
+Ao resolver → chama custody para liberar ou devolver fundos
+
+Inclua lógica de timeout (ex: 7 dias para resposta automática).
+No lib.rs faça re-exports claros:
+
+pub use crate::service::DisputeService;
+pub use crate::models::{Dispute, DisputeStatus, ResolutionType};
+
+Após concluir, responda exatamente com:
+"✅ apicash-disputes criado com sucesso! Serviço completo de disputas pronto."
+Não avance para outros crates.
+
+
+////////////////////////////////////////////////////////
+
+PROMPT #10 – Criar o crate apicash-admin-backend (Backend Administrativo)
+Você é um arquiteto Rust senior especializado em fintech.
+
+Agora crie o crate **apicash-admin-backend** dentro do workspace APICash.
+
+Este módulo contém as APIs internas (não públicas) usadas pelo dashboard administrativo. Ele serve dados para vendedores, plataformas B2B e equipe interna (relatórios, gestão de usuários, disputas, yield, etc.).
+
+Estrutura exata que deve ser criada:
+
+
+apicash-admin-backend/
+├── Cargo.toml
+├── src/
+│   ├── main.rs
+│   ├── lib.rs
+│   ├── router/
+│   │   ├── mod.rs
+│   │   └── admin_routes.rs
+│   ├── handlers/
+│   │   ├── mod.rs
+│   │   ├── dashboard_handler.rs
+│   │   ├── seller_handler.rs
+│   │   ├── dispute_admin_handler.rs
+│   │   ├── report_handler.rs
+│   │   └── yield_handler.rs
+│   ├── dto/
+│   │   ├── mod.rs
+│   │   ├── admin_order_response.rs
+│   │   ├── seller_dashboard.rs
+│   │   └── report_request.rs
+│   └── middleware/
+│       └── admin_auth_middleware.rs
+├── README.md
+└── tests/
+└── admin_test.rs
+
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: apicash-shared, apicash-core, apicash-custody, apicash-antifraude, apicash-disputes, apicash-events (todos com workspace = true)
+   - axum, tower-http, serde, tokio, sqlx, tracing
+
+2. Crie rotas administrativas protegidas (prefixo `/admin`):
+
+   - `GET  /admin/dashboard`                  → Resumo geral (volume, yield total, disputas abertas)
+   - `GET  /admin/sellers/:id/dashboard`      → Dashboard do vendedor (pedidos, rendimento, score médio)
+   - `GET  /admin/orders`                     → Lista de pedidos com filtros (status, score, data)
+   - `GET  /admin/disputes`                   → Lista e detalhe de disputas
+   - `POST /admin/disputes/:id/resolve`       → Resolver disputa manualmente
+   - `GET  /admin/reports/yield`              → Relatório de rendimento gerado
+   - `GET  /admin/users/score`                → Usuários com score baixo ou alto risco
+
+3. Implemente handlers que chamam os serviços correspondentes:
+   - CustodyService para dados de custódia e yield
+   - DisputeService para gestão de disputas
+   - AntiFraudeService para relatórios de score
+
+4. Crie DTOs específicos para respostas administrativas (mais ricos que os públicos).
+
+5. Middleware simples de autenticação admin (preparado para JWT ou API Key mais robusta).
+
+6. No `main.rs` configure o servidor Axum em uma porta diferente (ex: 3001) para separar da API pública.
+
+7. No `lib.rs` faça re-exports úteis.
+
+Após concluir, responda exatamente com:
+"✅ apicash-admin-backend criado com sucesso! Backend administrativo pronto."
+
+Não avance para outros crates.
+
+
+
+////////////////////////////////////////////////////////
+Aqui está o Prompt #11 – agora vamos criar o Frontend Administrativo.
+
+PROMPT #11 – Criar o crate apicash-frontend (Frontend Administrativo com Leptos)
+
+Você é um arquiteto Rust full-stack senior especializado em interfaces administrativas.
+
+Agora crie o crate **apicash-frontend** dentro do workspace APICash usando **Leptos** (SSR + CSR).
+
+Este é o dashboard administrativo web para vendedores e equipe interna visualizarem pedidos, rendimento, disputas, scores e relatórios.
+
+Estrutura exata que deve ser criada:
+
+apicash-frontend/
+├── Cargo.toml
+├── src/
+│   ├── main.rs
+│   ├── lib.rs
+│   ├── app.rs                          # Root component
+│   ├── components/
+│   │   ├── mod.rs
+│   │   ├── navbar.rs
+│   │   ├── sidebar.rs
+│   │   ├── dashboard_summary.rs
+│   │   ├── order_table.rs
+│   │   ├── dispute_list.rs
+│   │   └── yield_chart.rs
+│   ├── pages/
+│   │   ├── mod.rs
+│   │   ├── dashboard.rs
+│   │   ├── orders.rs
+│   │   ├── disputes.rs
+│   │   ├── sellers.rs
+│   │   └── reports.rs
+│   ├── providers/
+│   │   └── auth_provider.rs
+│   └── utils/
+│       └── api_client.rs               # Client para chamar apicash-admin-backend
+├── Cargo.toml.leptos                   # Configuração Leptos
+├── index.html
+├── README.md
+└── styles/
+└── tailwind.css                    # (opcional com Tailwind via Leptos)
+
+
+
+
+**Requisitos detalhados:**
+
+1. No **Cargo.toml**:
+   - Dependências: leptos, leptos_axum, leptos_meta, leptos_router, serde, reqwest, wasm-bindgen, console_error_panic_hook
+   - Configure features para SSR + hydration
+
+2. Crie uma interface moderna e funcional com:
+   - Sidebar de navegação (Dashboard, Pedidos, Disputas, Vendedores, Relatórios)
+   - Navbar com usuário logado e logout
+   - Dashboard principal com cards: 
+     - Volume total transacionado
+     - Yield gerado este mês
+     - Disputas abertas
+     - Score médio dos usuários
+
+3. Páginas principais:
+   - **Dashboard**: Cards + gráficos simples de yield
+   - **Pedidos**: Tabela filtrável com status, valor, score do usuário, botão de detalhe
+   - **Disputas**: Lista de disputas com filtros por status + botão de resolução
+   - **Vendedores**: Lista com score, volume, rendimento acumulado
+   - **Relatórios**: Exportação de CSV/PDF (preparado)
+
+4. Crie um `ApiClient` reutilizável que chama o `apicash-admin-backend` (use base URL via env).
+
+5. Use componentes reutilizáveis e estado reativo do Leptos.
+6. Inclua Tailwind CSS básico (ou prepare para integração).
+7. No `main.rs` configure o app Leptos com SSR + roteamento.
+
+Após concluir, responda exatamente com:
+"✅ apicash-frontend criado com sucesso! Dashboard administrativo com Leptos pronto."
+
+Não avance para outros crates.
+
+
+
+
+////////////////////////////////////////////////////////
+PROMPT #12 – Criar os crates finais: apicash-auth + apicash-cli + ajustes finais
+
+Você é um arquiteto Rust senior especializado em fintech e segurança.
+
+Agora vamos finalizar a estrutura principal do workspace APICash criando os dois últimos crates e fazendo ajustes necessários.
+
+Crie os seguintes crates:
+
+1. **apicash-auth** (Autenticação e Segurança)
+2. **apicash-cli** (Ferramentas internas e CLI)
+
+Estrutura para `apicash-auth`:
+
+apicash-auth/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── service/
+│   │   └── auth_service.rs
+│   ├── models/
+│   │   ├── user.rs
+│   │   ├── session.rs
+│   │   └── claims.rs
+│   ├── middleware/
+│   │   └── jwt_middleware.rs
+│   └── config/
+│       └── auth_config.rs
+
+
+
+Estrutura para `apicash-cli`:
+
+apicash-cli/
+├── Cargo.toml
+├── src/
+│   ├── main.rs
+│   ├── commands/
+│   │   ├── mod.rs
+│   │   ├── test_flow.rs       # Simular fluxo completo PIX → Custódia → Yield
+│   │   ├── check_custody.rs
+│   │   └── simulate_score.rs
+│   └── utils/
+│       └── stellar_testnet.rs
+
+
+
+**Requisitos detalhados:**
+
+1. **apicash-auth**:
+   - Use JWT (jsonwebtoken crate)
+   - Crie `AuthService` com login, generate_token, validate_token
+   - Middleware para Axum que protege rotas admin e algumas rotas públicas
+   - Claims com user_id, role (Seller, Buyer, Admin, Platform)
+   - Integre com apicash-antifraude (score influencia permissões em alguns casos)
+
+2. **apicash-cli**:
+   - Use clap para CLI profissional
+   - Comandos úteis:
+     - `apicash test-flow` → simula um fluxo completo (cria pedido, simula PIX, lock, yield, release)
+     - `apicash check-custody <order_id>`
+     - `apicash simulate-score <cpf>`
+     - `apicash stellar-balance` → checa saldo na testnet
+   - Muito útil para desenvolvimento e testes manuais
+
+3. Atualize o **Cargo.toml raiz** do workspace (se necessário) para incluir estes dois novos crates nos members.
+
+4. Atualize o `apicash-core` e `apicash-admin-backend` para usar o middleware de autenticação do `apicash-auth` (importe e aplique nas rotas protegidas).
+
+5. No final, crie um arquivo `docs/arquitetura.md` na raiz com um resumo de todos os crates e suas responsabilidades.
+
+Após concluir tudo, responda exatamente com:
+"✅ apicash-auth e apicash-cli criados com sucesso! Autenticação, segurança e CLI finalizados. Workspace principal completo!"
+
+Não crie mais nada além disso.
+
+////////////////////////////////////////////////////////
+Aqui está o Prompt #13 – Prompt Final de Integração e Setup.
+
+PROMPT #13 – Integração Final, Configuração e Instruções de Execução
+
+Você é um arquiteto Rust senior e Tech Lead de fintech.
+
+Agora que todos os crates do workspace APICash foram criados, faça a integração final e prepare o projeto para rodar.
+
+Execute as seguintes tarefas:
+
+1. **Atualize o Cargo.toml raiz** do workspace:
+   - Certifique-se que todos os 13 crates estão listados em `members = [...]`
+   - Adicione `[workspace.dependencies]` com versões consistentes de dependências comuns (tokio, axum, sqlx, tracing, etc.)
+
+2. **Atualize apicash-shared** se necessário para expor todos os tipos usados pelos outros crates.
+
+3. **Crie um arquivo `docs/arquitetura.md`** na raiz do projeto com:
+   - Visão geral do APICash
+   - Diagrama textual da arquitetura
+   - Lista de todos os crates com suas responsabilidades
+   - Fluxo principal de uma transação protegida (com User Score + Stellar)
+
+4. **Crie um Makefile** na raiz com comandos úteis:
+   - `make build` 
+   - `make run-core` (roda a API principal)
+   - `make run-whatsapp`
+   - `make run-admin`
+   - `make test`
+   - `make dev` (roda tudo em paralelo se possível)
+
+5. **Atualize o README.md raiz** do projeto com:
+   - Descrição clara do APICash
+   - Tecnologias usadas
+   - Como rodar o projeto (passo a passo)
+   - Estrutura de crates
+   - Próximos passos recomendados (ex: configurar banco, Stellar testnet, WhatsApp token, etc.)
+
+6. **Crie um docker-compose.yml** melhorado que inclua:
+   - PostgreSQL
+   - Redis
+   - Apache Pulsar
+   - (opcional) pgAdmin ou similar
+
+7. Adicione um `env.template` completo com todas as variáveis necessárias (DATABASE_URL, STELLAR_*, WHATSAPP_*, PULSAR_*, JWT_SECRET, etc.)
+
+Após terminar todas essas tarefas, responda exatamente com:
+
+"✅ APICash Workspace finalizado com sucesso!
+Todos os 13 crates foram criados e integrados.
+Estrutura completa, README atualizado, Makefile e docker-compose prontos.
+Projeto pronto para desenvolvimento e testes.
+
+Digite 'resumo' se quiser um resumo executivo final."
+
+Não crie mais crates novos.
+
+
+
+////////////////////////////////////////////////////////
+
+✅ Perfeito! Vamos seguir exatamente os passos que você escolheu.
+Vou te entregar 3 prompts sequenciais bem detalhados e otimizados para o Cursor, seguindo a ordem que você definiu:
+
+Configurar ambiente (docker-compose + .env)
+Testar fluxo básico (CLI + WhatsApp Agent)
+Integrar Soroban (Fase 2)
+
+
+////////////////////////////////////////////////////////
+PROMPT #14 – Configurar Ambiente (Docker + .env)
+
+Você é um DevOps + Rust senior.
+
+No workspace APICash, melhore e complete a configuração do ambiente de desenvolvimento.
+
+Execute as seguintes tarefas:
+
+1. **Melhore o docker-compose.yml** na raiz do projeto para incluir:
+   - PostgreSQL (com volume persistente e senha padrão)
+   - Redis
+   - Apache Pulsar (versão standalone mais recente)
+   - pgAdmin (opcional, mas útil)
+   - Defina networks e depends_on corretamente
+
+2. **Crie/atualize o arquivo env.template** na raiz com todas as variáveis necessárias, organizadas por seção:
+   - Database (POSTGRES_*, DATABASE_URL)
+   - Redis
+   - Pulsar (PULSAR_URL)
+   - Stellar (STELLAR_NETWORK=testnet, STELLAR_HORIZON_URL, ANCHOR_URL, etc.)
+   - WhatsApp (WHATSAPP_PHONE_NUMBER, WHATSAPP_TOKEN, WHATSAPP_BUSINESS_ID)
+   - JWT (JWT_SECRET)
+   - General (APP_ENV=development, API_PORT=3000, ADMIN_PORT=3001)
+
+3. **Atualize o Makefile** na raiz com comandos úteis:
+   - make up          → docker-compose up -d
+   - make down
+   - make logs
+   - make db-migrate
+   - make run-core
+   - make run-whatsapp
+   - make run-admin
+   - make test
+   - make dev         → roda os serviços principais em paralelo (use concurrently ou similar)
+
+4. **Crie um script setup.sh** (bash) na raiz que:
+   - Verifica se .env existe (copia de env.template se não existir)
+   - Roda docker-compose up -d
+   - Espera serviços subirem
+   - Roda migrações iniciais do banco (se houver)
+
+5. Atualize o README.md com uma seção clara "Como rodar o projeto localmente" com passos numerados.
+
+Após terminar, responda exatamente com:
+"✅ Ambiente configurado com sucesso! docker-compose, env.template, Makefile e setup.sh prontos."
+
+
+////////////////////////////////////////////////////////
+PROMPT #15 – Implementar Teste de Fluxo Básico (CLI + WhatsApp Agent)
+
+Você é um engenheiro Rust senior especializado em fintech.
+
+No projeto APICash, implemente o teste de fluxo básico completo.
+
+Execute as seguintes tarefas:
+
+1. **Melhore o crate `apicash-cli`**:
+   - Implemente o comando `test-flow` de forma completa e realista.
+   - O comando deve simular um fluxo ponta a ponta:
+     - Criar um pedido protegido (via API core)
+     - Calcular User Score (via antifraude)
+     - Simular pagamento PIX (mock on-ramp)
+     - Lock de fundos (via custody)
+     - Simular confirmação de entrega
+     - Calcular e distribuir yield
+     - Realizar off-ramp (mock)
+     - Mostrar resultado final com valores e tempos
+
+2. **Melhore o comando `simulate-score`** para mostrar detalhadamente os fatores que compõem o User Score.
+
+3. **Integre o WhatsApp Agent com a API Principal**:
+   - No `apicash-whatsapp`, faça o `MessageHandler` chamar a `apicash-core` via HTTP (use reqwest) quando o usuário inicia um pedido.
+   - Implemente o fluxo conversacional básico:
+     - Usuário digita "novo pedido" ou "pedido"
+     - Bot pede valor e descrição
+     - Chama API para criar pedido + antifraude
+     - Gera QR Code PIX (mock por enquanto)
+     - Envia mensagem com QR Code + instruções
+     - Aguarda confirmação ("confirmar" ou botão)
+
+4. **Adicione logs claros** em todos os passos do fluxo para facilitar debug.
+
+5. **Atualize o README.md** com uma seção "Testando o Fluxo Básico" contendo:
+   - Como rodar o CLI: `cargo run --bin apicash-cli test-flow`
+   - Como testar via WhatsApp Agent
+   - O que esperar em cada etapa
+
+Após terminar, responda exatamente com:
+"✅ Fluxo básico implementado com sucesso! CLI test-flow e integração WhatsApp Agent prontos para teste."
+
+Não avance para Soroban ainda.
+
+////////////////////////////////////////////////////////
+
+
+PROMPT #16 – Integrar Soroban Smart Contracts (Custódia Real na Stellar)
+
+
+Você é um especialista em Stellar e Soroban (Rust smart contracts) com experiência em fintech.
+
+Agora vamos implementar a Fase 2: transformar a lógica de custódia em **Smart Contracts reais usando Soroban** na rede Stellar.
+
+Execute as seguintes tarefas no workspace APICash:
+
+1. **Crie um novo diretório** na raiz chamado `soroban-contracts/` com a seguinte estrutura:
+
+
+soroban-contracts/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── escrow.rs           # Contrato principal de custódia
+│   ├── yield_distributor.rs
+│   └── types.rs
+├── tests/
+│   └── test_escrow.rs
+└── README.md
+
+
+soroban-contracts/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── escrow.rs           # Contrato principal de custódia
+│   ├── yield_distributor.rs
+│   └── types.rs
+├── tests/
+│   └── test_escrow.rs
+└── README.md
+
+
+
+
+////////////////////////////////////////////////////////
+Aqui está o Prompt #4 — continuação direta após a integração Soroban.
+Este prompt foca em conectar tudo, fazer os ajustes necessários após adicionar os contratos Soroban, e preparar o sistema para testes reais.
+////////////////////////////////////////////////////////
+
+PROMPT #4 – Conexão Final + Ajustes Após Soroban
+Você é um Tech Lead Rust + Stellar senior.
+
+Agora que os contratos Soroban foram criados e integrados no `apicash-custody`, faça a conexão final e os ajustes necessários em todo o workspace APICash.
+
+Execute as seguintes tarefas:
+
+1. **Atualize `apicash-custody`**:
+   - Faça o `CustodyService` usar o cliente Soroban por padrão (quando a feature "soroban" estiver ativada).
+   - Mantenha fallback para modo mock quando a feature não estiver ativa.
+   - Adicione método `deploy_escrow_contract()` e `invoke_lock()` etc.
+
+2. **Atualize `apicash-core`**:
+   - Na criação de pedido, após o score ser aprovado, chame o `CustodyService` que agora usa Soroban para fazer o lock.
+   - Atualize os handlers para lidar com respostas do Soroban (tx_hash, contract_id, etc.).
+
+3. **Atualize `apicash-anchor`**:
+   - Após o On-Ramp (PIX → BRLx), transfira o token BRLx para o endereço do contrato Soroban de escrow (em vez de apenas lock lógico).
+
+4. **Atualize `apicash-events`**:
+   - Adicione novos eventos relacionados ao Soroban:
+     - `FundsLockedOnChain`
+     - `YieldDistributedOnChain`
+     - `FundsReleasedOnChain`
+
+5. **Melhore o `apicash-cli`**:
+   - No comando `test-flow`, faça ele usar o fluxo real com Soroban (quando possível) ou mostrar claramente se está usando modo mock.
+   - Adicione comando novo: `deploy-contracts` para fazer deploy dos contratos Soroban na testnet.
+
+6. **Atualize o `docs/arquitetura.md`**:
+   - Adicione uma seção "Soroban Smart Contracts" explicando os contratos criados, funções principais e como eles se integram com o fluxo de custódia.
+
+7. **Atualize o README.md raiz** com:
+   - Status atual: "Soroban integrado (Fase 2 concluída)"
+   - Como testar com contratos reais na Stellar Testnet
+
+Após terminar todas as tarefas, responda exatamente com:
+"✅ Conexão final e ajustes após Soroban concluídos com sucesso!
+Todo o fluxo agora interage com contratos reais na Stellar.
+Projeto está pronto para testes avançados."
+
+Não crie novos crates.
+
+
+////////////////////////////////////////////////////////
+
+PROMPT #5 – Refinamentos Finais e Melhorias de Produção
+
+
+Você é um Tech Lead Rust + Fintech com foco em qualidade e produção.
+
+Agora faça os refinamentos finais no workspace APICash para deixar o projeto mais profissional e pronto para produção.
+
+Execute as seguintes tarefas:
+
+1. **Melhorias Gerais de Código**:
+   - Adicione tracing (info, warn, error) consistente em todos os crates principais (core, custody, anchor, whatsapp, antifraude).
+   - Garanta que todos os erros usem o `ApiCashError` do apicash-shared.
+   - Use rust_decimal em todos os cálculos financeiros (evite f64 completamente).
+
+2. **Melhorias no Anti-Fraude**:
+   - Melhore o cálculo do User Score com pesos mais realistas e comentários explicando cada fator.
+   - Adicione método `get_risk_recommendation()` que retorna "APPROVE", "REVIEW", "BLOCK".
+
+3. **Melhorias no WhatsApp Agent**:
+   - Implemente botões interativos (se possível com whatsapp-rust ou Cloud API).
+   - Melhore o fluxo conversacional para ser mais natural e resiliente (use session manager melhor).
+
+4. **Segurança e Produção**:
+   - No `apicash-auth`, melhore o JWT middleware com refresh token básico e rate limiting.
+   - Adicione health checks em todos os serviços (core, admin, whatsapp).
+   - Configure logging estruturado com JSON output em produção.
+
+5. **Documentação**:
+   - Atualize `docs/arquitetura.md` com o fluxo completo atualizado (incluindo Soroban).
+   - Crie um `CONTRIBUTING.md` básico.
+   - Adicione badges no README.md (Rust, Stellar, Axum, Leptos).
+
+6. **Makefile e Scripts**:
+   - Melhore o Makefile com targets:
+     - `make build-all`
+     - `make test-all`
+     - `make deploy-contracts` (para Soroban)
+     - `make run-all` (roda core + whatsapp + admin em paralelo)
+
+7. **Resumo Final**:
+   - Atualize o README.md com seção "Status Atual do Projeto" listando o que está funcional.
+
+Após concluir todas as tarefas, responda exatamente com:
+"✅ Refinamentos finais e melhorias de produção concluídos com sucesso!
+Projeto APICash agora está em um estado profissional e bem documentado."
+
+Não crie novos crates. Foque apenas em refinamento e qualidade.
+
+
+Ação agora:
+
+Copie todo o prompt acima.
+Cole diretamente no Cursor.
+Aguarde o Cursor fazer os refinamentos.
+
+Quando terminar, você pode me dizer:
+
+próximo → se quiser continuar com mais melhorias específicas
+Ou descrever exatamente o que quer fazer agora (ex: "melhorar o User Score", "adicionar integração real com WhatsApp Cloud API", "focar em testes", etc.)
+
+
+
+
+////////////////////////////////////////////////////////
+
+Aqui está o Prompt #6 — o último da sequência principal de construção.
+Este prompt foca em finalizar o projeto, deixar tudo limpo, consistente e pronto para você continuar desenvolvendo sozinho.
+
+PROMPT #6 – Finalização Completa e Polimento Final do Projeto
+
+Você é um Tech Lead Rust sênior com experiência em projetos fintech de produção.
+
+Este é o prompt final de construção do APICash. Faça a finalização completa e polimento do projeto.
+
+Execute as seguintes tarefas:
+
+1. **Verificação Geral de Consistência**:
+   - Revise todos os crates para garantir que usam consistentemente `apicash-shared` para tipos, erros e configurações.
+   - Remova qualquer código duplicado ou redundante.
+   - Garanta que todas as dependências entre crates estejam corretas no Cargo.toml raiz.
+
+2. **Melhorias de Qualidade**:
+   - Adicione `#[derive(Debug, Clone, PartialEq)]` onde fizer sentido nos modelos principais.
+   - Adicione documentação (`///`) em funções públicas importantes.
+   - Garanta que todos os serviços tenham tratamento de erros adequado com `?` operator.
+
+3. **Configuração de Features**:
+   - No `apicash-custody` e `apicash-anchor`, configure features "soroban" e "mock" corretamente.
+   - No Cargo.toml raiz, adicione um perfil de produção otimizado.
+
+4. **Documentação Final**:
+   - Atualize o `README.md` principal com:
+     - Descrição clara do projeto
+     - Tecnologias utilizadas
+     - Como rodar (passo a passo completo)
+     - Status atual (o que está funcional)
+     - Roadmap futuro (ex: integração WhatsApp Cloud API oficial, KYC avançado, etc.)
+   - Atualize `docs/arquitetura.md` com versão final incluindo Soroban.
+
+5. **Limpeza**:
+   - Remova qualquer código comentado desnecessário.
+   - Organize imports em todos os arquivos.
+   - Garanta que o projeto compile sem warnings (`cargo check`).
+
+6. **Mensagem Final**:
+   - Crie um arquivo `STATUS.md` na raiz resumindo o estado atual do projeto.
+
+Após terminar todas as tarefas, responda exatamente com esta mensagem:
+
+"🎉 APICash finalizado com sucesso!
+
+Projeto completo com:
+- 13 crates bem estruturados
+- User Score + validações SEFAZ e redes sociais
+- Custódia com Soroban Smart Contracts
+- API Principal + WhatsApp Agent
+- Dashboard Administrativo
+- CLI para testes
+- Documentação atualizada
+
+O projeto está pronto para desenvolvimento contínuo e testes reais na Stellar Testnet.
+
+Digite 'fim' ou descreva o que quer fazer em seguida."
+
+Não crie mais nada além do solicitado.
+
+////////////////////////////////////////////////////////
