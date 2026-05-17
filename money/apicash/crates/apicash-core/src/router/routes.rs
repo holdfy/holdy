@@ -12,7 +12,7 @@ use tower_http::trace::TraceLayer;
 use crate::handlers::{
     auth_handler, custody_handler, order_handler, payment_handler, testnet_handler,
 };
-use crate::middleware::auth_middleware;
+use crate::middleware::{auth_middleware, build_x402_layer};
 use crate::state::AppState;
 
 /// Builds the HTTP application with shared [`AppState`].
@@ -31,7 +31,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .layer(GovernorLayer::new(governor_conf.clone()))
         .with_state(state.clone());
 
-    let protected = Router::new()
+    let mut protected = Router::new()
         .route("/orders", post(order_handler::create_order))
         .route("/orders/{id}", get(order_handler::get_order))
         .route(
@@ -41,11 +41,16 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/orders/{id}/off-ramp", post(order_handler::order_off_ramp))
         .route("/risk/score", post(order_handler::calculate_risk_score))
         .route("/payments/pix", post(payment_handler::create_pix_payment))
-        .route("/custody/release", post(custody_handler::release_custody))
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth_middleware,
-        ));
+        .route("/custody/release", post(custody_handler::release_custody));
+
+    if let Some(x402) = build_x402_layer(state.clone()) {
+        protected = protected.layer(x402);
+    }
+
+    let protected = protected.layer(middleware::from_fn_with_state(
+        state.clone(),
+        auth_middleware,
+    ));
 
     // Internal service-to-service routes.
     //

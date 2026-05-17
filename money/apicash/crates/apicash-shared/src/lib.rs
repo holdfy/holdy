@@ -34,6 +34,8 @@ pub use constants::{
 
 // --- Utils ---
 pub use utils::{
-    assert_testnet_live_config, default_horizon_url, default_soroban_rpc_url, network_passphrase,
-    parse_network_label, require_testnet, validate_testnet_live_config, StellarNetworkKind,
+    assert_testnet_live_config, assert_x402_config, default_horizon_url, default_soroban_rpc_url,
+    facilitator_url, network_label, network_passphrase, parse_network_label, pay_to_address,
+    price_usdc, public_base_url, require_testnet, require_x402, validate_testnet_live_config,
+    validate_x402_config, StellarNetworkKind,
 };

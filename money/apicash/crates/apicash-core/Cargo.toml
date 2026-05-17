@@ -42,3 +42,11 @@ tower-http = { workspace = true }
 tower_governor = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
+x402-axum = "1.4.6"
+x402-chain-eip155 = { version = "1.4.6", features = ["server"] }
+x402-types = "1.4.8"
+alloy-primitives = "1.6"
+url = "2"
+
+[dev-dependencies]
+serial_test = "3"

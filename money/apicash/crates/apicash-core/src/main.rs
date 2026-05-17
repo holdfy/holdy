@@ -38,6 +38,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         std::process::exit(1);
     }
 
+    if let Err(msg) = apicash_shared::assert_x402_config() {
+        eprintln!("{msg}");
+        std::process::exit(1);
+    }
+
     apicash_shared::logging::init_tracing(
         "info,apicash_core=info,tower_http=info,tower_governor=warn",
     );
