@@ -243,6 +243,21 @@ resolve_stellar_identity_secret() {
   stellar keys secret "${value}" 2>/dev/null || return 1
 }
 
+ac_validate_testnet_policy() {
+  if ! truthy "${APICASH_REQUIRE_TESTNET:-}"; then
+    return 0
+  fi
+  export APICASH_SOROBAN_ENABLED=1
+  export APICASH_SOROBAN_STRICT=1
+  export APICASH_STELLAR_NETWORK="${APICASH_STELLAR_NETWORK:-testnet}"
+  if [ -x "${APICASH}/scripts/validate-testnet-env.sh" ]; then
+    "${APICASH}/scripts/validate-testnet-env.sh"
+  else
+    warn "validate-testnet-env.sh não encontrado em ${APICASH}/scripts/"
+    return 1
+  fi
+}
+
 ac_prepare_runtime_env() {
   ac_load_env
 
@@ -250,6 +265,13 @@ ac_prepare_runtime_env() {
   export APICASH_CUSTODY_PG="${APICASH_CUSTODY_PG:-1}"
   export APICASH_SCORES_PG="${APICASH_SCORES_PG:-1}"
   export APICASH_ADMIN_PG="${APICASH_ADMIN_PG:-1}"
+
+  if truthy "${APICASH_REQUIRE_TESTNET:-}"; then
+    ac_validate_testnet_policy || {
+      warn "APICASH_REQUIRE_TESTNET=1: corrija money/.env (scripts/soroban-testnet-deploy.sh) antes de subir APICash"
+      return 1
+    }
+  fi
 
   if truthy "${APICASH_SOROBAN_ENABLED:-}"; then
     local buyer_secret dispute_secret
@@ -268,7 +290,7 @@ ac_build_all() {
   cd "${APICASH}"
 
   local core_args=(-p apicash-core)
-  if truthy "${APICASH_SOROBAN_ENABLED:-}"; then
+  if truthy "${APICASH_SOROBAN_ENABLED:-}" || truthy "${APICASH_REQUIRE_TESTNET:-}"; then
     core_args+=(--features soroban)
   fi
 

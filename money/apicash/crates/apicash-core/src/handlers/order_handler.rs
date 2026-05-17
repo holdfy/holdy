@@ -549,8 +549,7 @@ async fn settle_order_by_id(
         })));
     }
 
-    let escrow_addr = std::env::var("APICASH_SOROBAN_ESCROW_CONTRACT_ID")
-        .unwrap_or_else(|_| "mock_escrow_contract".into());
+    let escrow_addr = resolve_escrow_contract_id().map_err(|e| ApiError::bad_request(e))?;
     let memo = stored
         .funding_reference
         .clone()
@@ -560,6 +559,11 @@ async fn settle_order_by_id(
         .transfer_brlx_to_escrow(&escrow_addr, stored.order.amount, &memo)
         .await
         .map_err(ApiError::from)?;
+    if apicash_shared::require_testnet() && brlx_to_escrow.is_mock {
+        return Err(ApiError::internal(
+            "BRLx transfer must be a real Stellar testnet transaction (APICASH_REQUIRE_TESTNET=1)",
+        ));
+    }
     let custody = state
         .custody
         .lock_funds(&stored.order)
@@ -674,5 +678,15 @@ fn decision_str(d: OnRampDecision) -> &'static str {
         OnRampDecision::Approve => "approve",
         OnRampDecision::Review => "review",
         OnRampDecision::Block => "block",
+    }
+}
+
+fn resolve_escrow_contract_id() -> Result<String, &'static str> {
+    match std::env::var("APICASH_SOROBAN_ESCROW_CONTRACT_ID") {
+        Ok(v) if !v.trim().is_empty() && !v.to_ascii_lowercase().contains("mock") => Ok(v),
+        _ if apicash_shared::require_testnet() => Err(
+            "APICASH_SOROBAN_ESCROW_CONTRACT_ID required for testnet (run scripts/soroban-testnet-deploy.sh)",
+        ),
+        _ => Ok("mock_escrow_contract".into()),
     }
 }

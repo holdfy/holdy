@@ -125,8 +125,15 @@ pub fn order_key_from_uuid(id: Uuid) -> u64 {
     u64::from_ne_bytes(b[0..8].try_into().unwrap_or([0u8; 8]))
 }
 
+fn require_testnet_on_chain() -> bool {
+    std::env::var("APICASH_REQUIRE_TESTNET")
+        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(false)
+}
+
 /// Instância padrão: mock, ou live com feature `soroban` e `APICASH_SOROBAN_ENABLED=1`.
 pub fn custody_bridge_from_env() -> Arc<dyn SorobanCustodyBridge> {
+    let require = require_testnet_on_chain();
     #[cfg(feature = "soroban")]
     {
         if std::env::var("APICASH_SOROBAN_ENABLED")
@@ -135,6 +142,11 @@ pub fn custody_bridge_from_env() -> Arc<dyn SorobanCustodyBridge> {
         {
             return Arc::new(LiveSorobanBridge::from_env());
         }
+    }
+    if require {
+        panic!(
+            "APICASH_REQUIRE_TESTNET=1: compile with feature soroban and set APICASH_SOROBAN_ENABLED=1"
+        );
     }
     Arc::new(MockSorobanBridge)
 }
@@ -168,7 +180,8 @@ impl LiveSorobanBridge {
                 .unwrap_or_else(|_| "stellar".into()),
             strict_live: std::env::var("APICASH_SOROBAN_STRICT")
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false),
+                .unwrap_or(false)
+                || require_testnet_on_chain(),
         }
     }
 

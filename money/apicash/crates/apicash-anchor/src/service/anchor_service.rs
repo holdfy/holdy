@@ -321,9 +321,10 @@ impl AnchorService {
         amount: Money,
         memo: &str,
     ) -> Result<EscrowTokenTransferResult, AnchorError> {
-        // Simulated PIX/Gatebox rail already skips real anchor banking; dev stacks often have no
-        // Soroban token contract wired — mirror custody mock and avoid blocking WhatsApp settle.
-        if self.fiat.rail() == FiatRail::Simulated {
+        // Simulated PIX/Gatebox rail: mock off-chain transfer unless testnet on-chain is mandatory.
+        if self.fiat.rail() == FiatRail::Simulated
+            && !apicash_shared::require_testnet()
+        {
             let amt_s = amount.decimal().to_string();
             let fp = stable_digest(&[escrow_contract_address, memo, amt_s.as_str()]);
             tracing::info!(

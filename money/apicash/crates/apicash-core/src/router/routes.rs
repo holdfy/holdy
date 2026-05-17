@@ -9,7 +9,9 @@ use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::GovernorLayer;
 use tower_http::trace::TraceLayer;
 
-use crate::handlers::{auth_handler, custody_handler, order_handler, payment_handler};
+use crate::handlers::{
+    auth_handler, custody_handler, order_handler, payment_handler, testnet_handler,
+};
 use crate::middleware::auth_middleware;
 use crate::state::AppState;
 
@@ -67,6 +69,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/", get(order_handler::root))
         .route("/health", get(order_handler::health))
         .route("/ready", get(order_handler::ready))
+        .route(
+            "/testnet/transactions",
+            get(testnet_handler::recent_testnet_transactions),
+        )
         .nest("/auth", auth_routes)
         .merge(internal)
         .merge(protected)

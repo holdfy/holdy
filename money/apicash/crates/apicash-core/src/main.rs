@@ -25,6 +25,19 @@ fn load_workspace_dotenv() {
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     load_workspace_dotenv();
 
+    #[cfg(not(feature = "soroban"))]
+    if apicash_shared::require_testnet() {
+        eprintln!(
+            "apicash-core: APICASH_REQUIRE_TESTNET=1 exige compilação com --features soroban (./runapp.sh build apicash)"
+        );
+        std::process::exit(1);
+    }
+
+    if let Err(msg) = apicash_shared::assert_testnet_live_config() {
+        eprintln!("{msg}");
+        std::process::exit(1);
+    }
+
     apicash_shared::logging::init_tracing(
         "info,apicash_core=info,tower_http=info,tower_governor=warn",
     );
@@ -106,8 +119,17 @@ async fn run_funding_poller(state: Arc<AppState>) {
                 .await
             {
                 Ok(settle) if settle.settled => {
-                    let escrow_addr = std::env::var("APICASH_SOROBAN_ESCROW_CONTRACT_ID")
-                        .unwrap_or_else(|_| "mock_escrow_contract".into());
+                    let escrow_addr = match std::env::var("APICASH_SOROBAN_ESCROW_CONTRACT_ID") {
+                        Ok(v) if !v.trim().is_empty() && !v.contains("mock") => v,
+                        _ if apicash_shared::require_testnet() => {
+                            tracing::warn!(
+                                order_id = %stored.order.id,
+                                "funding poller: APICASH_SOROBAN_ESCROW_CONTRACT_ID missing — skip until testnet escrow configured"
+                            );
+                            continue;
+                        }
+                        _ => "mock_escrow_contract".into(),
+                    };
                     let memo = stored
                         .funding_reference
                         .clone()
@@ -123,6 +145,13 @@ async fn run_funding_poller(state: Arc<AppState>) {
                             continue;
                         }
                     };
+                    if apicash_shared::require_testnet() && transferred.is_mock {
+                        tracing::warn!(
+                            order_id = %stored.order.id,
+                            "poller: BRLx transfer was mock — APICASH_REQUIRE_TESTNET requires real testnet tx"
+                        );
+                        continue;
+                    }
                     let custody = match state.custody.lock_funds(&stored.order).await {
                         Ok(v) => v,
                         Err(e) => {

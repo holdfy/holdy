@@ -104,6 +104,12 @@ impl CustodyService {
             soroban_lock_tx_hash: lock_out.lock_tx_hash.clone(),
             soroban_release_tx_hash: None,
         };
+        if (soroban_strict() || testnet_required()) && custody.soroban_is_mock {
+            return Err(CustodyError::Soroban(
+                "APICASH_REQUIRE_TESTNET=1: lock Soroban must be a real testnet transaction (check APICASH_SOROBAN_* and stellar CLI)".into(),
+            ));
+        }
+
         self.repo.insert(custody.clone()).await?;
         info!(
             custody_id = %custody.id,
@@ -297,6 +303,12 @@ impl CustodyService {
 
 fn soroban_strict() -> bool {
     std::env::var("APICASH_SOROBAN_STRICT")
+        .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(false)
+}
+
+fn testnet_required() -> bool {
+    std::env::var("APICASH_REQUIRE_TESTNET")
         .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
         .unwrap_or(false)
 }
