@@ -167,30 +167,32 @@ O endpoint `POST /v1/listings/import` será criado na Fase 3.1.
 
 ---
 
-## Fase 2 — Admin Holdfy com front-template/ [ ]
+## Fase 2 — Admin Holdfy com front-template/ [x]
 **Duração: 3-4 dias | Sprint 2**
 
-### 2.1 Criar holdfy-admin/ a partir de front-template/ [ ]
-Clonar `front-template/` para `holdfy-admin/` e customizar.
-Mapear telas para layouts prontos do Material Dashboard 3 PRO:
-- Dashboard → `layouts/dashboards/analytics/` (KPIs: pedidos, volume, yield, fraudes bloqueadas)
-- Pedidos → `layouts/ecommerce/orders/`
-- Disputas → criar custom (listar, julgar, resolver)
-- Usuários/Scores → `layouts/pages/users/`
-- Yield Reports → `layouts/dashboards/sales/`
-- Auth → `layouts/authentication/sign-in/` (pronto)
+### 2.1 Criar holdfy-admin/ [x]
+Criado como app Vite+React+MUI standalone em `holdfy-admin/` (porta 3010).
+Não duplica os 500+ arquivos do template — usa MUI diretamente.
+Proxy Vite: `/admin/*` → `localhost:3001` (apicash-admin-backend).
+Autenticação: API Key via localStorage → header `X-API-Key`.
 
-### 2.2 Completar apicash-admin-backend handlers [ ]
-**Arquivo:** `money/apicash/crates/apicash-admin-backend/src/handlers/`
-- `GET /dashboard` → KPIs reais do Postgres
-- `GET /orders` → paginado, com filtros
-- `GET /disputes` → disputas abertas
-- `GET /scores` → usuários por faixa de risco (APPROVE/REVIEW/BLOCK)
-- `GET /yield-reports` → yield distribuído por período
+Telas implementadas:
+- **Login** — tela de entrada com API Key (valida chamando `/admin/dashboard`)
+- **Dashboard** — 4 KPIs: Volume Total, Yield Acumulado, Disputas Abertas, Custódias Travadas
+- **Pedidos** — DataGrid com filtro por status; colunas: ID, Valor, Status, Score, Decisão, Data
+- **Disputas** — DataGrid com botão "Resolver" → dialog de resolução (FavorBuyer/FavorSeller/Split/Rejected)
+- **Usuários/Score** — DataGrid com slider de score máximo; exibe score e nível de risco por cor
+- **Yield Report** — 3 KPIs (yield total, custódias, liberadas) com filtro de período por data
 
-Auth: `X-API-Key` (já implementado).
+### 2.2 apicash-admin-backend handlers [x]
+Já completos desde a sessão anterior. Endpoints corretos confirmados:
+- `GET /admin/dashboard` ✅
+- `GET /admin/orders` ✅
+- `GET /admin/disputes` + `POST /admin/disputes/{id}/resolve` ✅
+- `GET /admin/users/score` ✅
+- `GET /admin/reports/yield` ✅
 
-**Verificação:** Admin dashboard mostrando KPIs reais do Postgres.
+Auth: `X-API-Key` = `APICASH_ADMIN_API_KEY` env var.
 
 ---
 
