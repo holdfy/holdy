@@ -65,6 +65,7 @@ yarn-error.log*
 **/out/
 **/.nuxt/
 **/.parcel-cache/
+**/.vite/
 
 # --- Flutter / Dart / Android ---
 **/.dart_tool/
