@@ -237,6 +237,21 @@ export const adminApi = {
     test: (id) =>
       request(`${API_BASE}/admin/webhooks/${id}/test`, { method: "POST" }),
   },
+  disputes: {
+    list: (params) =>
+      request(`${API_BASE}/admin/disputes?${new URLSearchParams(params || {}).toString()}`),
+    get: (id) => request(`${API_BASE}/admin/disputes/${id}`),
+    create: (data) =>
+      request(`${API_BASE}/admin/disputes`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    resolve: (id, resolution, notes) =>
+      request(`${API_BASE}/admin/disputes/${id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({ resolution, notes }),
+      }),
+  },
 };
 
 // --- Backoffice API ---

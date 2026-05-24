@@ -51,6 +51,7 @@ import ReportFeeReconciliation from "layouts/admin/Reports/FeeReconciliation";
 import CustomerWebhooks from "layouts/customer/Webhooks";
 import AdminAccount from "layouts/admin/Account";
 import AdminChangePassword from "layouts/admin/ChangePassword";
+import AdminDisputes from "layouts/admin/Disputes";
 import AdminSettings from "layouts/admin/Settings";
 import AuditoriaBlockchain from "layouts/pages/account/auditoria-blockchain";
 import BackofficeLogs from "layouts/backoffice/Logs";
@@ -94,6 +95,7 @@ export const adminRoutes = [
   { path: "/admin/pix/transactions/:id", element: <AdminPixTransactionDetail /> },
   { path: "/admin/partners", element: <AdminPartners /> },
   { path: "/admin/webhooks", element: <AdminWebhooks /> },
+  { path: "/admin/disputes", element: <AdminDisputes /> },
   { path: "/admin/sec-med", element: <AdminSecMed /> },
   { path: "/admin/sec-med/:id", element: <AdminSecMedDetail /> },
   { path: "/admin/pix/qrcode", element: <AdminPixQrcode /> },
@@ -168,6 +170,7 @@ export const adminSidenav = [
       { name: "Transações PIX", key: "pix", route: "/admin/pix/transactions", component: <AdminPixTransactions /> },
       { name: "Parceiros", key: "partners", route: "/admin/partners", component: <AdminPartners /> },
       { name: "Webhooks", key: "webhooks", route: "/admin/webhooks", component: <AdminWebhooks /> },
+      { name: "Disputas", key: "disputes", route: "/admin/disputes", component: <AdminDisputes /> },
       { name: "MED", key: "sec-med", route: "/admin/sec-med", component: <AdminSecMed /> },
       { name: "QR Code PIX", key: "pix-qrcode", route: "/admin/pix/qrcode", component: <AdminPixQrcode /> },
       { name: "Chaves PIX", key: "key-pix", route: "/admin/key-pix", component: <AdminKeyPix /> },

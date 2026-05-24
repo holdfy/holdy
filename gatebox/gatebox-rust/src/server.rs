@@ -367,6 +367,10 @@ impl App {
         let anchor_svc: Arc<dyn anchor::AnchorService> =
             Arc::new(AnchorServiceImpl::new(anchor_repo));
 
+        let dispute_repo: Arc<dyn gatebox_rust::disputes::DisputeRepository> =
+            Arc::new(gatebox_rust::disputes::DisputeRepositoryImpl::new(read_pool.clone(), write_pool.clone()));
+        let dispute_state = gatebox_rust::disputes::DisputeState { repo: dispute_repo };
+
         let app_log_repo: Arc<dyn gatebox_rust::app_log::AppLogRepository> =
             Arc::new(gatebox_rust::app_log::AppLogRepositoryImpl::new(read_pool.clone(), write_pool.clone()));
         let hospital_message_repo: Arc<dyn gatebox_rust::hospital_message::HospitalMessageRepository> =
@@ -709,6 +713,8 @@ impl App {
         let api = Router::new()
             .merge(gatebox_rust::bank_bridge::routes(bank_bridge_state))
             .nest("/v1/admin", admin::routes(admin_state))
+            .nest("/v1/admin/disputes", gatebox_rust::disputes::admin_routes(dispute_state.clone()))
+            .nest("/v1", gatebox_rust::disputes::customer_routes(dispute_state))
             .nest("/v1/backoffice", backoffice::routes(backoffice_state))
             .nest("/v1/pix", gatebox_rust::core::pix_principal::register(pix_principal_state))
             .nest("/v1/customers", gatebox_rust::modules::customers::routes(customers_state))

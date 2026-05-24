@@ -1,4 +1,5 @@
 pub mod account_rules;
+pub mod disputes;
 pub mod account_status_types;
 pub mod account_types;
 pub mod accounts;
