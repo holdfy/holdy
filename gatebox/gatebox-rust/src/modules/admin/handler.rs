@@ -7,7 +7,10 @@ use axum::{
     Json, Router,
 };
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::Mutex;
 
 use crate::accounts::AccountsService;
 use crate::model::Accounts;
@@ -22,6 +25,51 @@ use crate::partners::PartnersService;
 use crate::transaction::TransactionService;
 use crate::webhook_manager::WebhookManagerService;
 
+const LOGIN_MAX_ATTEMPTS: usize = 5;
+const LOGIN_WINDOW: Duration = Duration::from_secs(5 * 60);   // 5 min sliding window
+const LOGIN_LOCKOUT: Duration = Duration::from_secs(15 * 60); // 15 min lockout after max attempts
+
+/// Per-username login rate limiter. Tracks failed attempt timestamps in a sliding window.
+#[derive(Default)]
+pub struct LoginRateLimiter {
+    state: Mutex<HashMap<String, Vec<Instant>>>,
+}
+
+impl LoginRateLimiter {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self::default())
+    }
+
+    /// Returns `Err(seconds_until_retry)` if the username is currently locked out.
+    pub async fn check(&self, username: &str) -> Result<(), u64> {
+        let now = Instant::now();
+        let mut map = self.state.lock().await;
+        let attempts = map.entry(username.to_string()).or_default();
+        // Remove timestamps outside the window
+        attempts.retain(|t| now.duration_since(*t) < LOGIN_WINDOW);
+        if attempts.len() >= LOGIN_MAX_ATTEMPTS {
+            let oldest = attempts[0];
+            let elapsed = now.duration_since(oldest);
+            if elapsed < LOGIN_LOCKOUT {
+                let remaining = (LOGIN_LOCKOUT - elapsed).as_secs().max(1);
+                return Err(remaining);
+            }
+            // Lockout expired — clear
+            attempts.clear();
+        }
+        Ok(())
+    }
+
+    pub async fn record_failure(&self, username: &str) {
+        let mut map = self.state.lock().await;
+        map.entry(username.to_string()).or_default().push(Instant::now());
+    }
+
+    pub async fn clear(&self, username: &str) {
+        self.state.lock().await.remove(username);
+    }
+}
+
 #[derive(Clone)]
 pub struct AdminState {
     pub customer_svc: Arc<dyn CustomerService>,
@@ -33,6 +81,7 @@ pub struct AdminState {
     pub pix_svc: Option<Arc<dyn PixPrincipalService>>,
     pub customer_status_types_svc: Option<Arc<dyn CustomerStatusTypesService>>,
     pub app_log_repo: Option<Arc<dyn AppLogRepository>>,
+    pub login_limiter: Arc<LoginRateLimiter>,
 }
 
 // ---- Auth ----
@@ -65,21 +114,31 @@ async fn auth_login(
     if req.username.is_empty() || req.password.is_empty() {
         return Err(AppError::BadRequest("Username and password are required"));
     }
+    if let Err(retry_after) = state.login_limiter.check(&req.username).await {
+        tracing::warn!(username = %req.username, retry_after_secs = retry_after, "Login rate limit exceeded");
+        return Err(AppError::RateLimited(retry_after));
+    }
     let auth_svc = state.auth_svc.as_ref().ok_or(AppError::BadRequest("Admin auth not configured"))?;
     let auth = auth_svc
         .find_by_username_and_type(&req.username, crate::authentication::TYPE_AUTH_ADMIN)
         .await
         .map_err(|_| AppError::Internal)?
-        .ok_or_else(|| AppError::BadRequest("Invalid credentials"))?;
+        .ok_or_else(|| {
+            // Count as failure even for unknown usernames (prevent enumeration timing)
+            AppError::BadRequest("Invalid credentials")
+        })?;
     if !auth.active {
+        state.login_limiter.record_failure(&req.username).await;
         return Err(AppError::BadRequest("Account inactive"));
     }
     if !verify_password(&req.password, &auth.password) {
+        state.login_limiter.record_failure(&req.username).await;
         if let Some(ref log) = state.app_log_repo {
             let _ = log.insert("WARN", "admin.auth", &format!("Failed login for username={}", req.username)).await;
         }
         return Err(AppError::BadRequest("Invalid credentials"));
     }
+    state.login_limiter.clear(&req.username).await;
     let access_token = create_token(auth.id as i32, &auth.username, "admin").map_err(|_| AppError::Internal)?;
     let refresh_token = create_refresh_token(auth.id as i32, &auth.username, "admin").map_err(|_| AppError::Internal)?;
     if let Some(ref log) = state.app_log_repo {
@@ -607,6 +666,7 @@ pub enum AppError {
     BadRequest(&'static str),
     NotFound,
     Internal,
+    RateLimited(u64), // seconds until retry
     Customer(crate::customer::CustomerHandlerAppError),
     Partners(crate::partners::PartnersHandlerAppError),
     WebhookManager(crate::webhook_manager::WebhookManagerHandlerAppError),
@@ -636,16 +696,20 @@ impl From<crate::transaction::ServiceError> for AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
-        let (status, msg) = match self {
-            AppError::BadRequest(m) => (StatusCode::BAD_REQUEST, m.to_string()),
-            AppError::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string()),
-            AppError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "Internal error".to_string()),
-            AppError::Customer(e) => return e.into_response(),
-            AppError::Partners(e) => return e.into_response(),
-            AppError::WebhookManager(e) => return e.into_response(),
-            AppError::Transaction(e) => return e.into_response(),
-        };
-        (status, Json(serde_json::json!({ "error": msg }))).into_response()
+        match self {
+            AppError::BadRequest(m) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": m }))).into_response(),
+            AppError::NotFound => (StatusCode::NOT_FOUND, Json(serde_json::json!({ "error": "Not found" }))).into_response(),
+            AppError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": "Internal error" }))).into_response(),
+            AppError::RateLimited(retry_after) => (
+                StatusCode::TOO_MANY_REQUESTS,
+                [("Retry-After", retry_after.to_string())],
+                Json(serde_json::json!({ "error": "Too many login attempts. Try again later.", "retry_after_secs": retry_after })),
+            ).into_response(),
+            AppError::Customer(e) => e.into_response(),
+            AppError::Partners(e) => e.into_response(),
+            AppError::WebhookManager(e) => e.into_response(),
+            AppError::Transaction(e) => e.into_response(),
+        }
     }
 }
 

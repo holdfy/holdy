@@ -682,6 +682,7 @@ impl App {
             pix_svc: Some(pix_principal_svc.clone()),
             customer_status_types_svc: Some(customer_status_types_svc.clone()),
             app_log_repo: Some(app_log_repo.clone()),
+            login_limiter: admin::LoginRateLimiter::new(),
         };
         let pix_principal_state = gatebox_rust::core::pix_principal::PixPrincipalState {
             service: pix_principal_svc.clone(),

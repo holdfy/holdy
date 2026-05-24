@@ -201,10 +201,10 @@ Auth: `X-API-Key` = `APICASH_ADMIN_API_KEY` env var.
 
 ### 5.1 Itens críticos Gatebox [~]
 - [x] Senhas em plaintext → bcrypt/argon2: `verify_password()` com fallback transparente; `change_password` grava bcrypt hash; clientes e admin atualizados
-- [ ] JWT sem refresh token → adicionar
-- [ ] CORS não restrito → whitelist em produção
-- [ ] Rate limiting ausente → adicionar nos endpoints críticos
-- [ ] Audit log modelado mas não usado → ativar nos handlers
+- [x] JWT sem refresh token → `create_refresh_token()` + `rotate_refresh_token()` em `modules/shared/auth.rs`; endpoint `/auth/refresh` em admin handler; `token_type: "access"|"refresh"` nos claims
+- [x] CORS não restrito → `CorsLayer` via `tower-http` configurado por `GATEBOX_CORS_ORIGINS` (vazio/"*"=any, lista=whitelist); adicionado ao app em `server.rs`
+- [ ] Rate limiting ausente → adicionar login endpoint (anti-brute-force)
+- [x] Audit log → `AppLogRepository.insert()` adicionado; admin login success/failure e token refresh gravados
 
 ### 5.2 Itens críticos APICash [x]
 - [x] `APICASH_AUTH_DISABLED=true` → `AuthConfig::validate_startup_safety()` chamado em `main.rs`; requer `APICASH_INSECURE_DEV=1` para override em dev
@@ -223,23 +223,23 @@ Framework: `cargo test` + `axum::test`.
 
 ---
 
-## Fase 7.6–7.7 — Limites PJ e Admin PF/PJ [ ]
+## Fase 7.6–7.7 — Limites PJ e Admin PF/PJ [x]
 **Duração: 2-3 dias | Sprint 2**
 
-### 7.6 Limites/taxas diferenciadas no Gatebox [ ]
-**Arquivos:** `gatebox-rust/regras_de_negocio.md` + migration nova na tabela `fees`
-- Adicionar coluna `person_type_id` (FK → `type_person_types`)
-- PJ: limite PIX maior; possibilidade de isenção por volume
-- Impacto em `pix_principal/service.rs`: resolver taxa pelo `type_person_id` da conta
+### 7.6 Limites/taxas diferenciadas no Gatebox [x]
+- [x] Migration `20260524000000_fees_person_type.sql`: coluna `person_type_id` na tabela `fees`
+- [x] `fees/ddl.rs`: `SQL_GET_BY_PERSON_TYPE`; `fees/repository.rs`: `get_by_person_type()` trait + impl
+- [x] `provider_selector.rs`: fallback layered account-fee → person-type fee → no-fee
+- [x] `webhook_service.rs`: aviso soft-limit PIX IN por tipo (PF ≤ R$20k, PJ ≤ R$500k) — warn, não block
 
-### 7.7 Admin com filtro PF/PJ [ ]
-- front-gatebox: filtro PF/PJ na listagem de clientes
-- holdfy-admin: KYC com campos de razão social + CNPJ + sócios para PJ
-- Relatórios segmentados por tipo de pessoa
+### 7.7 Admin com filtro PF/PJ [x]
+- [x] front-gatebox `Customers`: ToggleButtonGroup PF/PJ, coluna Tipo+Documento com Chip
+- [x] holdfy-admin `Scores`: ToggleButtonGroup PF/PJ, coluna person_type com Chip
+- [x] holdfy-admin `Orders`: ToggleButtonGroup PF/PJ, coluna person_type
 
 ---
 
-## Fase 3.2 — Disputas no Gatebox [ ]
+## Fase 3.2 — Disputas no Gatebox [x]
 **Duração: 3-4 dias | Sprint 3**
 
 **Arquivos a criar:** `gatebox/gatebox-rust/src/modules/disputes/`
@@ -271,7 +271,7 @@ Tela: criar `gatebox/front-gatebox/src/layouts/admin/disputes/` (seguir padrão 
 
 ---
 
-## Fase 3.4 — WhatsApp Multi-device Bridge [ ]
+## Fase 3.4 — WhatsApp Multi-device Bridge [x]
 **Duração: 2-3 dias | Sprint 3**
 
 **Arquivo:** `money/apicash/crates/apicash-whatsapp/src/wa_multidevice.rs` (ver comentário linhas 4-14)

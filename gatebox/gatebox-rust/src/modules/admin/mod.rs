@@ -1,3 +1,3 @@
 mod handler;
 
-pub use handler::{routes, AdminState};
+pub use handler::{routes, AdminState, LoginRateLimiter};
