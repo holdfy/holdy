@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Plano de execução ativo
+
+Existe um plano de desenvolvimento detalhado em **`PLANO_EXECUCAO.md`** na raiz do repositório.
+Leia-o antes de começar qualquer trabalho. Ele contém:
+- Estado real de cada componente (o que funciona, o que é stub, o que falta)
+- 7 fases de execução com arquivos específicos, código e ordem de prioridade
+- Decisões arquiteturais já tomadas (não mudar sem revisão)
+- Checklist de progresso por fase (`[ ]` = pendente, `[x]` = concluído)
+
+**Próximos passos imediatos:** Fase 0 (ativar Postgres) e Fase 7.1 (bug CNPJ no Gateway Next).
+
 ## Repository overview
 
 Monorepo with four main areas:
