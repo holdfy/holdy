@@ -61,6 +61,20 @@ fn infer_key_type(key: &str) -> &'static str {
     }
 }
 
+fn infer_person_type(document: Option<&str>) -> &'static str {
+    match document {
+        Some(doc) => {
+            let digits: String = doc.chars().filter(|c| c.is_ascii_digit()).collect();
+            if digits.len() == 14 {
+                "LEGAL_PERSON"
+            } else {
+                "NATURAL_PERSON"
+            }
+        }
+        None => "NATURAL_PERSON",
+    }
+}
+
 #[async_trait]
 impl GatewayHttpService for NextHttpService {
     async fn get_token_out(
@@ -105,7 +119,7 @@ impl GatewayHttpService for NextHttpService {
             },
             destinatary: DestinatarySendPix {
                 end_to_end_id: format!("E{:014}", chrono::Utc::now().timestamp_millis() % 10_i64.pow(14)),
-                person_type: "NATURAL_PERSON".to_string(),
+                person_type: infer_person_type(request.creditor_document.as_deref()).to_string(),
                 dict_key: request.pix_key.clone(),
                 key_type: key_type.to_string(),
                 ispb: 0,

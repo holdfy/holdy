@@ -27,7 +27,7 @@ Monorepo com três stacks paralelas (APICash Rust, Gatebox Rust, site/ React) qu
 | front-template/ — Material Dashboard 3 PRO | ✅ pronto p/ usar | Aguardando admin Holdfy ser criado |
 | PF/PJ — antifraude valida CPF e CNPJ | ✅ completo | Score idêntico para ambos (ok por ora) |
 | PF/PJ — Gatebox modelos (type_person_types) | ✅ presente | Seeds: NATURAL_PERSON(1), LEGAL_PERSON(2) |
-| PF/PJ — Gateway Next | 🔴 BUG CRÍTICO | Hardcoda NATURAL_PERSON para CNPJ também |
+| PF/PJ — Gateway Next | ✅ corrigido | `infer_person_type()` por tamanho do documento (CNPJ=14 dígitos) |
 | PF/PJ — Auth/JWT claims | 🔴 ausente | `person_type` não propagado nos tokens |
 | PF/PJ — WhatsApp | 🔴 ausente | Só coleta CPF placeholder hardcoded |
 | PF/PJ — site/ | 🔴 ausente | Sem campos CNPJ no cadastro/login |
@@ -40,10 +40,10 @@ Monorepo com três stacks paralelas (APICash Rust, Gatebox Rust, site/ React) qu
 
 ---
 
-## Fase 0 — Fundação [ ]
+## Fase 0 — Fundação [x]
 **Duração: 1-2 dias | Prioridade: AGORA**
 
-### 0.1 Ativar Postgres em produção [ ]
+### 0.1 Ativar Postgres em produção [x]
 Sem isso todos os dados somem ao reiniciar. Editar `money/.env`:
 ```env
 APICASH_ORDERS_PG=1
@@ -54,18 +54,18 @@ DATABASE_URL=postgresql://...
 Rodar: `cd money && ./runinfra.sh migrate`
 (6 migrations SQL já existem em `money/apicash/migrations/`)
 
-### 0.2 Commit do estado atual [ ]
+### 0.2 Commit do estado atual [x]
 - `.gitignore` — corrigido com `**/.vite/`
 - `ajustes.txt` — atualizado com stack real, importador universal, front-template
 
-### 0.3 Atualizar money/.env.example [ ]
+### 0.3 Atualizar money/.env.example [x]
 Incluir todas as variáveis novas (Soroban, WhatsApp, PG flags).
 
 **Verificação:** `./runinfra.sh status` → Postgres UP; `cargo run -p apicash-cli -- test-flow` → pedido persistido após restart.
 
 ---
 
-## Fase 7.1 — Corrigir bug PJ/CNPJ no Gateway Next [ ]
+## Fase 7.1 — Corrigir bug PJ/CNPJ no Gateway Next [x]
 **Duração: 1 dia | Prioridade: AGORA (bug crítico)**
 
 **Arquivo:** `gatebox/gatebox-rust/src/core/gateways/services/next.rs`, linha ~108
