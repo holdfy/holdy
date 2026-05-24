@@ -82,7 +82,7 @@ pub async fn create_pix_payment(
 
     let score = state
         .antifraude
-        .calculate_score(req.user_id, &cpf, &req.social_links)
+        .calculate_score(req.user_id, &cpf, &req.social_links, None)
         .await
         .map_err(|e| {
             error!(error = %e, "antifraude failed for PIX");

@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use apicash_anchor::{AnchorService, StellarConfig, StellarNetwork};
 use apicash_antifraude::{
-    AntiFraudeService, InMemoryScoreRepository, PostgresScoreRepository, ScoreRepository,
-    SefazValidator, SocialValidator,
+    AntiFraudeService, CachedDocumentValidator, DocumentCache, DocumentValidator,
+    HttpDocumentValidator, InMemoryDocumentCache, InMemoryScoreRepository, LocalDocumentValidator,
+    PostgresDocumentCache, PostgresScoreRepository, ScoreRepository, SocialValidator,
 };
 use apicash_auth::{AuthConfig, AuthService};
 use apicash_custody::{
@@ -18,6 +19,7 @@ use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
 use super::order_repository::{InMemoryOrderRepository, OrderRepository, PostgresOrderRepository};
+use super::proposal_repository::{InMemoryProposalRepository, ProposalRepository};
 
 /// Snapshot stored after a successful create-order pipeline.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,6 +55,7 @@ pub struct AppState {
     pub custody: Arc<CustodyService>,
     pub anchor: Arc<AnchorService>,
     pub orders: Arc<dyn OrderRepository>,
+    pub proposals: Arc<dyn ProposalRepository>,
 }
 
 impl AppState {
@@ -116,8 +119,13 @@ impl AppState {
             );
             Arc::new(InMemoryScoreRepository::new())
         };
-        let state =
-            Self::with_auth_config_repos(AuthConfig::from_env(), custody_repo, orders, score_repo);
+        let state = Self::with_auth_config_repos(
+            AuthConfig::from_env(),
+            custody_repo,
+            orders,
+            score_repo,
+            pool,
+        );
         Ok(state)
     }
 
@@ -128,6 +136,7 @@ impl AppState {
             Arc::new(InMemoryCustodyRepository::new()),
             Arc::new(InMemoryOrderRepository::new()),
             Arc::new(InMemoryScoreRepository::new()),
+            None,
         )
     }
 
@@ -136,18 +145,58 @@ impl AppState {
         custody_repo: Arc<dyn CustodyRepository>,
         orders: Arc<dyn OrderRepository>,
         score_repo: Arc<dyn ScoreRepository>,
+        pool: Option<sqlx::PgPool>,
     ) -> Self {
         let cfg = load_stellar_config();
         let http = Client::new();
-        let sefaz = SefazValidator::new(http.clone(), None);
-        let social = SocialValidator::new(http);
-        let antifraude = Arc::new(AntiFraudeService::new(sefaz, social, score_repo));
+        let sefaz_url = std::env::var("SEFAZ_API_URL")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
+        let sefaz_token = std::env::var("SEFAZ_API_TOKEN")
+            .or_else(|_| std::env::var("SEFAZ_CLIENT_SECRET"))
+            .ok()
+            .filter(|s| !s.trim().is_empty());
+        let social_check = std::env::var("SOCIAL_CHECK_ENABLED")
+            .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+            .unwrap_or(false);
+
+        // Build interchangeable document validator with cache (TTL 24h).
+        // Use HTTP provider when SEFAZ_API_URL is configured; otherwise local math.
+        let inner_validator: Arc<dyn DocumentValidator> = if let Some(url) = sefaz_url {
+            tracing::info!("document_validator: HTTP provider at {url}");
+            Arc::new(HttpDocumentValidator::new(http.clone(), url, sefaz_token))
+        } else {
+            tracing::info!("document_validator: local mathematical validation (CPF/CNPJ)");
+            Arc::new(LocalDocumentValidator::new())
+        };
+        let want_doc_cache_pg = env_enabled("APICASH_DOC_CACHE_PG");
+        let doc_cache: Arc<dyn DocumentCache> = match (want_doc_cache_pg, pool.clone()) {
+            (true, Some(p)) => {
+                tracing::info!("document_cache: Postgres (APICASH_DOC_CACHE_PG + DATABASE_URL)");
+                Arc::new(PostgresDocumentCache::new(p)) as Arc<dyn DocumentCache>
+            }
+            _ => {
+                tracing::info!(
+                    "document_cache: in-memory (set APICASH_DOC_CACHE_PG=1 + DATABASE_URL for Postgres)"
+                );
+                Arc::new(InMemoryDocumentCache::new()) as Arc<dyn DocumentCache>
+            }
+        };
+        let doc_validator = Arc::new(CachedDocumentValidator::new(
+            inner_validator,
+            doc_cache,
+            std::time::Duration::from_secs(86_400), // 24h TTL
+        ));
+
+        let social = SocialValidator::new(http, social_check);
+        let antifraude = Arc::new(AntiFraudeService::new(doc_validator, social, score_repo));
         let auth = Arc::new(AuthService::with_antifraude(auth_cfg, antifraude.clone()));
         let custody = Arc::new(CustodyService::new(
             custody_repo,
             YieldCalculator::default(),
         ));
         let anchor = Arc::new(AnchorService::new(cfg));
+        let proposals = Arc::new(InMemoryProposalRepository::new());
         tracing::info!(
             fiat_rail = anchor.fiat_rail_name(),
             "anchor service (simulated rail = PIX EMV via Gatebox quando GATEBOX_BASE_URL está definido)",
@@ -158,6 +207,7 @@ impl AppState {
             custody,
             anchor,
             orders,
+            proposals,
         }
     }
 }

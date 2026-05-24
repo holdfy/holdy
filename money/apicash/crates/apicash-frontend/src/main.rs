@@ -22,6 +22,8 @@ impl axum::extract::FromRef<LeptosAppState> for LeptosOptions {
 }
 
 fn shell(options: LeptosOptions) -> impl IntoView {
+    #[cfg(not(feature = "hydrate"))]
+    let _ = options;
     view! {
         <!DOCTYPE html>
         <html lang="pt-BR">
@@ -29,10 +31,15 @@ fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <Title text="HoldFy Admin" />
-                <AutoReload options=options.clone() />
-                <HydrationScripts options=options.clone() />
                 <MetaTags />
                 <Stylesheet id="apicash" href="/styles/tailwind.css" />
+                {#[cfg(feature = "hydrate")]
+                {
+                    view! {
+                        <AutoReload options=options.clone() />
+                        <HydrationScripts options=options.clone() />
+                    }
+                }}
             </head>
             <body>
                 <App />
@@ -61,8 +68,9 @@ async fn main() {
 
     let routes = generate_route_list(App);
 
+    let options_for_routes = options.clone();
     let app = Router::new()
-        .leptos_routes(&state, routes, App)
+        .leptos_routes(&state, routes, move || shell(options_for_routes.clone()))
         .fallback(file_and_error_handler::<LeptosAppState, _>(shell))
         .layer(TraceLayer::new_for_http())
         .with_state(state);

@@ -72,6 +72,9 @@ dotenvy = "0.15"
 jsonwebtoken = "9"
 argon2 = "0.5"
 base64 = "0.22"
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
 
 # Stellar / Soroban (SDK Rust oficial; contratos Soroban usam soroban-sdk)
 stellar-rpc-client = "25.1"
@@ -80,6 +83,8 @@ soroban-sdk = "23.5"
 
 # Messaging — Apache Pulsar (crate `pulsar`, upstream streamnative/pulsar-rs)
 pulsar = { version = "6.7", default-features = false, features = ["tokio-runtime", "auth-oauth2", "compression"] }
+# Transitive via pulsar / whatsapp-cloud-api (native-tls). Vendored avoids libssl-dev + pkg-config on dev hosts.
+openssl = { version = "0.10", features = ["vendored"] }
 
 # WhatsApp — `whatsapp-rust` (multi-device). `apicash-whatsapp` ativa `sqlite-storage` localmente.
 whatsapp-rust = { version = "0.5", default-features = false, features = ["moka-cache", "tokio-transport", "tokio-runtime", "ureq-client", "tokio-native", "signal"] }

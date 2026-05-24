@@ -1,11 +1,12 @@
 use leptos::prelude::*;
 
+use crate::i18n::{MsgKey, T};
 use crate::utils::api_client::{get_orders, OrderRow};
 
 #[component]
 pub fn OrderTable() -> impl IntoView {
     view! {
-        <Suspense fallback=|| view! { <p class="ap-muted">"A carregar pedidos…"</p> }>
+        <Suspense fallback=|| view! { <p class="ap-muted"><T key=MsgKey::LoadingOrders /></p> }>
             <Await future=get_orders() let:res>
                 {match res {
                     Ok(list) => {
@@ -26,11 +27,11 @@ fn OrderTableInner(rows: Vec<OrderRow>) -> impl IntoView {
             <table class="ap-table">
                 <thead>
                     <tr>
-                        <th>"Pedido"</th>
-                        <th>"Estado"</th>
-                        <th>"Valor"</th>
-                        <th>"Score"</th>
-                        <th>"Decisão"</th>
+                        <th><T key=MsgKey::ColOrder /></th>
+                        <th><T key=MsgKey::ColStatus /></th>
+                        <th><T key=MsgKey::ColAmount /></th>
+                        <th><T key=MsgKey::ColScore /></th>
+                        <th><T key=MsgKey::ColDecision /></th>
                         <th>""</th>
                     </tr>
                 </thead>
@@ -46,7 +47,7 @@ fn OrderTableInner(rows: Vec<OrderRow>) -> impl IntoView {
                                     <td>{r.amount_minor.clone()}</td>
                                     <td>{r.risk_score}</td>
                                     <td>{r.risk_decision.clone()}</td>
-                                    <td><span class="ap-muted">"detalhe"</span></td>
+                                    <td><span class="ap-muted"><T key=MsgKey::Detail /></span></td>
                                 </tr>
                             }
                         }

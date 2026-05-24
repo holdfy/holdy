@@ -1,0 +1,335 @@
+# Holdfy — Notas de Produto (OCR + PRD)
+
+### HOLDFY
+
+**Atores**
+- Vendedor
+- Comprador
+- Plataforma
+- Stellar
+- Transportadoras
+- I.A.
+- Antifraude
+- Autenticação
+- Sistema de avaliação / ranking da peça
+- Correios
+- Outras transportadoras
+
+**BLINDPLUS**
+- WhatsApp
+- API
+- Selo de qualidade
+- Android
+- iOS
+- Web
+- Site
+- Melhorar a conversa
+
+**Itens laterais**
+- Área cliente
+- Área administrativa
+- Tenants
+- Disputa (juiz)
+
+**Parte inferior esquerda**
+- Desenhar fluxos
+- Entregaveis
+- Super desenho da logística
+- Fluxos:
+  - Fluxo WhatsApp
+  - Fluxo API
+  - Fluxo Site
+
+**Ppara esata sprint*
+- Auditoria de segurança
+- relato do achado critico de seguranca e como foi resolvido
+- Usuários reais
+- Demos reais
+- Frontend
+
+**Lateral direita superior**
+- Site
+- ADM
+
+---
+
+## FOTO 2 — Fluxos por ator
+
+**Coluna esquerda 
+- anuncio
+- criar Link de pagamento
+- enviar fotos
+- enviar rastreio correios
+- aguarda ID da transacao (IDT)
+- avaliar  comprador
+- auto defesa  em caso de disputa.
+
+**PLATAFORMA**
+- Cria selo
+- Ranking vendedor
+- Ranking comprador
+- Criar link
+- Gera ID transação (IDT)
+- Compara fotos
+- Julga
+- Manter histórico de conversas
+
+**COMPRADOR**
+- Compra ID?
+- Faz pagamento
+- Acompanha pedido IDT
+- Libera pagamento
+- Avalia vendedor
+- Reclama
+- Devolve Produto
+- Abre disputa
+- Manda foto
+- Manda texto
+- Acompanha rastreio do pedido
+- Paga Pix
+
+---
+
+## 1. HOLDFY — Visão do produto
+
+**Conceito:** Marketplace com pagamento protegido (escrow), autenticação, ranking e logística integrada.
+
+### Atores
+
+**Vendedor**
+- Cadastra produto
+- Tira fotos
+- Gera anúncio
+- Recebe link de venda
+- Envia produto
+- Acompanha rastreio
+- Recebe pagamento após confirmação
+- Responde disputa
+
+**Comprador**
+- Recebe link / acessa plataforma
+- Faz pagamento (Pix)
+- Acompanha pedido
+- Confirma recebimento
+- Libera pagamento
+- Avalia vendedor
+- Reclama / devolve
+- Abre disputa
+- Envia fotos / textos de evidência
+
+**Plataforma (Holdfy)**
+- Cria ID da transação
+- Segura pagamento (escrow)
+- Cria selo de qualidade
+- Ranking vendedor
+- Ranking comprador
+- Compara fotos
+- Mantém histórico da conversa
+- Julga disputa
+- Faz antifraude
+- Integra logística
+- Libera pagamento
+
+---
+
+## 2. Módulos do sistema
+
+### 2.1 Pagamento / Escrow
+
+**Funções**
+- Receber Pix
+- Segurar valor
+- Confirmar recebimento
+- Liberar para vendedor
+- Reembolso automático
+- Abrir disputa
+
+**Tecnologias possíveis**
+- Pix
+- Stellar (cross-border no futuro)
+- Ledger de transações
+- Wallet interna (opcional)
+
+### 2.2 Autenticação / Trust
+
+**Funções**
+- Validação ID
+- KYC
+- Biometria facial (opcional)
+- Verificação documento
+- Assinatura digital da transação
+
+### 2.3 Antifraude
+
+**Funções**
+- Detectar fraude Pix
+- Score de risco
+- Device fingerprint
+- Análise comportamental
+- Match de CPF / nome / telefone
+- Blacklist
+
+**IA pode ajudar em**
+- Foto falsa
+- Conta suspeita
+- Golpes recorrentes
+
+### 2.4 Ranking / Reputação
+
+**Vendedor**
+- Entregou no prazo
+- Reclamações
+- Score geral
+- Taxa de disputa
+
+**Comprador**
+- Reclamações abusivas
+- Chargeback-like behavior
+- Histórico
+
+**Selo**
+- Selo verificado
+- Selo premium
+- Selo autenticado
+
+### 2.5 Logística
+
+**Integração**
+- Correios
+- Jadlog
+- Melhor Envio
+- Transportadoras próprias
+
+**Funções**
+- Gerar etiqueta
+- Tracking
+- Prova de entrega
+- Seguro
+
+### 2.6 Disputa (Judge system)
+
+**Fluxo**
+1. Comprador reclama
+2. Envia foto / vídeo / texto
+3. Vendedor responde
+4. IA pré-analisa
+5. Judge manual ou automático
+6. Dinheiro vai para uma das partes
+
+---
+
+## 3. Canais de entrada
+
+**WhatsApp**
+- Conversa com bot
+- Recebe link
+- Tracking
+- Suporte
+- Compra via fluxo conversacional
+
+**API** (para parceiros)
+- Criar transação
+- Consultar status
+- Webhooks
+- Disputa
+- Pagamento
+
+**Site**
+- Compra normal
+- Painel
+- Checkout
+
+**Mobile**
+- Android
+- iOS
+
+---
+
+## 4. BLINDPLUS (módulo conversacional)
+
+**Objetivo:** Camada de atendimento e negociação via WhatsApp, API, Web e Site.
+
+**Funções**
+- Melhorar conversa
+- IA assistida
+- Fluxos automáticos
+- Geração de links
+- Suporte
+
+---
+
+## 5. Backoffice
+
+**Área cliente**
+- Ver transações
+- Rastreio
+- Conversas
+- Disputas
+- Avaliações
+
+**Área administrativa**
+- Ver fraudes
+- Liberar / bloquear transações em caso de frautes mas isso se e somente se comprador e vendedor nao se resolverem.
+- Resolver disputas
+- Métricas
+- Logs
+
+**Multi-tenant** (se for white-label)
+- Empresas diferentes
+- Branding separado
+- Configurações próprias
+
+---
+
+## 6. Arquitetura técnica (Go + AWS)
+
+### Backend Core
+- GoLang
+- PostgreSQL
+- Redis
+- Pulsar (preferência sobre Kafka)
+- gRPC interno
+- REST externo
+
+### Microserviços
+1. Auth Service
+2. Payment Service
+3. Escrow Service
+4. Logistics Service
+5. Chat Service
+6. Dispute Service
+7. Reputation Service
+8. AI Service
+9. Notification Service
+10. Audit Service
+
+### Infra
+- Kubernetes
+- AWS EKS
+- S3 (fotos/evidências)
+- CloudFront
+- RDS
+- ElastiCache
+- OpenSearch (logs)
+
+---
+
+## 7. MVP (primeira versão)
+
+**Incluir**
+- Link de venda
+- Pix escrow
+- Tracking
+- Chat comprador/vendedor
+- Confirmação de entrega
+- Liberação de pagamento
+- Disputa simples
+- Ranking básico
+
+**Deixar fora no início**
+- IA avançada
+- Stellar
+- Judge automatizado
+- Multi-tenant
+- Biometria
+- Selo complexo

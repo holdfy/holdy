@@ -3,8 +3,11 @@
 //! - Variáveis: `APICASH_ADMIN_API_URL` (default `http://127.0.0.1:3001`), `APICASH_ADMIN_API_KEY`.
 //! - Servidor UI: `Cargo.toml.leptos` → `site-addr` (default `127.0.0.1:3002`).
 
+#![recursion_limit = "512"]
+
 pub mod app;
 pub mod components;
+pub mod i18n;
 pub mod pages;
 pub mod providers;
 pub mod utils;

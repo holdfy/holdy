@@ -313,7 +313,138 @@ impl AnchorService {
         self.fiat.rail().as_str()
     }
 
-    /// Após on-ramp (PIX → BRLx), transfere BRLx para o endereço do contrato Soroban de escrow.
+    /// Emite BRLx da conta issuer para a conta buyer via SAC `transfer`.
+    ///
+    /// Este passo converte o PIX recebido (fiat) em tokens on-chain: o issuer cria novos BRLx
+    /// na conta do comprador. O step seguinte (`transfer_brlx_to_escrow`) move esses BRLx para o escrow.
+    ///
+    /// Comportamento por rede:
+    /// - **Testnet sem `APICASH_STELLAR_ISSUER_SECRET`** → skip (conta pré-fundida pelo bootstrap).
+    /// - **Mainnet sem `APICASH_STELLAR_ISSUER_SECRET`** → erro — é obrigatório emitir os tokens.
+    /// - **Qualquer rede com issuer configurado** → `stellar contract invoke -- transfer issuer→buyer`.
+    #[instrument(skip(self, buyer_address, memo), fields(network = ?self.cfg.network))]
+    async fn issue_brlx_to_buyer(
+        &self,
+        buyer_address: &str,
+        amount: Money,
+        memo: &str,
+    ) -> Result<(), AnchorError> {
+        use crate::config::StellarNetwork;
+
+        let issuer_secret = std::env::var("APICASH_STELLAR_ISSUER_SECRET")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
+
+        if issuer_secret.is_none() {
+            if self.cfg.network == StellarNetwork::Mainnet {
+                return Err(AnchorError::Config(
+                    "APICASH_STELLAR_ISSUER_SECRET obrigatório em mainnet: o issuer precisa emitir BRLx ao comprador após PIX confirmado".into(),
+                ));
+            }
+            // Testnet: conta pré-fundida via bootstrap-testnet-env.sh
+            tracing::info!(
+                %buyer_address,
+                amount = %amount,
+                "issuance: APICASH_STELLAR_ISSUER_SECRET ausente → skip (buyer pré-fundido na testnet)"
+            );
+            return Ok(());
+        }
+
+        let issuer_secret = issuer_secret.unwrap();
+        // Endereço público do issuer: env explícito ou fallback para o admin (mesmo keypair no bootstrap)
+        let issuer_address = std::env::var("APICASH_STELLAR_ISSUER_ADDRESS")
+            .or_else(|_| std::env::var("APICASH_SOROBAN_ADMIN_ADDRESS"))
+            .map_err(|_| {
+                AnchorError::Config(
+                    "APICASH_STELLAR_ISSUER_ADDRESS ausente (ou APICASH_SOROBAN_ADMIN_ADDRESS como fallback)".into(),
+                )
+            })?;
+
+        let token_contract_id = std::env::var("APICASH_BRLX_TOKEN_CONTRACT_ID")
+            .map_err(|_| AnchorError::Config("APICASH_BRLX_TOKEN_CONTRACT_ID missing".into()))?;
+        let rpc = std::env::var("APICASH_SOROBAN_RPC_URL")
+            .or_else(|_| std::env::var("SOROBAN_RPC_URL"))
+            .map_err(|_| AnchorError::Config("APICASH_SOROBAN_RPC_URL missing".into()))?;
+        let passphrase = std::env::var("APICASH_STELLAR_NETWORK_PASSPHRASE")
+            .or_else(|_| std::env::var("STELLAR_NETWORK_PASSPHRASE"))
+            .ok();
+        let stellar_bin =
+            std::env::var("APICASH_STELLAR_CLI_BIN").unwrap_or_else(|_| "stellar".into());
+
+        let stroops = (amount.decimal() * rust_decimal::Decimal::from(10_000_000i64))
+            .trunc()
+            .to_i128()
+            .unwrap_or(0);
+        if stroops <= 0 {
+            return Err(AnchorError::Validation(
+                "valor inválido para emissão de BRLx".into(),
+            ));
+        }
+
+        tracing::info!(
+            network = ?self.cfg.network,
+            %issuer_address,
+            %buyer_address,
+            %token_contract_id,
+            amount = %amount,
+            %memo,
+            "issuance: emit BRLx issuer→buyer via SAC transfer"
+        );
+
+        let mut cmd = tokio::process::Command::new(&stellar_bin);
+        cmd.args([
+            "contract",
+            "invoke",
+            "--id",
+            &token_contract_id,
+            "--rpc-url",
+            &rpc,
+        ]);
+        if let Some(ref p) = passphrase {
+            cmd.args(["--network-passphrase", p]);
+        }
+        cmd.args([
+            "--source",
+            &issuer_secret,
+            "--sign-with-key",
+            &issuer_secret,
+        ]);
+        cmd.args([
+            "--",
+            "transfer",
+            "--from",
+            &issuer_address,
+            "--to",
+            buyer_address,
+            "--amount",
+            &stroops.to_string(),
+        ]);
+
+        let out = cmd
+            .output()
+            .await
+            .map_err(|e| AnchorError::Anchor(e.to_string()))?;
+        if !out.status.success() {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            return Err(AnchorError::Anchor(format!(
+                "BRLx issuance falhou (issuer→buyer): {stderr}"
+            )));
+        }
+        let issuance_tx_hash = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        tracing::info!(
+            %issuance_tx_hash,
+            %buyer_address,
+            amount = %amount,
+            "issuance: BRLx emitido ao comprador com sucesso"
+        );
+        Ok(())
+    }
+
+    /// Após on-ramp (PIX → BRLx), emite BRLx ao comprador e transfere para o contrato Soroban de escrow.
+    ///
+    /// Fluxo completo:
+    ///   1. Emitir BRLx: issuer → buyer  (`issue_brlx_to_buyer` — só se `APICASH_STELLAR_ISSUER_SECRET` definido)
+    ///   2. Transferir:   buyer → escrow  (esta função — via SAC `transfer`)
     #[instrument(skip(self, escrow_contract_address, memo))]
     pub async fn transfer_brlx_to_escrow(
         &self,
@@ -370,13 +501,16 @@ impl AnchorService {
             return Err(AnchorError::Validation("invalid amount".into()));
         }
 
+        // Passo 1: Emitir BRLx (issuer → buyer). Obrigatório em mainnet; skip em testnet sem issuer.
+        self.issue_brlx_to_buyer(&from_addr, amount, memo).await?;
+
         tracing::info!(
             %escrow_contract_address,
             %token_contract_id,
             %from_addr,
             amount = %amount,
             %memo,
-            "live: token transfer BRLx -> escrow contract via stellar CLI"
+            "live: token transfer BRLx buyer→escrow via stellar CLI"
         );
 
         let mut cmd = tokio::process::Command::new(&stellar_bin);

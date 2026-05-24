@@ -1,86 +1,115 @@
 //! Deterministic scoring rules for on-ramp eligibility.
 //!
-//! Pesos calibrados para produção (escala 0–1000):
-//! - **Identidade fiscal (CPF)** — maior peso: cadastro regular é pré-requisito forte para confiança.
-//! - **Reputação social** — contas antigas reduzem risco de contas descartáveis.
-//! - **Histórico de disputas** — penalidade forte e linear por litígio aberto.
+//! Score scale: 0–1000.
+//!
+//! Signal groups and calibrated weights:
+//!   Identity (CPF)       — highest weight; verified identity is the foundation of trust
+//!   Social reputation    — old accounts reduce disposable-identity risk
+//!   Dispute history      — bilateral: BY user and AGAINST user
+//!   Velocity             — transaction count in 24h window
+//!   Volume               — BRL amount in 24h window
+//!   Structuring (COAF)   — amounts near regulatory reporting thresholds
+//!   Account maturity     — platform history and account age
+
+use rust_decimal::Decimal;
 
 use apicash_shared::USER_SCORE_MAX;
-
-use crate::score::risk_factors::RiskFactor;
-use crate::score::user_score::{OnRampDecision, RiskLevel, UserScore};
-use crate::validation::{SefazPersonStatus, SocialAccountSnapshot};
 use chrono::Utc;
 use uuid::Uuid;
 
-/// Confiança base quando o CPF está com situação **Regular** (Receita/SEFAZ-style).
-/// ~35% do teto de score; identidade verificável é o pilar do modelo.
-pub const POINTS_CPF_REGULAR: i32 = 350;
-/// Penalidade severa quando o CPF está **Irregular** — risco de fraude ou identidade inválida.
-pub const PENALTY_CPF_IRREGULAR: i32 = -320;
-/// Bónus quando existe pelo menos uma rede social com idade ≥ limiar (conta estabelecida).
-pub const POINTS_SOCIAL_OVER_SIX_MONTHS: i32 = 180;
-/// Penalidade por **cada** disputa em aberto (chargeback / litígio).
-pub const PENALTY_PER_OPEN_DISPUTE: i32 = 110;
-/// Idade mínima de conta social (meses) para o bónus.
-pub const SOCIAL_AGE_THRESHOLD_MONTHS: u32 = 6;
+use crate::score::behavioral_context::BehavioralContext;
+use crate::score::risk_factors::RiskFactor;
+use crate::score::user_score::{OnRampDecision, RiskLevel, UserScore};
+use crate::validation::{DocumentStatus, SocialAccountSnapshot};
 
-/// Limiares de [`RiskLevel`] — buckets para relatórios e dashboards.
+// ─── Identity ────────────────────────────────────────────────────────────────
+pub const POINTS_CPF_REGULAR: i32 = 350;
+pub const PENALTY_CPF_IRREGULAR: i32 = -320;
+pub const SOCIAL_AGE_THRESHOLD_MONTHS: u32 = 6;
+pub const POINTS_SOCIAL_OVER_SIX_MONTHS: i32 = 180;
+
+// ─── Dispute history ─────────────────────────────────────────────────────────
+pub const PENALTY_PER_OPEN_DISPUTE: i32 = -110;
+pub const PENALTY_PER_COUNTERPARTY_DISPUTE: i32 = -90;
+pub const DISPUTE_RATE_THRESHOLD_PCT: f64 = 20.0;
+pub const PENALTY_HIGH_DISPUTE_RATE: i32 = -150;
+
+// ─── Velocity (24-hour window) ────────────────────────────────────────────────
+pub const VELOCITY_WINDOW_HOURS: u32 = 24;
+pub const VELOCITY_HIGH_THRESHOLD: u32 = 5;
+pub const VELOCITY_MEDIUM_THRESHOLD: u32 = 3;
+pub const PENALTY_VELOCITY_HIGH: i32 = -200;
+pub const PENALTY_VELOCITY_MEDIUM: i32 = -80;
+
+// ─── Volume (24-hour window, BRL) ────────────────────────────────────────────
+pub const VOLUME_HIGH_BRL: u64 = 20_000;
+pub const VOLUME_NEW_ACCOUNT_BRL: u64 = 5_000;
+pub const PENALTY_HIGH_VOLUME: i32 = -150;
+pub const PENALTY_NEW_ACCOUNT_HIGH_VOLUME: i32 = -120;
+pub const NEW_ACCOUNT_AGE_DAYS: u32 = 7;
+
+// ─── Structuring (COAF threshold avoidance) ─────────────────────────────────
+// Bands just below R$2.000 and R$10.000 are common structuring signals.
+pub const PENALTY_STRUCTURING: i32 = -180;
+
+// ─── Account maturity ────────────────────────────────────────────────────────
+pub const MATURITY_ESTABLISHED_TX: u32 = 30;
+pub const MATURITY_CLEAN_TX_MIN: u32 = 5;
+pub const POINTS_ESTABLISHED_USER: i32 = 100;
+pub const POINTS_CLEAN_HISTORY: i32 = 60;
+pub const PENALTY_FIRST_TX: i32 = -40;
+pub const NEW_ACCOUNT_HIGH_VALUE_BRL: u64 = 500;
+pub const PENALTY_NEW_ACCOUNT_HIGH_VALUE: i32 = -120;
+
+// ─── Value anomaly ───────────────────────────────────────────────────────────
+pub const VALUE_ANOMALY_RATIO: u32 = 300; // 3× average → anomaly
+pub const PENALTY_VALUE_ANOMALY: i32 = -100;
+
+// ─── Decision / risk thresholds ──────────────────────────────────────────────
 pub const THRESHOLD_LOW_MIN: u32 = 750;
 pub const THRESHOLD_MEDIUM_MIN: u32 = 500;
 pub const THRESHOLD_HIGH_MIN: u32 = 250;
-
-/// Limiares para [`OnRampDecision`] (automático vs revisão manual vs bloqueio).
 pub const DECISION_APPROVE_MIN: u32 = 650;
-/// Deve ser ≤ [`POINTS_CPF_REGULAR`]: só com identidade fiscal *Regular* já entra em *Review*
-/// (PIX / on-ramp permitido onde só `Block` é recusado). Sem isto, fluxos só com CPF válido —
-/// como o WhatsApp sem `social_links` — ficam sempre bloqueados.
 pub const DECISION_REVIEW_MIN: u32 = POINTS_CPF_REGULAR as u32;
 
 pub struct ScoreCalculator;
 
 impl ScoreCalculator {
-    /// Retorna recomendação textual estável para integrações (APIs, SIEM, regras).
+    /// Stable recommendation string for API consumers and SIEM rules.
     #[must_use]
     pub fn get_risk_recommendation(score: &UserScore) -> &'static str {
         score.get_risk_recommendation()
     }
 
-    /// Combine validator outputs into a bounded 0–1000 score and decision.
+    /// Build a bounded 0–1000 score from identity, social, and behavioral signals.
     pub fn build_score(
         user_id: Uuid,
-        sefaz: SefazPersonStatus,
+        doc_status: DocumentStatus,
         social: &[SocialAccountSnapshot],
-        open_dispute_count: u32,
+        ctx: &BehavioralContext,
     ) -> UserScore {
         let mut raw: i32 = 0;
         let mut factors: Vec<RiskFactor> = Vec::new();
 
-        match sefaz {
-            SefazPersonStatus::Regular => {
+        // ── Identity ────────────────────────────────────────────────────────
+        match doc_status {
+            DocumentStatus::Valid => {
                 raw += POINTS_CPF_REGULAR;
-                factors.push(RiskFactor::SefazStatus {
-                    weight: POINTS_CPF_REGULAR,
-                });
+                factors.push(RiskFactor::SefazStatus { weight: POINTS_CPF_REGULAR });
             }
-            SefazPersonStatus::Irregular => {
+            DocumentStatus::Invalid => {
                 raw += PENALTY_CPF_IRREGULAR;
-                factors.push(RiskFactor::SefazStatus {
-                    weight: PENALTY_CPF_IRREGULAR,
-                });
+                factors.push(RiskFactor::SefazStatus { weight: PENALTY_CPF_IRREGULAR });
             }
-            SefazPersonStatus::Unknown => {
+            DocumentStatus::Unknown => {
                 factors.push(RiskFactor::Other {
-                    code: "sefaz_unknown".into(),
+                    code: "document_unknown".into(),
                     weight: 0,
                 });
             }
         }
 
-        if let Some(s) = social
-            .iter()
-            .find(|s| s.estimated_age_months >= SOCIAL_AGE_THRESHOLD_MONTHS)
-        {
+        if let Some(s) = social.iter().find(|s| s.estimated_age_months >= SOCIAL_AGE_THRESHOLD_MONTHS) {
             raw += POINTS_SOCIAL_OVER_SIX_MONTHS;
             factors.push(RiskFactor::SocialAccountAge {
                 platform: s.platform.clone(),
@@ -89,12 +118,131 @@ impl ScoreCalculator {
             });
         }
 
-        if open_dispute_count > 0 {
-            let penalty = PENALTY_PER_OPEN_DISPUTE.saturating_mul(open_dispute_count as i32);
-            raw -= penalty;
+        // ── Dispute history (BY user) ────────────────────────────────────
+        if ctx.open_dispute_count > 0 {
+            let w = PENALTY_PER_OPEN_DISPUTE.saturating_mul(ctx.open_dispute_count as i32);
+            raw += w;
             factors.push(RiskFactor::DisputeHistory {
-                open_disputes: open_dispute_count,
-                weight: -penalty,
+                open_disputes: ctx.open_dispute_count,
+                weight: w,
+            });
+        }
+
+        // ── Counterparty disputes (AGAINST user) ────────────────────────
+        if ctx.disputes_as_counterparty > 0 {
+            let w = PENALTY_PER_COUNTERPARTY_DISPUTE
+                .saturating_mul(ctx.disputes_as_counterparty as i32);
+            raw += w;
+            factors.push(RiskFactor::CounterpartyDisputes {
+                count: ctx.disputes_as_counterparty,
+                weight: w,
+            });
+        }
+
+        // ── Dispute rate ─────────────────────────────────────────────────
+        let dispute_rate_pct = (ctx.dispute_rate * 100.0) as u32;
+        if ctx.tx_count_total > 0 && ctx.dispute_rate * 100.0 > DISPUTE_RATE_THRESHOLD_PCT {
+            raw += PENALTY_HIGH_DISPUTE_RATE;
+            factors.push(RiskFactor::DisputeRate {
+                rate_pct: dispute_rate_pct,
+                weight: PENALTY_HIGH_DISPUTE_RATE,
+            });
+        }
+
+        // ── Velocity (24h) ───────────────────────────────────────────────
+        let velocity_weight = if ctx.tx_count_24h > VELOCITY_HIGH_THRESHOLD {
+            Some(PENALTY_VELOCITY_HIGH)
+        } else if ctx.tx_count_24h >= VELOCITY_MEDIUM_THRESHOLD {
+            Some(PENALTY_VELOCITY_MEDIUM)
+        } else {
+            None
+        };
+        if let Some(w) = velocity_weight {
+            raw += w;
+            factors.push(RiskFactor::VelocityCheck {
+                tx_count: ctx.tx_count_24h,
+                window_hours: VELOCITY_WINDOW_HOURS,
+                weight: w,
+            });
+        }
+
+        // ── High volume (24h) ────────────────────────────────────────────
+        let volume_brl_u64 = ctx.tx_volume_24h_brl.to_u64_saturating();
+        if volume_brl_u64 >= VOLUME_HIGH_BRL {
+            raw += PENALTY_HIGH_VOLUME;
+            factors.push(RiskFactor::HighVolume {
+                amount_brl: ctx.tx_volume_24h_brl.to_string(),
+                window_hours: VELOCITY_WINDOW_HOURS,
+                weight: PENALTY_HIGH_VOLUME,
+            });
+        } else if volume_brl_u64 >= VOLUME_NEW_ACCOUNT_BRL
+            && ctx.account_age_days <= NEW_ACCOUNT_AGE_DAYS
+        {
+            raw += PENALTY_NEW_ACCOUNT_HIGH_VOLUME;
+            factors.push(RiskFactor::HighVolume {
+                amount_brl: ctx.tx_volume_24h_brl.to_string(),
+                window_hours: VELOCITY_WINDOW_HOURS,
+                weight: PENALTY_NEW_ACCOUNT_HIGH_VOLUME,
+            });
+        }
+
+        // ── Structuring ──────────────────────────────────────────────────
+        if let Some(ref amt) = ctx.current_tx_amount {
+            if is_structuring_amount(amt) {
+                raw += PENALTY_STRUCTURING;
+                factors.push(RiskFactor::Structuring {
+                    amount_brl: amt.to_string(),
+                    weight: PENALTY_STRUCTURING,
+                });
+            }
+
+            // Value anomaly: current amount ≥ 3× historical average
+            if let Some(ref avg) = ctx.avg_tx_value {
+                if !avg.is_zero() {
+                    // ratio_pct: e.g. current=350, avg=100 → ratio_pct=350 (350%)
+                    let ratio_pct = (amt / avg * Decimal::from(100u32))
+                        .to_u64_saturating() as u32;
+                    // VALUE_ANOMALY_RATIO = 300 means "3× average = 300%"
+                    if ratio_pct >= VALUE_ANOMALY_RATIO {
+                        raw += PENALTY_VALUE_ANOMALY;
+                        factors.push(RiskFactor::ValueAnomaly {
+                            ratio_pct,
+                            weight: PENALTY_VALUE_ANOMALY,
+                        });
+                    }
+                }
+            }
+        }
+
+        // ── Account maturity ─────────────────────────────────────────────
+        let maturity_weight = if ctx.tx_count_total == 0 {
+            // First-ever transaction
+            let w = PENALTY_FIRST_TX;
+            // Extra penalty: new account + high value
+            let extra = ctx
+                .current_tx_amount
+                .as_ref()
+                .filter(|a| a.to_u64_saturating() >= NEW_ACCOUNT_HIGH_VALUE_BRL)
+                .map(|_| PENALTY_NEW_ACCOUNT_HIGH_VALUE)
+                .unwrap_or(0);
+            w + extra
+        } else if ctx.tx_count_total >= MATURITY_ESTABLISHED_TX
+            && ctx.open_dispute_count == 0
+            && ctx.disputes_as_counterparty == 0
+        {
+            POINTS_ESTABLISHED_USER
+        } else if ctx.tx_count_total >= MATURITY_CLEAN_TX_MIN && ctx.open_dispute_count == 0 {
+            POINTS_CLEAN_HISTORY
+        } else {
+            0
+        };
+
+        if maturity_weight != 0 {
+            raw += maturity_weight;
+            factors.push(RiskFactor::AccountMaturity {
+                tx_count: ctx.tx_count_total,
+                age_days: ctx.account_age_days,
+                weight: maturity_weight,
             });
         }
 
@@ -111,6 +259,15 @@ impl ScoreCalculator {
             decision,
         }
     }
+}
+
+/// Returns `true` when an amount falls in a known structuring band.
+///
+/// Brazilian COAF reporting thresholds are R$2.000 (individual) and R$10.000 (corporate).
+/// Amounts just below these values (within 10%) are a common avoidance pattern.
+fn is_structuring_amount(amount: &Decimal) -> bool {
+    let brl = amount.to_u64_saturating();
+    (1_800..2_000).contains(&brl) || (9_000..10_000).contains(&brl)
 }
 
 fn risk_level_from_score(score: u32) -> RiskLevel {
@@ -131,5 +288,19 @@ fn decision_from_score(score: u32, risk: RiskLevel) -> OnRampDecision {
         _ if score >= DECISION_APPROVE_MIN => OnRampDecision::Approve,
         _ if score >= DECISION_REVIEW_MIN => OnRampDecision::Review,
         _ => OnRampDecision::Block,
+    }
+}
+
+trait ToU64Saturating {
+    fn to_u64_saturating(&self) -> u64;
+}
+
+impl ToU64Saturating for Decimal {
+    fn to_u64_saturating(&self) -> u64 {
+        if self.is_sign_negative() {
+            return 0;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        self.to_u64().unwrap_or(u64::MAX)
     }
 }

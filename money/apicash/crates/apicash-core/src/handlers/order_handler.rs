@@ -210,7 +210,7 @@ pub async fn create_order(
 
     let score = state
         .antifraude
-        .calculate_score(buyer_id, &cpf, &req.social_links)
+        .calculate_score(buyer_id, &cpf, &req.social_links, Some(amount.into()))
         .await
         .map_err(|e| {
             error!(error = %e, "antifraude failed");
@@ -415,7 +415,7 @@ pub async fn calculate_risk_score(
     let cpf: String = req.cpf.chars().filter(|c| c.is_ascii_digit()).collect();
     let score = state
         .antifraude
-        .calculate_score(req.user_id, &cpf, &req.social_links)
+        .calculate_score(req.user_id, &cpf, &req.social_links, None)
         .await
         .map_err(|e| {
             error!(error = %e, "antifraude risk score failed");
@@ -470,7 +470,7 @@ pub async fn calculate_risk_score_internal(
     let cpf: String = req.cpf.chars().filter(|c| c.is_ascii_digit()).collect();
     let score = state
         .antifraude
-        .calculate_score(req.user_id, &cpf, &req.social_links)
+        .calculate_score(req.user_id, &cpf, &req.social_links, None)
         .await
         .map_err(|e| {
             error!(error = %e, "antifraude risk score failed");
@@ -506,7 +506,7 @@ pub async fn settle_order_manual(
     settle_order_by_id(&state, id).await
 }
 
-async fn settle_order_by_id(
+pub(crate) async fn settle_order_by_id(
     state: &Arc<AppState>,
     id: Uuid,
 ) -> Result<Json<serde_json::Value>, ApiError> {
@@ -689,4 +689,220 @@ fn resolve_escrow_contract_id() -> Result<String, &'static str> {
         ),
         _ => Ok("mock_escrow_contract".into()),
     }
+}
+
+/// Core order creation logic shared between `POST /orders` and `POST /proposals/{id}/accept`.
+///
+/// Skips JWT binding (caller must verify identity before invoking). Performs anti-fraud scoring,
+/// PIX on-ramp, and persistence; returns the full order response on success.
+#[instrument(skip(state, social_links, description), fields(%buyer_id, %seller_id))]
+pub(crate) async fn create_escrow_order_core(
+    state: &Arc<AppState>,
+    buyer_id: Uuid,
+    seller_id: Uuid,
+    amount_str: &str,
+    cpf: &str,
+    social_links: &[String],
+    description: Option<&str>,
+) -> Result<crate::dto::OrderResponse, ApiError> {
+    let amount = Money::from_str_strict(amount_str.trim()).map_err(|e| {
+        error!(error = %e, "invalid amount");
+        ApiError::bad_request("invalid amount decimal")
+    })?;
+
+    let cpf_digits: String = cpf.chars().filter(|c| c.is_ascii_digit()).collect();
+    let order_id = Uuid::new_v4();
+
+    let score = state
+        .antifraude
+        .calculate_score(buyer_id, &cpf_digits, social_links, Some(amount.into()))
+        .await
+        .map_err(|e| {
+            error!(error = %e, "antifraude failed");
+            ApiError::from(e)
+        })?;
+
+    if score.decision == OnRampDecision::Block {
+        warn!(
+            %buyer_id,
+            %order_id,
+            score = score.score,
+            "order creation blocked by anti-fraud policy"
+        );
+        return Err(ApiError::forbidden(
+            "on-ramp blocked by anti-fraud policy for this user",
+        ));
+    }
+
+    let now = Utc::now();
+    let mut order = Order {
+        id: order_id,
+        buyer_id,
+        seller_id,
+        amount,
+        status: OrderStatus::PendingFunding,
+        created_at: now,
+        updated_at: now,
+    };
+
+    let memo = format!("order:{order_id}");
+    let on_ramp = state
+        .anchor
+        .deposit_pix(order.amount, memo.clone())
+        .await
+        .map_err(|e| {
+            error!(error = %e, "anchor on-ramp (PIX → BRLx) failed");
+            ApiError::from(e)
+        })?;
+
+    let pix_ok = on_ramp
+        .pix_br_code
+        .as_ref()
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false);
+    if !pix_ok {
+        return Err(ApiError::bad_gateway(
+            "anchor on-ramp did not return pix_br_code; cannot proceed with PIX funding",
+        ));
+    }
+
+    let funding_instruction =
+        Some("Complete o depósito usando o PIX copia-e-cola retornado pelo provedor.".to_string());
+
+    order.status = OrderStatus::PendingFunding;
+    order.updated_at = Utc::now();
+
+    let risk_decision = decision_str(score.decision);
+    let desc = description
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let soroban_mode = "pending_funding".to_string();
+    let anchor_tx_hash = Some(on_ramp.stellar_tx_hash.clone())
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_owned());
+    let stored = StoredOrder {
+        order: order.clone(),
+        custody_id: None,
+        anchor_tx_hash: anchor_tx_hash.clone(),
+        fiat_rail: on_ramp.fiat_rail.clone(),
+        gateway_in_tx_id: on_ramp.transaction_id.clone(),
+        funding_reference: on_ramp.external_id.clone(),
+        pix_br_code: on_ramp.pix_br_code.clone(),
+        funding_instruction: funding_instruction.clone(),
+        risk_score: score.score,
+        risk_decision: risk_decision.to_string(),
+        description: desc.clone(),
+        off_ramp_tx_hash: None,
+        brlx_escrow_transfer_tx_hash: None,
+        soroban_escrow_contract_id: None,
+        soroban_lock_tx_hash: None,
+        soroban_mode,
+    };
+
+    state.orders.save(stored).await.map_err(|e| {
+        error!(error = %e, "order persistence failed");
+        ApiError::internal("order persistence failed")
+    })?;
+
+    info!(%order_id, rail = %on_ramp.fiat_rail, "order created via core helper (pending funding)");
+
+    Ok(crate::dto::OrderResponse {
+        id: order.id,
+        buyer_id: order.buyer_id,
+        seller_id: order.seller_id,
+        amount: order.amount.to_string(),
+        status: order.status.to_string(),
+        fiat_rail: on_ramp.fiat_rail,
+        risk_score: score.score,
+        risk_decision: risk_decision.to_string(),
+        custody_id: None,
+        anchor_tx_hash,
+        gateway_in_tx_id: on_ramp.transaction_id,
+        funding_reference: on_ramp.external_id,
+        pix_br_code: on_ramp.pix_br_code,
+        funding_instruction,
+        description: desc,
+        off_ramp_tx_hash: None,
+        brlx_escrow_transfer_tx_hash: None,
+        soroban_escrow_contract_id: None,
+        soroban_lock_tx_hash: None,
+        soroban_mode: Some("pending".to_string()),
+    })
+}
+
+/// Open a dispute for an existing order.
+///
+/// Either the buyer or seller of the order may open a dispute. The order must be in
+/// `pending_funding` or `in_custody` state.
+#[instrument(skip(state, claims, body), fields(order_id = %id))]
+pub async fn open_dispute(
+    State(state): State<Arc<AppState>>,
+    claims: Option<Extension<JwtClaims>>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<DisputeBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let stored = state
+        .orders
+        .get(id)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "order lookup failed");
+            ApiError::internal("order lookup failed")
+        })?
+        .ok_or_else(|| ApiError::not_found("order not found"))?;
+
+    let actor_id = if state.auth.config().auth_disabled {
+        stored.order.buyer_id
+    } else {
+        let Some(Extension(c)) = claims else {
+            return Err(ApiError::unauthorized("missing JWT"));
+        };
+        c.current_user_id()
+    };
+
+    let is_party = actor_id == stored.order.buyer_id || actor_id == stored.order.seller_id;
+    if !is_party {
+        return Err(ApiError::forbidden(
+            "only the buyer or seller of this order can open a dispute",
+        ));
+    }
+
+    let allowed = matches!(
+        stored.order.status,
+        OrderStatus::PendingFunding | OrderStatus::InCustody
+    );
+    if !allowed {
+        return Err(ApiError::bad_request(
+            "disputes can only be opened on orders in pending_funding or in_custody state",
+        ));
+    }
+
+    let dispute_id = Uuid::new_v4();
+    let opened_by = if actor_id == stored.order.buyer_id {
+        "buyer"
+    } else {
+        "seller"
+    };
+
+    info!(
+        %dispute_id,
+        %id,
+        %opened_by,
+        "dispute opened"
+    );
+
+    Ok(Json(serde_json::json!({
+        "dispute_id": dispute_id,
+        "order_id": id,
+        "status": "open",
+        "opened_by": opened_by,
+        "reason": body.reason,
+        "message": "Disputa registrada. O suporte responde em até 1 dia útil."
+    })))
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct DisputeBody {
+    #[serde(default)]
+    pub reason: Option<String>,
 }

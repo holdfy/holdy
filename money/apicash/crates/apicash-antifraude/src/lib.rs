@@ -1,4 +1,5 @@
-//! Anti-fraud: user score, SEFAZ/Receita checks, and social validation before Stellar on-ramp.
+//! Anti-fraud: user score, document validation (CPF/CNPJ), and social validation
+//! before Stellar on-ramp.
 //!
 //! Exposição na API:
 //! - `apicash-core` oferece `POST /risk/score` (protegido por JWT do usuário final).
@@ -16,9 +17,10 @@ pub mod validation;
 
 pub use crate::error::AntiFraudeError;
 pub use crate::repository::{InMemoryScoreRepository, PostgresScoreRepository, ScoreRepository};
-pub use crate::score::{OnRampDecision, RiskFactor, RiskLevel, ScoreCalculator, UserScore};
+pub use crate::score::{BehavioralContext, OnRampDecision, RiskFactor, RiskLevel, ScoreCalculator, UserScore};
 pub use crate::service::AntiFraudeService;
 pub use crate::validation::{
-    SefazPersonStatus, SefazValidationResult, SefazValidator, SocialAccountSnapshot,
-    SocialValidationResult, SocialValidator,
+    CachedDocumentValidator, DocumentCache, DocumentStatus, DocumentType, DocumentValidator,
+    HttpDocumentValidator, InMemoryDocumentCache, LocalDocumentValidator, PostgresDocumentCache,
+    SocialAccountSnapshot, SocialValidationResult, SocialValidator,
 };

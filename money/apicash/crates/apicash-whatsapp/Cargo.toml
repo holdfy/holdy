@@ -26,6 +26,7 @@ whatsapp-rust-ureq-http-client = { workspace = true }
 wacore = { workspace = true }
 waproto = { workspace = true }
 whatsapp-cloud-api = { workspace = true }
+openssl = { workspace = true }
 axum = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

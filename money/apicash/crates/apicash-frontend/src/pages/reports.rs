@@ -1,15 +1,16 @@
 use leptos::prelude::*;
 
+use crate::i18n::{MsgKey, T};
 use crate::utils::api_client::{get_user_scores, get_yield_report};
 
 #[component]
 pub fn ReportsPage() -> impl IntoView {
     view! {
-        <h1 style="margin-top:0;">"Relatórios"</h1>
-        <p class="ap-muted">"Exportação CSV/PDF pode ligar-se a estas server functions."</p>
+        <h1 style="margin-top:0;"><T key=MsgKey::ReportsTitle /></h1>
+        <p class="ap-muted"><T key=MsgKey::ReportsSubtitle /></p>
         <section style="margin-bottom:2rem;">
-            <h2>"Yield"</h2>
-            <Suspense fallback=|| view! { <p>"…"</p> }>
+            <h2><T key=MsgKey::ReportsYield /></h2>
+            <Suspense fallback=|| view! { <p><T key=MsgKey::Loading /></p> }>
                 <Await future=get_yield_report() let:res>
                     {match res {
                         Ok(r) => {
@@ -28,7 +29,7 @@ pub fn ReportsPage() -> impl IntoView {
                                     <button type="button" class="ap-btn" on:click=move |_| {
                                         let _ = &csv;
                                     }>
-                                        "Preparar CSV (copiar no próximo passo)"
+                                        <T key=MsgKey::ReportsPrepareCsv />
                                     </button>
                                 </div>
                             }
@@ -40,8 +41,8 @@ pub fn ReportsPage() -> impl IntoView {
             </Suspense>
         </section>
         <section>
-            <h2>"Scores"</h2>
-            <Suspense fallback=|| view! { <p>"…"</p> }>
+            <h2><T key=MsgKey::ReportsScores /></h2>
+            <Suspense fallback=|| view! { <p><T key=MsgKey::Loading /></p> }>
                 <Await future=get_user_scores() let:res>
                     {match res {
                         Ok(list) => view! {

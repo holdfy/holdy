@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Arranque das apps do workspace: APICash, Gatebox Rust (PIX), opcionalmente backend_banco Go.
+# Arranque das apps do workspace: APICash (core :3000, admin :3001, frontend :3002, whatsapp :3010),
+# site público Vite (holdy/site :5173), Gatebox Rust (PIX), opcionalmente backend_banco Go.
 # Gatebox: gatebox/gatebox-rust (symlink criado por setup-env.sh para ../gatebox se existir) ou GATEBOX_RUST_DIR.
 # Infra Docker: money/docker-compose.yml (postgres APICash + gatebox-postgres, Redis/Pulsar únicos).
 #
@@ -12,15 +13,17 @@
 # Uso:
 #   ./runapp.sh                    # = stop all + start all (scope all, default)
 #   ./runapp.sh restart [scope]    # idem: para tudo no scope e sobe de novo (+ build no start)
-#   ./runapp.sh stop [apicash|gatebox|banco|all]   (stop apicash não para o Gatebox)
-#   ./runapp.sh start [apicash|gatebox|banco|all]
+#   ./runapp.sh stop [apicash|gatebox|banco|site|all]   (stop apicash não para o Gatebox)
+#   ./runapp.sh start [apicash|gatebox|banco|site|all]
 #   ./runapp.sh status
-#   ./runapp.sh build [apicash|banco|all]
-#   ./runapp.sh logs [apicash|gatebox|banco|all]
+#   ./runapp.sh build [apicash|banco|site|all]
+#   ./runapp.sh logs [apicash|gatebox|banco|site|all]
 #
 set -euo pipefail
 
 MONEY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Node/bun para holdy/site (Vite) — disponível em todo o script.
+export PATH="${HOME}/.bun/bin:${HOME}/.local/bin:/usr/local/bin:${PATH}"
 # Host usado em URLs (Postgres, Pulsar, APIs, Gatebox, Sulcred). Sobrescreva com MONEY_LAN_HOST em money/.env
 export MONEY_LAN_HOST="${MONEY_LAN_HOST:-192.168.0.10}"
 # Health checks no mesmo host: usar loopback evita falhar quando MONEY_LAN_HOST não é o IP desta máquina.
@@ -62,9 +65,28 @@ mkdir -p "${GB_LOG}"
 
 # Se 1 (defeito com gatebox presente no disco), `./runapp.sh start all` sobe também a API Rust Gatebox antes do APICash.
 RUNAPP_AUTO_GATEBOX="${RUNAPP_AUTO_GATEBOX:-1}"
+# Se 1 (defeito), `./runapp.sh start all` sobe também o site Vite em holdy/site (npm run dev).
+RUNAPP_AUTO_SITE="${RUNAPP_AUTO_SITE:-1}"
+
+resolve_site_dir() {
+  if [ -n "${SITE_DIR:-}" ] && [ -d "${SITE_DIR}" ]; then
+    printf '%s\n' "${SITE_DIR}"
+    return
+  fi
+  local sibling="${MONEY}/../site"
+  if [ -d "${sibling}" ]; then
+    (cd "${sibling}" && pwd)
+    return
+  fi
+  printf '%s\n' "${sibling}"
+}
+SITE_ROOT="$(resolve_site_dir)"
+SITE_PORT="${SITE_PORT:-5173}"
+SITE_LOG="${MONEY}/.runapp/site"
+mkdir -p "${SITE_LOG}"
 
 # WhatsApp pareamento: pasta do PNG + pair.html para o browser. Sobrescrever com WA_QR_DIR no .env
-WA_QR_DIR_DEFAULT="${WA_QR_DIR_DEFAULT:-/home/devel/git/pos-nearx/whatsapp_qrcode}"
+WA_QR_DIR_DEFAULT="${WA_QR_DIR_DEFAULT:-$(dirname "${MONEY}")/whatsapp_qrcode}"
 
 # Gatebox ports (prefixo GB_* para não colidir com API_PORT do .env do APICash)
 GB_API_PORT="${GB_API_PORT:-8081}"
@@ -77,8 +99,99 @@ WEBHOOK_URL="${WEBHOOK_URL:-http://${MONEY_LAN_HOST}:${GB_API_PORT}}"
 # Compose money: um único Pulsar (serviço `pulsar`); gatebox-postgres à parte. scripts/start-infra.sh só se UNIFIED_SKIP_GATEBOX_INFRA=0.
 UNIFIED_SKIP_GATEBOX_INFRA="${UNIFIED_SKIP_GATEBOX_INFRA:-1}"
 
-log() { printf '[money/runapp] %s\n' "$*"; }
+log() { printf '[money/runapp] %s\n' "$*" >&2; }
 warn() { printf '[money/runapp][warn] %s\n' "$*" >&2; }
+
+# Abre URL no browser do ambiente gráfico (xdg-open / gio).
+runapp_open_in_browser() {
+  local label="$1"
+  local url="$2"
+  if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    warn "sem DISPLAY/WAYLAND — abra manualmente (${label}): ${url}"
+    return 0
+  fi
+  if command -v xdg-open >/dev/null 2>&1; then
+    log "abrindo ${label} no browser: ${url}"
+    xdg-open "${url}" >/dev/null 2>&1 &
+  elif command -v gio >/dev/null 2>&1; then
+    log "abrindo ${label} (gio): ${url}"
+    gio open "${url}" >/dev/null 2>&1 &
+  else
+    warn "xdg-open/gio ausente — abra no browser (${label}): ${url}"
+  fi
+}
+
+# Abre duas URLs em abas separadas (xdg-open em sequência reutiliza a mesma aba).
+runapp_open_two_browser_tabs() {
+  local qr_url="${1:-}"
+  local site_url="${2:-}"
+  if [ -z "${qr_url}" ] && [ -z "${site_url}" ]; then
+    return 0
+  fi
+  if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    [ -n "${qr_url}" ] && warn "sem DISPLAY/WAYLAND — QR: ${qr_url}"
+    [ -n "${site_url}" ] && warn "sem DISPLAY/WAYLAND — site: ${site_url}"
+    return 0
+  fi
+
+  local browser="" b
+  for b in google-chrome google-chrome-stable chromium chromium-browser brave-browser microsoft-edge vivaldi; do
+    if command -v "${b}" >/dev/null 2>&1; then
+      browser="${b}"
+      break
+    fi
+  done
+
+  if [ -n "${browser}" ]; then
+    if [ -n "${qr_url}" ] && [ -n "${site_url}" ]; then
+      log "abrindo QR: ${qr_url}"
+      log "abrindo site: ${site_url}"
+      "${browser}" --new-tab "${qr_url}" >/dev/null 2>&1 &
+      sleep 1
+      "${browser}" --new-tab "${site_url}" >/dev/null 2>&1 &
+    elif [ -n "${qr_url}" ]; then
+      log "abrindo QR: ${qr_url}"
+      "${browser}" --new-tab "${qr_url}" >/dev/null 2>&1 &
+    elif [ -n "${site_url}" ]; then
+      log "abrindo site: ${site_url}"
+      "${browser}" --new-tab "${site_url}" >/dev/null 2>&1 &
+    fi
+    return 0
+  fi
+
+  if command -v firefox >/dev/null 2>&1; then
+    if [ -n "${qr_url}" ] && [ -n "${site_url}" ]; then
+      log "abrindo QR: ${qr_url}"
+      log "abrindo site: ${site_url}"
+      firefox -new-tab "${qr_url}" >/dev/null 2>&1 &
+      sleep 1
+      firefox -new-tab "${site_url}" >/dev/null 2>&1 &
+    elif [ -n "${qr_url}" ]; then
+      firefox -new-tab "${qr_url}" >/dev/null 2>&1 &
+    elif [ -n "${site_url}" ]; then
+      firefox -new-tab "${site_url}" >/dev/null 2>&1 &
+    fi
+    return 0
+  fi
+
+  if [ -n "${qr_url}" ]; then
+    log "abrindo pareamento WhatsApp: ${qr_url}"
+    if command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "${qr_url}" >/dev/null 2>&1 &
+    elif command -v gio >/dev/null 2>&1; then
+      gio open "${qr_url}" >/dev/null 2>&1 &
+    fi
+    sleep 2
+  fi
+  if [ -n "${site_url}" ]; then
+    log "abrindo site HoldFy: ${site_url}"
+    if command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "${site_url}" >/dev/null 2>&1 &
+    elif command -v gio >/dev/null 2>&1; then
+      gio open "${site_url}" >/dev/null 2>&1 &
+    fi
+  fi
+}
 
 compose_money() {
   local ef=()
@@ -186,7 +299,7 @@ ac_load_env() {
   export APICASH_WA_WEBHOOK_BIND="${APICASH_WA_WEBHOOK_BIND:-0.0.0.0:3010}"
   export APICASH_WA_TRANSPORT="${APICASH_WA_TRANSPORT:-rust}"
   export APICASH_WA_SQLITE_PATH="${APICASH_WA_SQLITE_PATH:-file:${APICASH}/.runapp/apicash_whatsapp.db}"
-  WA_QR_DIR="${WA_QR_DIR:-${WA_QR_DIR_DEFAULT:-/home/devel/git/pos-nearx/whatsapp_qrcode}}"
+  WA_QR_DIR="${WA_QR_DIR:-${WA_QR_DIR_DEFAULT}}"
   export APICASH_WA_QR_PNG="${APICASH_WA_QR_PNG:-${WA_QR_DIR}/whatsapp-pairing-qr.png}"
   mkdir -p "${WA_QR_DIR}" "$(dirname "${APICASH_WA_QR_PNG}")" 2>/dev/null || true
   export APICASH_CORE_URL="${APICASH_CORE_URL:-http://${MONEY_LAN_HOST}:${APICASH_HTTP_PORT}}"
@@ -296,7 +409,7 @@ ac_build_all() {
 
   cargo build "${core_args[@]}"
   cargo build -p apicash-admin-backend
-  cargo build -p apicash-frontend --features ssr
+  cargo build -p apicash-frontend --no-default-features --features ssr
   cargo build -p apicash-whatsapp
 }
 
@@ -363,7 +476,9 @@ ac_start_all() {
   done < <(ac_services)
 
   ac_verify_gatebox_integration_hint || true
-  ac_maybe_open_whatsapp_pairing_browser || true
+  if ! truthy "${RUNAPP_DEFER_BROWSER:-0}"; then
+    ac_maybe_open_whatsapp_pairing_browser || true
+  fi
 }
 
 # Recria whatsapp_qrcode/ (pair.html + alinha PNG para o browser). Chamado em todo runapp.sh.
@@ -419,43 +534,88 @@ ac_install_whatsapp_pair_html() {
   ac_setup_whatsapp_qr_dir
 }
 
-ac_maybe_open_whatsapp_pairing_browser() {
+ac_whatsapp_qr_file_url() {
   ac_load_env
   case "${APICASH_WA_TRANSPORT:-rust}" in
-  cloud) return 0 ;;
+  cloud) return 1 ;;
   esac
-  if ! truthy "${APICASH_WA_OPEN_BROWSER:-1}"; then
-    return 0
-  fi
-  if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
-    warn "sem DISPLAY/WAYLAND — abra manualmente: ${WA_QR_DIR}/pair.html (ou o PNG em ${APICASH_WA_QR_PNG})"
-    return 0
-  fi
-  ac_setup_whatsapp_qr_dir || return 0
+  truthy "${APICASH_WA_OPEN_BROWSER:-1}" || return 1
+  ac_setup_whatsapp_qr_dir || return 1
   local html
   html="$(cd "${WA_QR_DIR}" && pwd)/pair.html"
+  printf 'file://%s\n' "${html}"
+}
+
+ac_maybe_open_whatsapp_pairing_browser() {
+  local qr_url
+  qr_url="$(ac_whatsapp_qr_file_url 2>/dev/null)" || return 0
+  runapp_open_in_browser "pareamento WhatsApp" "${qr_url}"
   local browser_png="${WA_QR_DIR}/whatsapp-pairing-qr.png"
+  if [ ! -s "${browser_png}" ] && [ ! -s "${APICASH_WA_QR_PNG}" ]; then
+    warn "QR ainda não gerado (sessão já pareada?). Para novo QR: ./runapp.sh whatsapp-pair"
+  fi
+}
+
+runapp_open_startup_browsers() {
+  local qr_url="" site_url=""
+  ac_load_env
+
+  if truthy "${RUNAPP_AUTO_SITE:-1}" && site_present && truthy "${RUNAPP_OPEN_SITE_BROWSER:-1}"; then
+    site_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
+    if command -v curl >/dev/null 2>&1 && ! curl -fsS --max-time 1 "${site_url}" >/dev/null 2>&1; then
+      warn "site ainda não responde — a subir antes de abrir o browser"
+      RUNAPP_DEFER_BROWSER=1 site_start_all || warn "site não subiu — ver ${SITE_LOG}/vite.log"
+    fi
+    if command -v curl >/dev/null 2>&1; then
+      local waited=0
+      while ! curl -fsS --max-time 1 "${site_url}" >/dev/null 2>&1; do
+        if [ "${waited}" -ge 90 ]; then
+          warn "site não respondeu — abri só o QR WhatsApp"
+          site_url=""
+          break
+        fi
+        sleep 1
+        waited=$((waited + 1))
+      done
+    fi
+  fi
+
+  qr_url="$(ac_whatsapp_qr_file_url 2>/dev/null)" || qr_url=""
+
+  if [ -z "${qr_url}" ] && [ -z "${site_url}" ]; then
+    return 0
+  fi
+
+  log "abrindo QR WhatsApp + site no browser (2 abas)"
+  runapp_open_two_browser_tabs "${qr_url}" "${site_url}"
+
+  if [ -n "${qr_url}" ]; then
+    local browser_png="${WA_QR_DIR}/whatsapp-pairing-qr.png"
+    if [ ! -s "${browser_png}" ] && [ ! -s "${APICASH_WA_QR_PNG:-}" ]; then
+      warn "QR ainda não gerado (sessão já pareada?). Para novo QR: ./runapp.sh whatsapp-pair"
+    fi
+  fi
+}
+
+site_maybe_open_browser() {
+  if ! truthy "${RUNAPP_OPEN_SITE_BROWSER:-1}"; then
+    return 0
+  fi
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
+  command -v curl >/dev/null 2>&1 || {
+    warn "curl ausente — não abri o browser do site (${url})"
+    return 0
+  }
   local waited=0
-  while [ ! -s "${browser_png}" ] && [ ! -s "${APICASH_WA_QR_PNG}" ] && [ "${waited}" -lt 90 ]; do
+  while ! curl -fsS --max-time 1 "${url}" >/dev/null 2>&1; do
+    if [ "${waited}" -ge 90 ]; then
+      warn "site não respondeu — não abri o browser (${url})"
+      return 0
+    fi
     sleep 1
     waited=$((waited + 1))
-    if [ -s "${APICASH_WA_QR_PNG}" ] && [ "${APICASH_WA_QR_PNG}" != "${browser_png}" ]; then
-      cp -f "${APICASH_WA_QR_PNG}" "${browser_png}" 2>/dev/null || true
-    fi
   done
-  if [ ! -s "${browser_png}" ]; then
-    warn "QR ainda não gerado (sessão já pareada?). Para novo QR: ./runapp.sh whatsapp-pair"
-    warn "Ou abra quando aparecer: file://${html}"
-  fi
-  if command -v xdg-open >/dev/null 2>&1; then
-    log "abrindo pareamento WhatsApp no browser: file://${html}"
-    xdg-open "file://${html}" >/dev/null 2>&1 &
-  elif command -v gio >/dev/null 2>&1; then
-    log "abrindo pareamento WhatsApp (gio): file://${html}"
-    gio open "file://${html}" >/dev/null 2>&1 &
-  else
-    warn "xdg-open/gio ausente — abra no browser: file://${html}"
-  fi
+  runapp_open_in_browser "site HoldFy" "${url}"
 }
 
 # Após subir o core: avisa se PIX pelo Gatebox está ligado mas a API não responde.
@@ -841,6 +1001,143 @@ bb_logs_all() {
   tail -n 80 -F "${BB_LOG}/banco-backend.log" 2>/dev/null || true
 }
 
+# -----------------------------------------------------------------------------
+# Site público — Vite + React (holdy/site, porta SITE_PORT)
+# -----------------------------------------------------------------------------
+
+site_present() {
+  [ -f "${SITE_ROOT}/package.json" ]
+}
+
+site_prepare_path() {
+  export PATH="${HOME}/.bun/bin:${HOME}/.local/bin:/usr/local/bin:${PATH}"
+}
+
+# Caminho absoluto do npm/bun/pnpm (preferir bun — holdy/site tem bun.lock).
+site_resolve_pm() {
+  site_prepare_path
+  local name bin
+  for name in bun npm pnpm; do
+    bin="$(command -v "${name}" 2>/dev/null)" || continue
+    printf '%s\n' "${bin}"
+    return 0
+  done
+  return 1
+}
+
+site_pkg_manager() {
+  local bin
+  bin="$(site_resolve_pm)" || return 1
+  basename "${bin}"
+}
+
+site_stop_all() {
+  log "stopping site (Vite dev server)"
+  local pf="${SITE_LOG}/vite.pid"
+  if [ -f "${pf}" ]; then
+    local pid
+    pid="$(tr -d '[:space:]' <"${pf}" 2>/dev/null || true)"
+    if [ -n "${pid:-}" ]; then
+      kill -TERM "${pid}" >/dev/null 2>&1 || true
+      local _
+      for _ in $(seq 1 40); do
+        kill -0 "${pid}" >/dev/null 2>&1 || break
+        sleep 0.25
+      done
+      kill -KILL "${pid}" >/dev/null 2>&1 || true
+    fi
+    rm -f "${pf}"
+  fi
+  gb_kill_by_port "${SITE_PORT}"
+  pkill -f "vite.*${SITE_ROOT}" 2>/dev/null || true
+}
+
+site_ensure_deps() {
+  local pm_bin pm
+  site_present || return 1
+  if [ -d "${SITE_ROOT}/node_modules" ]; then
+    return 0
+  fi
+  pm_bin="$(site_resolve_pm)" || {
+    warn "site: instale bun ou npm — ex.: curl -fsSL https://bun.sh/install | bash"
+    return 1
+  }
+  pm="$(basename "${pm_bin}")"
+  log "site: ${pm} install (primeira vez em ${SITE_ROOT})"
+  (cd "${SITE_ROOT}" && "${pm_bin}" install)
+}
+
+site_build() {
+  local pm_bin pm
+  site_present || {
+    warn "site não encontrado em ${SITE_ROOT}"
+    return 1
+  }
+  site_ensure_deps || return 1
+  pm_bin="$(site_resolve_pm)" || return 1
+  pm="$(basename "${pm_bin}")"
+  log "building site (vite build via ${pm})"
+  (cd "${SITE_ROOT}" && "${pm_bin}" run build)
+}
+
+site_start_all() {
+  local pm_bin pm
+  pm_bin="$(site_resolve_pm)" || {
+    warn "site: instale bun ou npm — ex.: curl -fsSL https://bun.sh/install | bash"
+    return 1
+  }
+  pm="$(basename "${pm_bin}")"
+  site_present || {
+    warn "site não encontrado em ${SITE_ROOT} (defina SITE_DIR se necessário)"
+    return 1
+  }
+  site_ensure_deps || return 1
+  site_stop_all
+  log "starting site (Vite dev via ${pm}, port ${SITE_PORT}, logs ${SITE_LOG}/vite.log)"
+  (
+    cd "${SITE_ROOT}"
+    if [ "${pm}" = bun ]; then
+      exec "${pm_bin}" run dev --host 127.0.0.1 --port "${SITE_PORT}"
+    else
+      exec "${pm_bin}" run dev -- --host 127.0.0.1 --port "${SITE_PORT}"
+    fi
+  ) >>"${SITE_LOG}/vite.log" 2>&1 &
+  local pid=$!
+  printf '%s\n' "${pid}" >"${SITE_LOG}/vite.pid"
+  sleep 1
+  if ! kill -0 "${pid}" 2>/dev/null; then
+    warn "site (Vite) saiu durante o arranque; ver ${SITE_LOG}/vite.log"
+    tail -n 30 "${SITE_LOG}/vite.log" 2>/dev/null || true
+    return 1
+  fi
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
+  if ! gb_wait_http_ok "site (Vite)" "${url}" 120; then
+    warn "site não respondeu — ver ${SITE_LOG}/vite.log"
+    return 1
+  fi
+  if ! truthy "${RUNAPP_DEFER_BROWSER:-0}"; then
+    site_maybe_open_browser || true
+  fi
+}
+
+site_print_status() {
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
+  printf '\n== site (holdy/site — Vite) ==\n'
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 1 "${url}" 2>/dev/null || true)"
+    printf '  http=%s  url=%s  dir=%s  log=%s/vite.log\n' "${code:-000}" "${url}" "${SITE_ROOT}" "${SITE_LOG}"
+  else
+    printf '  url=%s  dir=%s  log=%s/vite.log (curl ausente)\n' "${url}" "${SITE_ROOT}" "${SITE_LOG}"
+  fi
+}
+
+site_logs_all() {
+  log "following site log; Ctrl+C to stop"
+  mkdir -p "${SITE_LOG}"
+  tail -n 80 -F "${SITE_LOG}/vite.log" 2>/dev/null || true
+}
+
 print_infra_hint() {
   if command -v docker >/dev/null 2>&1; then
     printf '\n== Docker (money/docker-compose.yml) ==\n'
@@ -855,21 +1152,29 @@ Usage: ${MONEY}/runapp.sh [command] [scope]
 Commands:
   restart (default)  stop <scope> + start <scope> (sem argumentos: stop all + start all)
   start              Sobe backends (scope all/apicash: cargo build antes de subir)
-  stop               Para processos no host (scope all: banco + gatebox + APICash)
+  stop               Para processos no host (scope all: site + banco + gatebox + APICash)
   status             Estado das apps + docker compose ps
   build              cargo build conforme scope (APICash ou gatebox)
   logs [scope]       tail -F dos logs
   whatsapp-pair      Apaga sessão WhatsApp, recria pasta do QR e abre pair.html no browser
+  open-browsers      Abre QR WhatsApp + site (2 abas) — útil para testar sem restart completo
 
 Scope (opcional):
   all       build APICash; se gatebox/gatebox-rust existir (ou GATEBOX_RUST_DIR), opcionalmente sobe Gatebox + APICash
-  apicash   só APICash
+  apicash   só APICash (core, admin-backend, frontend Leptos :3002, whatsapp)
   gatebox   API Rust Gatebox (PIX) — infra: ./runinfra.sh (Postgres Gatebox; mesmo Pulsar/Redis que APICash)
   banco     apenas API Go em gatebox/banco/backend_banco (se existir)
+  site      apenas site público Vite (holdy/site), defeito :5173
 
 Env útil:
+  RUNAPP_AUTO_SITE=1 (defeito) — com stack all, iniciar também holdy/site (npm run dev)
+  SITE_DIR=/abs/holdy/site — override do caminho do site
+  SITE_PORT — porta do Vite (defeito 5173; evita conflito com Pulsar :8080)
+  RUNAPP_OPEN_SITE_BROWSER=1 (defeito) — abre http://127.0.0.1:5173/ após subir o site (como o QR WhatsApp)
+  APICASH_WA_OPEN_BROWSER=1 (defeito) — abre file://…/whatsapp_qrcode/pair.html
   RUNAPP_LOOPBACK=127.0.0.1 (defeito) — host para health checks locais (runapp); MONEY_LAN_HOST continua para URLs na LAN
   RUNAPP_AUTO_GATEBOX=1 (defeito) — com stack all, iniciar também gatebox-rust antes do APICash; RUNAPP_AUTO_GATEBOX=0 desliga
+  APICASH_FRONTEND_PORT — dashboard HoldFy (Leptos SSR), defeito 3002
   APICASH_GATEBOX_ENABLED — defeito 1 no runapp (PIX EMV via Gatebox); 0 = desativa Gatebox (rail simulado falha sem PIX)
   GATEBOX_BASE_URL — defeito http://\$MONEY_LAN_HOST:\$GB_API_PORT (MONEY_LAN_HOST defeito 192.168.86.64)
   GATEBOX_RUST_DIR=/c/abs/gatebox-rust — override do caminho quando não usa symlink money/gatebox
@@ -887,9 +1192,9 @@ USAGE
 CMD="${1:-restart}"
 SCOPE="${2:-all}"
 
-if [ "${CMD}" != "whatsapp-pair" ]; then
+if [ "${CMD}" != "whatsapp-pair" ] && [ "${CMD}" != "open-browsers" ]; then
   case "${SCOPE}" in
-  all | apicash | gatebox | banco) ;;
+  all | apicash | gatebox | banco | site) ;;
   *)
     warn "scope inválido: ${SCOPE}"
     usage
@@ -902,12 +1207,14 @@ run_stop() {
   case "${SCOPE}" in
   all)
     bb_stop_all
+    site_stop_all
     gb_stop_all
     ac_stop_all
     ;;
   apicash) ac_stop_all ;;
   gatebox) gb_stop_all ;;
   banco) bb_stop_all ;;
+  site) site_stop_all ;;
   esac
 }
 
@@ -918,16 +1225,21 @@ run_build() {
     if gb_gatebox_rust_dir >/dev/null 2>&1; then
       gb_build || return 1
     fi
+    if site_present; then
+      site_ensure_deps || true
+    fi
     ;;
   apicash) ac_build_all ;;
   gatebox) gb_build || return 1 ;;
   banco) bb_build ;;
+  site) site_build ;;
   esac
 }
 
 run_start() {
   case "${SCOPE}" in
   all)
+    export RUNAPP_DEFER_BROWSER=1
     ac_build_all
     if truthy "${RUNAPP_AUTO_GATEBOX:-1}"; then
       if gb_gatebox_rust_dir >/dev/null 2>&1; then
@@ -935,9 +1247,14 @@ run_start() {
       fi
     fi
     ac_start_all
+    if truthy "${RUNAPP_AUTO_SITE:-1}" && site_present; then
+      site_start_all || warn "site (holdy/site) não subiu — ver ${SITE_LOG}/vite.log"
+    fi
     if [ -d "${BANCO_BE}" ]; then
       bb_start_all || warn "backend_banco não subiu — app Flutter (:8091) falha com connection refused"
     fi
+    runapp_open_startup_browsers || true
+    unset RUNAPP_DEFER_BROWSER
     ;;
   apicash)
     ac_build_all
@@ -948,6 +1265,9 @@ run_start() {
     ;;
   banco)
     bb_start_all || return 1
+    ;;
+  site)
+    site_start_all || return 1
     ;;
   esac
 }
@@ -963,6 +1283,9 @@ run_status() {
   all | banco) bb_print_status ;;
   esac
   case "${SCOPE}" in
+  all | site) site_print_status ;;
+  esac
+  case "${SCOPE}" in
   all)
     print_infra_hint
     ;;
@@ -972,16 +1295,21 @@ run_status() {
 run_logs() {
   case "${SCOPE}" in
   all)
-    warn "logs all: use logs apicash | logs gatebox | logs banco em terminais separados"
+    warn "logs all: use logs apicash | logs gatebox | logs banco | logs site em terminais separados"
     ac_logs_all
     ;;
   apicash) ac_logs_all ;;
   gatebox) gb_logs_all ;;
   banco) bb_logs_all ;;
+  site) site_logs_all ;;
   esac
 }
 
 case "${CMD}" in
+open-browsers)
+  ac_setup_whatsapp_qr_dir || true
+  runapp_open_startup_browsers || true
+  ;;
 whatsapp-pair)
   ac_prepare_runtime_env
   ac_whatsapp_pair_reset

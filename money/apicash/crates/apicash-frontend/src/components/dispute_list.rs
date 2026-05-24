@@ -1,11 +1,12 @@
 use leptos::prelude::*;
 
+use crate::i18n::{use_i18n, MsgKey, T};
 use crate::utils::api_client::{get_disputes, resolve_dispute};
 
 #[component]
 pub fn DisputeList() -> impl IntoView {
     view! {
-        <Suspense fallback=|| view! { <p class="ap-muted">"A carregar disputas…"</p> }>
+        <Suspense fallback=|| view! { <p class="ap-muted"><T key=MsgKey::LoadingDisputes /></p> }>
             <Await future=get_disputes() let:res>
                 {match res {
                     Ok(rows) => view! { <DisputeRows rows=rows.clone() /> }.into_any(),
@@ -18,15 +19,17 @@ pub fn DisputeList() -> impl IntoView {
 
 #[component]
 fn DisputeRows(rows: Vec<serde_json::Value>) -> impl IntoView {
+    let i18n = use_i18n();
+
     view! {
         <div class="ap-table-wrap">
             <table class="ap-table">
                 <thead>
                     <tr>
-                        <th>"ID"</th>
-                        <th>"Pedido"</th>
-                        <th>"Estado"</th>
-                        <th>"Motivo"</th>
+                        <th><T key=MsgKey::ColId /></th>
+                        <th><T key=MsgKey::ColOrder /></th>
+                        <th><T key=MsgKey::ColStatus /></th>
+                        <th><T key=MsgKey::ColReason /></th>
                         <th>""</th>
                     </tr>
                 </thead>
@@ -39,7 +42,8 @@ fn DisputeRows(rows: Vec<serde_json::Value>) -> impl IntoView {
                                 .unwrap_or("")
                                 .to_string()
                         }
-                        children=|v: serde_json::Value| {
+                        children=move |v: serde_json::Value| {
+                            let locale = i18n.locale;
                             let id = v
                                 .get("id")
                                 .and_then(|x| x.as_str())
@@ -73,17 +77,22 @@ fn DisputeRows(rows: Vec<serde_json::Value>) -> impl IntoView {
                                             class="ap-btn ap-btn-primary"
                                             on:click=move |_| {
                                                 let id = id_for_resolve.clone();
+                                                let note = match locale.get() {
+                                                    crate::i18n::Locale::PtBr => "via dashboard",
+                                                    crate::i18n::Locale::En => "via dashboard",
+                                                    crate::i18n::Locale::Es => "via panel",
+                                                };
                                                 leptos::task::spawn_local(async move {
                                                     let _ = resolve_dispute(
                                                         id,
                                                         "manual".into(),
-                                                        Some("via dashboard".into()),
+                                                        Some(note.into()),
                                                     )
                                                     .await;
                                                 });
                                             }
                                         >
-                                            "Resolver (manual)"
+                                            <T key=MsgKey::ResolveManual />
                                         </button>
                                     </td>
                                 </tr>

@@ -19,6 +19,7 @@ pub trait OrderRepository: Send + Sync {
     async fn get(&self, id: Uuid) -> Result<Option<StoredOrder>, String>;
     async fn update(&self, order: StoredOrder) -> Result<(), String>;
     async fn list_all(&self) -> Result<Vec<StoredOrder>, String>;
+    async fn find_by_gateway_tx_id(&self, tx_id: &str) -> Result<Option<StoredOrder>, String>;
 }
 
 pub struct InMemoryOrderRepository {
@@ -61,6 +62,16 @@ impl OrderRepository for InMemoryOrderRepository {
 
     async fn list_all(&self) -> Result<Vec<StoredOrder>, String> {
         Ok(self.by_id.read().await.values().cloned().collect())
+    }
+
+    async fn find_by_gateway_tx_id(&self, tx_id: &str) -> Result<Option<StoredOrder>, String> {
+        Ok(self
+            .by_id
+            .read()
+            .await
+            .values()
+            .find(|s| s.gateway_in_tx_id.as_deref() == Some(tx_id))
+            .cloned())
     }
 }
 
@@ -285,6 +296,27 @@ impl OrderRepository for PostgresOrderRepository {
             out.push(row_to_stored_order(&r)?);
         }
         Ok(out)
+    }
+
+    async fn find_by_gateway_tx_id(&self, tx_id: &str) -> Result<Option<StoredOrder>, String> {
+        let row = sqlx::query(
+            r#"
+            SELECT id, buyer_id, seller_id, amount, status, created_at, updated_at,
+                   custody_id, anchor_tx_hash, fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
+                   risk_score, risk_decision, description,
+                   off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
+                   soroban_lock_tx_hash, soroban_mode
+            FROM orders
+            WHERE gateway_in_tx_id = $1
+            LIMIT 1
+            "#,
+        )
+        .bind(tx_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        row.map(|r| row_to_stored_order(&r)).transpose()
     }
 }
 
