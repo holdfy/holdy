@@ -126,21 +126,17 @@ O endpoint `POST /v1/listings/import` será criado na Fase 3.1.
 
 ---
 
-## Fase 7.2–7.5 — PF/PJ: Auth, UI e WhatsApp [ ]
+## Fase 7.2–7.5 — PF/PJ: Auth, UI e WhatsApp [~]
 **Duração: 3-4 dias | Sprint 1 (paralela com Fase 1)**
 
-### 7.2 Propagar person_type no JWT [ ]
-**Arquivos:** `apicash-auth/src/models/claims.rs`, `apicash-shared/src/domain/`
-```rust
-pub enum PersonType { Natural, Legal }
-pub struct UserIdentity {
-    pub id: Uuid,
-    pub username: String,
-    pub role: UserRole,
-    pub person_type: PersonType,  // NOVO
-    pub document: String,         // CPF ou CNPJ
-}
-```
+### 7.2 Propagar person_type no JWT [x]
+- `PersonType` enum (natural/legal) em `apicash-auth/models/claims.rs`
+- `from_document()` infere pelo comprimento: 11=CPF → Natural, 14=CNPJ → Legal
+- `UserIdentity` com campos `person_type` e `document`
+- `APICASH_AUTH_USERS` aceita 4o campo: `user:pass:role:documento`
+- `generate_token_full()` + `generate_refresh_token()` propagam os campos
+- Rotação de refresh preserva person_type + document no ciclo completo
+- `PersonType` re-exportado em `apicash-auth::lib.rs`
 
 ### 7.3 Score PJ diferenciado no antifraude [ ]
 **Arquivo:** `apicash-antifraude/src/score/risk_factors.rs`
@@ -150,21 +146,20 @@ Adicionar para `DocumentType::Cnpj`:
 - `+50` empresa com >2 anos
 - `-150` empresa com <6 meses
 
-### 7.4 Fluxo WhatsApp para CNPJ [ ]
-**Arquivo:** `apicash-whatsapp/src/handlers/order_flow.rs`
-```
-Bot: "Você é pessoa física (CPF) ou jurídica (CNPJ)?"
-→ PF: validar 11 dígitos
-→ PJ: validar 14 dígitos + pedir razão social
-```
-Remover `WA_ESCROW_PLACEHOLDER_CPF = "52998224725"` (risco de segurança).
+### 7.4 Fluxo WhatsApp para CNPJ [x]
+- `WA_ESCROW_PLACEHOLDER_CPF` removido (era risco de segurança em produção)
+- Novo estado `AwaitingBuyerDocument` na máquina de estados conversacional
+- Após buyer aceitar proposta → bot pede CPF/CNPJ
+- `parse_document()` aceita 11 (CPF) ou 14 (CNPJ) dígitos
+- `finalize_order_after_buyer_accepted()` recebe `document: &str` real
+- Templates `ask_buyer_document()` e `invalid_document()` adicionados
 
 ### 7.5 Cadastro PF/PJ no site/ [ ]
 **Arquivo:** `site/src/pages/app/AppLogin.tsx` e telas de perfil
 - Toggle PF/PJ no formulário
 - PF: CPF + nome + data nascimento
 - PJ: CNPJ + razão social + nome fantasia + CPF do responsável
-- Adicionar `personType: 'pf' | 'pj'` ao `UserRoleContext`
+- `personType: 'pf' | 'pj'` já no `UserRoleContext` (adicionado na Fase 1.2)
 
 ---
 
