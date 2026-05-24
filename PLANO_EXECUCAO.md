@@ -85,7 +85,7 @@ Isso bloqueia PIX de CNPJ de ir como NATURAL_PERSON para o banco parceiro.
 
 ---
 
-## Fase 1 — Integrar site/ com o backend [~]
+## Fase 1 — Integrar site/ com o backend [x]
 **Duração: 1 semana | Sprint 1**
 **Objetivo:** Transformar `site/` de mock para produto real.
 
@@ -103,20 +103,20 @@ Isso bloqueia PIX de CNPJ de ir como NATURAL_PERSON para o banco parceiro.
 - `RequireAuth` guard: redireciona `/login` se não autenticado
 - Rotas `/buyer/*` e `/seller/*` protegidas no router
 
-### 1.3 Fluxo Buyer — 5 telas [~]
-1. `AppOrders` → mock (sem endpoint GET /orders — backend pendente)
+### 1.3 Fluxo Buyer — 5 telas [x]
+1. `AppOrders` → [x] `GET /orders?role=buyer` via TanStack Query; lista real com status chips
 2. `AppOrders/:id` → [x] `GET /orders/{id}` via TanStack Query + loading/error states
 3. `AppPayment` → [x] aceita `{ pixBrCode, amount, orderId }` via route state; copy real
-4. `AppWallet` → mock (sem endpoint de saldo ainda)
+4. `AppWallet` → [x] `GET /wallet` — saldo disponível + em custódia em tempo real
 5. `TransactionComplete` → [x] recebe `{ orderId, amount }` via route state
 - Confirm delivery → [x] `POST /custody/release` com mutation + loading
 - Open dispute → [x] `POST /orders/{id}/dispute` com mutation + loading
 
-### 1.4 Fluxo Seller — 4 telas [~]
-1. `SellerDashboard` → mock (sem endpoint GET /dashboard ainda)
+### 1.4 Fluxo Seller — 4 telas [x]
+1. `SellerDashboard` → [x] `GET /seller/dashboard` — KPIs reais (volume, completados, custódia) + `GET /orders?role=seller`
 2. `SellerOrders` → [x] botão "Nova Proposta" → `POST /proposals`; exibe ID gerado para compartilhar
-3. `SellerDisputes` → mock (sem endpoint ainda)
-4. `SellerWallet` → mock (sem endpoint ainda)
+3. `SellerDisputes` → [x] filtra orders com status disputed; empty state honesto quando sem disputas
+4. `SellerWallet` → [x] `GET /wallet` + `GET /orders?role=seller` — saldo + histórico real
 
 ### 1.5 UI do Importador (placeholder) [x]
 Botão "Importar Produto" em SellerOrders → dialog com campo URL + mensagem "em breve".

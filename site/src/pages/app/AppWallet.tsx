@@ -1,13 +1,45 @@
-import { Wallet, ArrowRight, Smartphone } from "lucide-react";
+import { Wallet, ArrowRight, Smartphone, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/format";
 
 export default function AppWallet() {
   const { t } = useTranslation();
+  const { data, isLoading } = useQuery({
+    queryKey: ["wallet"],
+    queryFn: () => api.getWallet(),
+  });
 
   return (
     <div className="space-y-5 px-5 pt-6 md:px-0 md:pt-0">
       <h1 className="font-display text-2xl font-bold">{t("wallet.buyerTitle")}</h1>
+
+      {/* Balance card */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Saldo disponível</span>
+              <span className="text-xl font-bold text-secondary">
+                {formatCurrency(parseFloat(data?.available_balance ?? "0"))}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Em custódia</span>
+              <span className="text-sm font-semibold text-primary">
+                {formatCurrency(parseFloat(data?.pending_balance ?? "0"))}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">Moeda: {data?.currency ?? "BRL"}</p>
+          </div>
+        )}
+      </div>
 
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-start gap-3">

@@ -257,6 +257,8 @@
     "filterCancelled": "CANCELADO",
     "noOrders": "Nenhum pedido neste filtro",
     "disputesTitle": "Disputas",
+    "noDisputes": "Sem disputas",
+    "noDisputesDesc": "Sua conta está em dia. Nenhuma disputa em aberto.",
     "respond": "Responder",
     "respondTitle": "Responder disputa",
     "respondDesc": "Explique seu lado e anexe comprovante de envio se disponível.",

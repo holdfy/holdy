@@ -33,8 +33,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .with_state(state.clone());
 
     let mut protected = Router::new()
-        .route("/orders", post(order_handler::create_order))
+        .route("/orders", get(order_handler::list_orders).post(order_handler::create_order))
         .route("/orders/{id}", get(order_handler::get_order))
+        .route("/wallet", get(order_handler::get_wallet))
+        .route("/seller/dashboard", get(order_handler::seller_dashboard))
         .route(
             "/orders/{id}/settle",
             post(order_handler::settle_order_manual),

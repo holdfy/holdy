@@ -405,6 +405,106 @@ pub async fn get_order(
     }))
 }
 
+/// `GET /orders?role=buyer|seller` — lista pedidos do usuário autenticado.
+pub async fn list_orders(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<JwtClaims>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let user_id = claims.current_user_id();
+    let role_param = params.get("role").map(|s| s.as_str()).unwrap_or("buyer");
+    let orders = if role_param == "seller" {
+        state.orders.list_by_seller(user_id).await
+    } else {
+        state.orders.list_by_buyer(user_id).await
+    }
+    .map_err(|e| {
+        error!(error = %e, "list_orders failed");
+        ApiError::internal("list orders failed")
+    })?;
+    let items: Vec<serde_json::Value> = orders
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "id": s.order.id,
+                "buyer_id": s.order.buyer_id,
+                "seller_id": s.order.seller_id,
+                "amount": s.order.amount.to_string(),
+                "status": s.order.status.to_string(),
+                "description": s.description,
+                "pix_br_code": s.pix_br_code,
+                "created_at": s.order.created_at,
+            })
+        })
+        .collect();
+    Ok(Json(serde_json::json!({ "orders": items, "total": items.len() })))
+}
+
+/// `GET /wallet` — saldo do vendedor (soma dos pedidos completados como seller).
+pub async fn get_wallet(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<JwtClaims>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let user_id = claims.current_user_id();
+    let orders = state
+        .orders
+        .list_by_seller(user_id)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "get_wallet failed");
+            ApiError::internal("wallet fetch failed")
+        })?;
+    let completed_sum: rust_decimal::Decimal = orders
+        .iter()
+        .filter(|s| matches!(s.order.status, apicash_shared::OrderStatus::Completed))
+        .map(|s| s.order.amount.decimal())
+        .sum();
+    let pending_sum: rust_decimal::Decimal = orders
+        .iter()
+        .filter(|s| matches!(s.order.status, apicash_shared::OrderStatus::InCustody))
+        .map(|s| s.order.amount.decimal())
+        .sum();
+    Ok(Json(serde_json::json!({
+        "user_id": user_id,
+        "available_balance": completed_sum.to_string(),
+        "pending_balance": pending_sum.to_string(),
+        "currency": "BRL",
+    })))
+}
+
+/// `GET /seller/dashboard` — KPIs do seller autenticado.
+pub async fn seller_dashboard(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<JwtClaims>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let user_id = claims.current_user_id();
+    let orders = state
+        .orders
+        .list_by_seller(user_id)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "seller_dashboard failed");
+            ApiError::internal("dashboard fetch failed")
+        })?;
+    let total = orders.len();
+    let completed = orders.iter().filter(|s| matches!(s.order.status, apicash_shared::OrderStatus::Completed)).count();
+    let in_custody = orders.iter().filter(|s| matches!(s.order.status, apicash_shared::OrderStatus::InCustody)).count();
+    let volume: rust_decimal::Decimal = orders.iter().map(|s| s.order.amount.decimal()).sum();
+    let completed_volume: rust_decimal::Decimal = orders
+        .iter()
+        .filter(|s| matches!(s.order.status, apicash_shared::OrderStatus::Completed))
+        .map(|s| s.order.amount.decimal())
+        .sum();
+    Ok(Json(serde_json::json!({
+        "seller_id": user_id,
+        "total_orders": total,
+        "completed_orders": completed,
+        "in_custody_orders": in_custody,
+        "total_volume_brl": volume.to_string(),
+        "completed_volume_brl": completed_volume.to_string(),
+    })))
+}
+
 /// Pré-cálculo de score anti-fraude com fatores detalhados (sem criar pedido).
 #[instrument(skip(state, req), fields(user_id = %req.user_id))]
 pub async fn calculate_risk_score(

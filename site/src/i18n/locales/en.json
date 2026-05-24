@@ -257,6 +257,8 @@
     "filterCancelled": "CANCELLED",
     "noOrders": "No orders match this filter",
     "disputesTitle": "Disputes",
+    "noDisputes": "No disputes",
+    "noDisputesDesc": "Your account is in good standing. No open disputes.",
     "respond": "Respond",
     "respondTitle": "Respond to dispute",
     "respondDesc": "Explain your side and attach proof of shipment if available.",

@@ -19,6 +19,8 @@ pub trait OrderRepository: Send + Sync {
     async fn get(&self, id: Uuid) -> Result<Option<StoredOrder>, String>;
     async fn update(&self, order: StoredOrder) -> Result<(), String>;
     async fn list_all(&self) -> Result<Vec<StoredOrder>, String>;
+    async fn list_by_buyer(&self, buyer_id: Uuid) -> Result<Vec<StoredOrder>, String>;
+    async fn list_by_seller(&self, seller_id: Uuid) -> Result<Vec<StoredOrder>, String>;
     async fn find_by_gateway_tx_id(&self, tx_id: &str) -> Result<Option<StoredOrder>, String>;
 }
 
@@ -62,6 +64,28 @@ impl OrderRepository for InMemoryOrderRepository {
 
     async fn list_all(&self) -> Result<Vec<StoredOrder>, String> {
         Ok(self.by_id.read().await.values().cloned().collect())
+    }
+
+    async fn list_by_buyer(&self, buyer_id: Uuid) -> Result<Vec<StoredOrder>, String> {
+        Ok(self
+            .by_id
+            .read()
+            .await
+            .values()
+            .filter(|s| s.order.buyer_id == buyer_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn list_by_seller(&self, seller_id: Uuid) -> Result<Vec<StoredOrder>, String> {
+        Ok(self
+            .by_id
+            .read()
+            .await
+            .values()
+            .filter(|s| s.order.seller_id == seller_id)
+            .cloned()
+            .collect())
     }
 
     async fn find_by_gateway_tx_id(&self, tx_id: &str) -> Result<Option<StoredOrder>, String> {
@@ -296,6 +320,42 @@ impl OrderRepository for PostgresOrderRepository {
             out.push(row_to_stored_order(&r)?);
         }
         Ok(out)
+    }
+
+    async fn list_by_buyer(&self, buyer_id: Uuid) -> Result<Vec<StoredOrder>, String> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, buyer_id, seller_id, amount, status, created_at, updated_at,
+                   custody_id, anchor_tx_hash, fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
+                   risk_score, risk_decision, description,
+                   off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
+                   soroban_lock_tx_hash, soroban_mode
+            FROM orders WHERE buyer_id = $1 ORDER BY created_at DESC
+            "#,
+        )
+        .bind(buyer_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+        rows.iter().map(row_to_stored_order).collect()
+    }
+
+    async fn list_by_seller(&self, seller_id: Uuid) -> Result<Vec<StoredOrder>, String> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, buyer_id, seller_id, amount, status, created_at, updated_at,
+                   custody_id, anchor_tx_hash, fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
+                   risk_score, risk_decision, description,
+                   off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
+                   soroban_lock_tx_hash, soroban_mode
+            FROM orders WHERE seller_id = $1 ORDER BY created_at DESC
+            "#,
+        )
+        .bind(seller_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+        rows.iter().map(row_to_stored_order).collect()
     }
 
     async fn find_by_gateway_tx_id(&self, tx_id: &str) -> Result<Option<StoredOrder>, String> {

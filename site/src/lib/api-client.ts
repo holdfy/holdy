@@ -90,6 +90,27 @@ export interface ApiError {
   status: number;
 }
 
+export interface WalletResponse {
+  user_id: string;
+  available_balance: string;
+  pending_balance: string;
+  currency: string;
+}
+
+export interface SellerDashboard {
+  seller_id: string;
+  total_orders: number;
+  completed_orders: number;
+  in_custody_orders: number;
+  total_volume_brl: string;
+  completed_volume_brl: string;
+}
+
+export interface OrdersListResponse {
+  orders: OrderResponse[];
+  total: number;
+}
+
 // ─── HTTP core ────────────────────────────────────────────────────────────────
 
 let refreshPromise: Promise<LoginResponse> | null = null;
@@ -170,7 +191,14 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  listOrders: (role: "buyer" | "seller" = "buyer") =>
+    request<OrdersListResponse>(`/orders?role=${role}`),
+
   getOrder: (id: string) => request<OrderResponse>(`/orders/${id}`),
+
+  getWallet: () => request<WalletResponse>("/wallet"),
+
+  getSellerDashboard: () => request<SellerDashboard>("/seller/dashboard"),
 
   openDispute: (orderId: string, reason: string) =>
     request<{ dispute_id: string; order_id: string; status: string; message: string }>(
