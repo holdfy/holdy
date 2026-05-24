@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 
+use apicash_auth::AuthConfig;
 use apicash_core::{create_router, AppState};
 use apicash_shared::OrderStatus;
 use chrono::Utc;
@@ -40,6 +41,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     if let Err(msg) = apicash_shared::assert_x402_config() {
         eprintln!("{msg}");
+        std::process::exit(1);
+    }
+
+    if let Err(msg) = AuthConfig::from_env().validate_startup_safety() {
+        eprintln!("apicash-core: CONFIGURAÇÃO INSEGURA — {msg}");
         std::process::exit(1);
     }
 

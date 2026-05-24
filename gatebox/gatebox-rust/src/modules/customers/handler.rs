@@ -97,7 +97,17 @@ async fn auth_login(
     if !auth.active {
         return Err((axum::http::StatusCode::UNAUTHORIZED, "account inactive".to_string()));
     }
-    if auth.password != password {
+    let password_ok = if auth.password.starts_with("$2b$") || auth.password.starts_with("$2a$") {
+        bcrypt::verify(&password, &auth.password).unwrap_or(false)
+    } else {
+        if auth.password == password {
+            tracing::warn!("customer login: plaintext password matched — account should be migrated to bcrypt");
+            true
+        } else {
+            false
+        }
+    };
+    if !password_ok {
         return Err((axum::http::StatusCode::UNAUTHORIZED, "invalid credentials".to_string()));
     }
     let token = create_token(auth.id as i32, &auth.username, "customer")

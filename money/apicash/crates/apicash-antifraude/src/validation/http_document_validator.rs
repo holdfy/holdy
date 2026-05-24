@@ -36,7 +36,7 @@ impl HttpDocumentValidator {
     ) -> Result<DocumentStatus, AntiFraudeError> {
         let base = self.base_url.trim_end_matches('/');
         let url = format!("{}/v1/{}/{}", base, doc_type.as_str(), digits);
-        info!(%url, "document_validator: querying HTTP provider");
+        info!(doc_type = doc_type.as_str(), "document_validator: querying HTTP provider");
 
         let mut req = self.client.get(&url).timeout(Duration::from_secs(8));
         if let Some(ref token) = self.api_token {

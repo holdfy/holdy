@@ -58,11 +58,89 @@ impl AuthConfig {
         }
     }
 
+    fn make_cfg(auth_disabled: bool, jwt_secret: &str) -> Self {
+        Self {
+            jwt_secret: jwt_secret.into(),
+            jwt_issuer: "apicash".into(),
+            jwt_ttl_secs: 3600,
+            jwt_refresh_ttl_secs: 604_800,
+            auth_disabled,
+        }
+    }
+
     /// Gateway público: sem segredo JWT e sem `APICASH_API_KEY` → comportamento permissivo (dev).
     pub fn gateway_legacy_open(&self) -> bool {
         self.jwt_secret.is_empty()
             && std::env::var("APICASH_API_KEY")
                 .map(|k| k.is_empty())
                 .unwrap_or(true)
+    }
+
+    /// Validates security-critical configuration at startup.
+    ///
+    /// Returns `Err(msg)` if:
+    /// - `APICASH_AUTH_DISABLED=1` without `APICASH_INSECURE_DEV=1` (dev bypass)
+    /// - `APICASH_JWT_SECRET` has fewer than 32 characters
+    ///
+    /// Set `APICASH_INSECURE_DEV=1` in dev to suppress auth_disabled check (never in production).
+    pub fn validate_startup_safety(&self) -> Result<(), String> {
+        let insecure_dev = std::env::var("APICASH_INSECURE_DEV")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+
+        if self.auth_disabled && !insecure_dev {
+            return Err(
+                "APICASH_AUTH_DISABLED=1 is not allowed without APICASH_INSECURE_DEV=1. \
+                 This flag must never be set in production. \
+                 To run in dev with auth disabled, add APICASH_INSECURE_DEV=1 to money/.env."
+                    .into(),
+            );
+        }
+
+        if self.jwt_secret.len() < 32 {
+            return Err(format!(
+                "APICASH_JWT_SECRET is only {} characters. \
+                 Production requires at least 32 characters of random entropy. \
+                 Generate one with: openssl rand -hex 32",
+                self.jwt_secret.len()
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const STRONG_SECRET: &str = "a_very_strong_jwt_secret_32chars!!";
+
+    #[test]
+    fn valid_config_passes() {
+        let cfg = AuthConfig::make_cfg(false, STRONG_SECRET);
+        assert!(cfg.validate_startup_safety().is_ok());
+    }
+
+    #[test]
+    fn auth_disabled_without_insecure_dev_fails() {
+        std::env::remove_var("APICASH_INSECURE_DEV");
+        let cfg = AuthConfig::make_cfg(true, STRONG_SECRET);
+        assert!(cfg.validate_startup_safety().is_err());
+    }
+
+    #[test]
+    fn short_jwt_secret_fails() {
+        let cfg = AuthConfig::make_cfg(false, "too_short");
+        let result = cfg.validate_startup_safety();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("32 characters"));
+    }
+
+    #[test]
+    fn exactly_32_char_secret_passes() {
+        let cfg = AuthConfig::make_cfg(false, "12345678901234567890123456789012");
+        assert_eq!(cfg.jwt_secret.len(), 32);
+        assert!(cfg.validate_startup_safety().is_ok());
     }
 }

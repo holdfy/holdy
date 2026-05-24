@@ -71,7 +71,7 @@ async fn auth_login(
     if !auth.active {
         return Err(AppError::BadRequest("Account inactive"));
     }
-    if auth.password != req.password {
+    if !verify_password(&req.password, &auth.password) {
         return Err(AppError::BadRequest("Invalid credentials"));
     }
     let token = create_token(auth.id as i32, &auth.username, "admin").map_err(|_| AppError::Internal)?;
@@ -111,9 +111,11 @@ async fn auth_change_password(
     if new_password.is_empty() {
         return Err(AppError::BadRequest("new_password required"));
     }
+    let hashed = bcrypt::hash(&new_password, bcrypt::DEFAULT_COST)
+        .map_err(|_| AppError::Internal)?;
     let auth_svc = state.auth_svc.as_ref().ok_or(AppError::BadRequest("Admin auth not configured"))?;
     auth_svc
-        .update_password(auth.user_id as i64, &new_password)
+        .update_password(auth.user_id as i64, &hashed)
         .await
         .map_err(|_| AppError::Internal)?;
     Ok(Json(serde_json::json!({ "message": "Password changed successfully" })))
@@ -607,6 +609,22 @@ impl IntoResponse for AppError {
             AppError::Transaction(e) => return e.into_response(),
         };
         (status, Json(serde_json::json!({ "error": msg }))).into_response()
+    }
+}
+
+/// Verifies a password against a stored hash (bcrypt) or falls back to plaintext comparison
+/// for accounts not yet migrated. Logs a warning for plaintext matches to track migration progress.
+fn verify_password(provided: &str, stored: &str) -> bool {
+    if stored.starts_with("$2b$") || stored.starts_with("$2a$") {
+        bcrypt::verify(provided, stored).unwrap_or(false)
+    } else {
+        // Legacy plaintext — accept but warn; rehash on next password change
+        if stored == provided {
+            tracing::warn!("login: plaintext password matched — account should be migrated to bcrypt");
+            true
+        } else {
+            false
+        }
     }
 }
 

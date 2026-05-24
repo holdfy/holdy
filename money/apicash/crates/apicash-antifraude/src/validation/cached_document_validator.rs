@@ -40,7 +40,7 @@ impl DocumentValidator for CachedDocumentValidator {
         doc_type: DocumentType,
     ) -> Result<DocumentStatus, AntiFraudeError> {
         if let Some(cached) = self.cache.get(document, doc_type).await {
-            tracing::debug!(%document, "document_cache: hit");
+            tracing::debug!(doc_prefix = &document[..document.len().min(3)], "document_cache: hit");
             return Ok(cached);
         }
 

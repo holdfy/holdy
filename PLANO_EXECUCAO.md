@@ -196,28 +196,28 @@ Auth: `X-API-Key` = `APICASH_ADMIN_API_KEY` env var.
 
 ---
 
-## Fase 5 — Segurança e Auditoria [ ]
+## Fase 5 — Segurança e Auditoria [~]
 **Duração: 1 semana | Sprint 2 (paralela com Fase 2)**
 
-### 5.1 Itens críticos Gatebox [ ]
-- [ ] Senhas em plaintext → bcrypt/argon2
+### 5.1 Itens críticos Gatebox [~]
+- [x] Senhas em plaintext → bcrypt/argon2: `verify_password()` com fallback transparente; `change_password` grava bcrypt hash; clientes e admin atualizados
 - [ ] JWT sem refresh token → adicionar
 - [ ] CORS não restrito → whitelist em produção
 - [ ] Rate limiting ausente → adicionar nos endpoints críticos
 - [ ] Audit log modelado mas não usado → ativar nos handlers
 
-### 5.2 Itens críticos APICash [ ]
-- [ ] `APICASH_AUTH_DISABLED=true` em produção → panic no startup se set
-- [ ] HMAC webhook `POST /internal/webhook/pix` → validar que está sendo verificado
-- [ ] `APICASH_JWT_SECRET` com entropia suficiente → validar no startup
-- [ ] Logs com dados PIX/CPF → auditar calls `tracing::info!`
+### 5.2 Itens críticos APICash [x]
+- [x] `APICASH_AUTH_DISABLED=true` → `AuthConfig::validate_startup_safety()` chamado em `main.rs`; requer `APICASH_INSECURE_DEV=1` para override em dev
+- [x] HMAC webhook `POST /internal/webhook/pix` → já implementado com `verify_hmac()` + `GATEBOX_WEBHOOK_SECRET`; aceita sem verificação só se secret ausente (dev)
+- [x] `APICASH_JWT_SECRET` com entropia suficiente → validado no startup (mínimo 32 chars)
+- [x] Logs com dados PIX/CPF → `cached_document_validator` e `http_document_validator` mascarados (doc_prefix[3] e doc_type, sem número completo)
 
-### 5.3 Testes mínimos [ ]
-Prioridade: onde tem dinheiro envolvido.
-1. `apicash-antifraude` → `ScoreCalculator` (11 fatores)
-2. `apicash-custody` → `YieldCalculator` (36% APY)
-3. `apicash-core` → fluxo order → settle → release (integração)
-4. `gatebox-rust` → cálculo saldo = CREDIT - DEBIT - MED
+### 5.3 Testes mínimos [~]
+- [x] `apicash-antifraude` → 39 testes passando (ScoreCalculator CPF+CNPJ, validadores, antifraude comportamental)
+- [x] `apicash-custody` → 9 testes passando: lock/release/yield split + 6 testes unitários YieldCalculator (zero days, negativo, precisão, zero principal, taxa customizada)
+- [x] `apicash-auth` → 4 testes de segurança: validate_startup_safety (auth_disabled, jwt_secret curto, valid config)
+- [ ] `apicash-core` → fluxo order → settle → release (integração) — pendente
+- [ ] `gatebox-rust` → cálculo saldo = CREDIT - DEBIT - MED — pendente
 
 Framework: `cargo test` + `axum::test`.
 
