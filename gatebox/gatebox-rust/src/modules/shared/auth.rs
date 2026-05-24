@@ -22,32 +22,67 @@ struct Claims {
     user_id: i32,
     username: String,
     role: String,
+    /// "access" | "refresh"
+    #[serde(default)]
+    token_type: Option<String>,
     #[serde(default)]
     exp: Option<i64>,
     #[serde(default)]
     iat: Option<i64>,
 }
 
-/// Builds a JWT string for the given user (for login responses).
-pub fn create_token(user_id: i32, username: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
-    let now = std::time::SystemTime::UNIX_EPOCH
+fn now_unix() -> i64 {
+    std::time::SystemTime::UNIX_EPOCH
         .elapsed()
         .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-    let exp = now + 86400; // 24h
-    let claims = Claims {
-        user_id,
-        username: username.to_string(),
-        role: role.to_string(),
-        exp: Some(exp),
-        iat: Some(now),
-    };
-    let key = EncodingKey::from_secret(jwt_secret().as_slice());
-    encode(&Header::default(), &claims, &key)
+        .unwrap_or(0)
 }
 
 fn jwt_secret() -> Vec<u8> {
     env::var("JWT_SECRET").unwrap_or_else(|_| "default-secret-change-in-production".to_string()).into_bytes()
+}
+
+/// Builds a short-lived (24h) access JWT.
+pub fn create_token(user_id: i32, username: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
+    let now = now_unix();
+    let claims = Claims {
+        user_id,
+        username: username.to_string(),
+        role: role.to_string(),
+        token_type: Some("access".to_string()),
+        exp: Some(now + 86_400),
+        iat: Some(now),
+    };
+    encode(&Header::default(), &claims, &EncodingKey::from_secret(jwt_secret().as_slice()))
+}
+
+/// Builds a long-lived (7-day) refresh JWT used to obtain new access tokens.
+pub fn create_refresh_token(user_id: i32, username: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
+    let now = now_unix();
+    let claims = Claims {
+        user_id,
+        username: username.to_string(),
+        role: role.to_string(),
+        token_type: Some("refresh".to_string()),
+        exp: Some(now + 7 * 86_400),
+        iat: Some(now),
+    };
+    encode(&Header::default(), &claims, &EncodingKey::from_secret(jwt_secret().as_slice()))
+}
+
+/// Validates a refresh token and returns a new access token.
+/// Returns `Err` if the token is expired, invalid, or is not a refresh token.
+pub fn rotate_refresh_token(refresh_token: &str) -> Result<(String, String), jsonwebtoken::errors::Error> {
+    let key = DecodingKey::from_secret(jwt_secret().as_slice());
+    let mut validation = Validation::default();
+    validation.validate_exp = true;
+    let claims = decode::<Claims>(refresh_token, &key, &validation)?.claims;
+    if claims.token_type.as_deref() != Some("refresh") {
+        return Err(jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidToken));
+    }
+    let new_access = create_token(claims.user_id, &claims.username, &claims.role)?;
+    let new_refresh = create_refresh_token(claims.user_id, &claims.username, &claims.role)?;
+    Ok((new_access, new_refresh))
 }
 
 /// Validates Bearer token and returns claims. Caller must check role.

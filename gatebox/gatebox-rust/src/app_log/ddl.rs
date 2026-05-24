@@ -6,3 +6,8 @@ pub const SQL_LIST: &str = r#"
     ORDER BY created_at DESC
     LIMIT $3 OFFSET $4
 "#;
+pub const SQL_INSERT: &str = r#"
+    INSERT INTO app_log (level, service, message, created_at)
+    VALUES ($1, $2, $3, NOW())
+    RETURNING id
+"#;

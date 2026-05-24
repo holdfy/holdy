@@ -11,12 +11,13 @@ use std::sync::Arc;
 
 use crate::accounts::AccountsService;
 use crate::model::Accounts;
+use crate::app_log::AppLogRepository;
 use crate::authentication::AuthenticationService;
 use crate::core::pix_principal::{PixPrincipalService, SendPixRequest};
 use crate::customer::CustomerService;
 use crate::customer_status_types::CustomerStatusTypesService;
 use crate::model::{Customer, Partners, WebhookManager};
-use crate::modules::shared::auth::{create_token, AdminAuth};
+use crate::modules::shared::auth::{create_token, create_refresh_token, rotate_refresh_token, AdminAuth};
 use crate::partners::PartnersService;
 use crate::transaction::TransactionService;
 use crate::webhook_manager::WebhookManagerService;
@@ -31,6 +32,7 @@ pub struct AdminState {
     pub auth_svc: Option<Arc<dyn AuthenticationService>>,
     pub pix_svc: Option<Arc<dyn PixPrincipalService>>,
     pub customer_status_types_svc: Option<Arc<dyn CustomerStatusTypesService>>,
+    pub app_log_repo: Option<Arc<dyn AppLogRepository>>,
 }
 
 // ---- Auth ----
@@ -43,6 +45,7 @@ pub struct LoginRequest {
 #[derive(serde::Serialize)]
 pub struct LoginResponse {
     pub access_token: String,
+    pub refresh_token: String,
     pub token_type: String,
     pub expires_in: i64,
     pub user: LoginUser,
@@ -72,11 +75,19 @@ async fn auth_login(
         return Err(AppError::BadRequest("Account inactive"));
     }
     if !verify_password(&req.password, &auth.password) {
+        if let Some(ref log) = state.app_log_repo {
+            let _ = log.insert("WARN", "admin.auth", &format!("Failed login for username={}", req.username)).await;
+        }
         return Err(AppError::BadRequest("Invalid credentials"));
     }
-    let token = create_token(auth.id as i32, &auth.username, "admin").map_err(|_| AppError::Internal)?;
+    let access_token = create_token(auth.id as i32, &auth.username, "admin").map_err(|_| AppError::Internal)?;
+    let refresh_token = create_refresh_token(auth.id as i32, &auth.username, "admin").map_err(|_| AppError::Internal)?;
+    if let Some(ref log) = state.app_log_repo {
+        let _ = log.insert("INFO", "admin.auth", &format!("Admin login: username={}", auth.username)).await;
+    }
     Ok(Json(LoginResponse {
-        access_token: token,
+        access_token,
+        refresh_token,
         token_type: "Bearer".to_string(),
         expires_in: 86400,
         user: LoginUser {
@@ -119,6 +130,32 @@ async fn auth_change_password(
         .await
         .map_err(|_| AppError::Internal)?;
     Ok(Json(serde_json::json!({ "message": "Password changed successfully" })))
+}
+
+// ---- Token Refresh ----
+#[derive(Debug, Deserialize)]
+pub struct RefreshRequest {
+    pub refresh_token: String,
+}
+
+async fn auth_refresh(
+    State(state): State<AdminState>,
+    Json(req): Json<RefreshRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if req.refresh_token.is_empty() {
+        return Err(AppError::BadRequest("refresh_token required"));
+    }
+    let (new_access, new_refresh) = rotate_refresh_token(&req.refresh_token)
+        .map_err(|_| AppError::BadRequest("Invalid or expired refresh token"))?;
+    if let Some(ref log) = state.app_log_repo {
+        let _ = log.insert("INFO", "admin.auth", "Admin token refreshed").await;
+    }
+    Ok(Json(serde_json::json!({
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "token_type": "Bearer",
+        "expires_in": 86400,
+    })))
 }
 
 // ---- Customers (delegate to customer service) ----
@@ -631,6 +668,7 @@ fn verify_password(provided: &str, stored: &str) -> bool {
 pub fn routes(state: AdminState) -> Router {
     Router::new()
         .route("/auth/login", post(auth_login))
+        .route("/auth/refresh", post(auth_refresh))
         .route("/auth/profile", get(auth_profile))
         .route("/auth/change-password", post(auth_change_password))
         .route("/customers", get(customers_list))

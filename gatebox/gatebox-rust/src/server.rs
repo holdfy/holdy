@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::signal;
 use tower::ServiceBuilder;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 use utoipa::OpenApi;
@@ -367,12 +368,12 @@ impl App {
             Arc::new(AnchorServiceImpl::new(anchor_repo));
 
         let app_log_repo: Arc<dyn gatebox_rust::app_log::AppLogRepository> =
-            Arc::new(gatebox_rust::app_log::AppLogRepositoryImpl::new(read_pool.clone()));
+            Arc::new(gatebox_rust::app_log::AppLogRepositoryImpl::new(read_pool.clone(), write_pool.clone()));
         let hospital_message_repo: Arc<dyn gatebox_rust::hospital_message::HospitalMessageRepository> =
             Arc::new(gatebox_rust::hospital_message::HospitalMessageRepositoryImpl::new(write_pool.clone()));
         let backoffice_state = backoffice::BackofficeState {
             accounts_svc: accounts_svc.clone(),
-            app_log_repo: Some(app_log_repo),
+            app_log_repo: Some(app_log_repo.clone()),
         };
 
         // MESSAGING_BACKEND: pulsar (default) ou rabbitmq
@@ -676,6 +677,7 @@ impl App {
             auth_svc: Some(authentication_svc.clone()),
             pix_svc: Some(pix_principal_svc.clone()),
             customer_status_types_svc: Some(customer_status_types_svc.clone()),
+            app_log_repo: Some(app_log_repo.clone()),
         };
         let pix_principal_state = gatebox_rust::core::pix_principal::PixPrincipalState {
             service: pix_principal_svc.clone(),
@@ -773,11 +775,32 @@ impl App {
         let swagger_with_auth =
             Router::new().merge(swagger).layer(middleware::from_fn(swagger_basic_auth));
 
+        // CORS: restrict to configured origins in production; allow any in dev.
+        let cors_layer = {
+            let allowed = std::env::var("GATEBOX_CORS_ORIGINS").unwrap_or_default();
+            if allowed.is_empty() || allowed == "*" {
+                CorsLayer::new()
+                    .allow_origin(Any)
+                    .allow_methods(Any)
+                    .allow_headers(Any)
+            } else {
+                let origins: Vec<axum::http::HeaderValue> = allowed
+                    .split(',')
+                    .filter_map(|s| s.trim().parse().ok())
+                    .collect();
+                CorsLayer::new()
+                    .allow_origin(origins)
+                    .allow_methods(Any)
+                    .allow_headers(Any)
+            }
+        };
+
         let app = Router::new()
             .route("/health", get(health))
             .route("/internal/metrics", get(internal_metrics_json))
             .nest("/api", api)
             .merge(swagger_with_auth)
+            .layer(cors_layer)
             .layer(
                 ServiceBuilder::new()
                     .layer(TimeoutLayer::new(Duration::from_secs(30)))

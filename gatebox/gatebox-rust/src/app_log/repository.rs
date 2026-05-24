@@ -29,15 +29,17 @@ pub trait AppLogRepository: Send + Sync {
         offset: i64,
         limit: i64,
     ) -> Result<Vec<AppLogRow>, RepositoryError>;
+    async fn insert(&self, level: &str, service: &str, message: &str) -> Result<i64, RepositoryError>;
 }
 
 pub struct AppLogRepositoryImpl {
     read: Arc<PgPool>,
+    write: Arc<PgPool>,
 }
 
 impl AppLogRepositoryImpl {
-    pub fn new(read: Arc<PgPool>) -> Self {
-        Self { read }
+    pub fn new(read: Arc<PgPool>, write: Arc<PgPool>) -> Self {
+        Self { read, write }
     }
 }
 
@@ -69,5 +71,14 @@ impl AppLogRepository for AppLogRepositoryImpl {
                 created_at,
             })
             .collect())
+    }
+    async fn insert(&self, level: &str, service: &str, message: &str) -> Result<i64, RepositoryError> {
+        let (id,): (i64,) = sqlx::query_as(ddl::SQL_INSERT)
+            .bind(level)
+            .bind(service)
+            .bind(message)
+            .fetch_one(self.write.as_ref())
+            .await?;
+        Ok(id)
     }
 }
