@@ -138,13 +138,16 @@ O endpoint `POST /v1/listings/import` será criado na Fase 3.1.
 - Rotação de refresh preserva person_type + document no ciclo completo
 - `PersonType` re-exportado em `apicash-auth::lib.rs`
 
-### 7.3 Score PJ diferenciado no antifraude [ ]
-**Arquivo:** `apicash-antifraude/src/score/risk_factors.rs`
-Adicionar para `DocumentType::Cnpj`:
-- `+100` CNPJ ATIVA na Receita Federal
-- `-200` CNPJ BAIXADA ou SUSPENSA
-- `+50` empresa com >2 anos
-- `-150` empresa com <6 meses
+### 7.3 Score PJ diferenciado no antifraude [x]
+**Arquivos:** `apicash-antifraude/src/score/risk_factors.rs`, `score_calculator.rs`, `behavioral_context.rs`, `antifraude_service.rs`
+- `build_score()` recebe `doc_type: DocumentType` como novo parâmetro
+- CPF: mantém pesos originais (Valid=+350, Invalid=-320)
+- CNPJ: pesos diferenciados (Valid/ATIVA=+100, Invalid/BAIXADA=-200)
+- `BehavioralContext` ganha `company_age_months: Option<u32>` (populado via SEFAZ futuramente)
+- Empresa >24 meses → +50; <6 meses → -150
+- `RiskFactor` ganha variantes `CnpjStatus` e `CompanyAge`
+- `antifraude_service.rs` infere `DocumentType` por tamanho do documento (14 dígitos = CNPJ)
+- 3 novos testes: CNPJ ativa+antiga, CNPJ ativa+nova, CNPJ inativa — todos passam
 
 ### 7.4 Fluxo WhatsApp para CNPJ [x]
 - `WA_ESCROW_PLACEHOLDER_CPF` removido (era risco de segurança em produção)

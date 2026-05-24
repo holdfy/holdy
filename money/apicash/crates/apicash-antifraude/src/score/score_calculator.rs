@@ -20,13 +20,23 @@ use uuid::Uuid;
 use crate::score::behavioral_context::BehavioralContext;
 use crate::score::risk_factors::RiskFactor;
 use crate::score::user_score::{OnRampDecision, RiskLevel, UserScore};
-use crate::validation::{DocumentStatus, SocialAccountSnapshot};
+use crate::validation::{DocumentStatus, DocumentType, SocialAccountSnapshot};
 
-// ─── Identity ────────────────────────────────────────────────────────────────
+// ─── Identity (CPF) ──────────────────────────────────────────────────────────
 pub const POINTS_CPF_REGULAR: i32 = 350;
 pub const PENALTY_CPF_IRREGULAR: i32 = -320;
 pub const SOCIAL_AGE_THRESHOLD_MONTHS: u32 = 6;
 pub const POINTS_SOCIAL_OVER_SIX_MONTHS: i32 = 180;
+
+// ─── Identity (CNPJ) ─────────────────────────────────────────────────────────
+pub const POINTS_CNPJ_ATIVA: i32 = 100;
+pub const PENALTY_CNPJ_INATIVA: i32 = -200;
+/// Company with ≥24 months of existence gets a trust bonus.
+pub const CNPJ_AGE_ESTABLISHED_MONTHS: u32 = 24;
+/// Company with <6 months is considered high-risk.
+pub const CNPJ_AGE_NEW_MONTHS: u32 = 6;
+pub const POINTS_CNPJ_ESTABLISHED: i32 = 50;
+pub const PENALTY_CNPJ_NEW: i32 = -150;
 
 // ─── Dispute history ─────────────────────────────────────────────────────────
 pub const PENALTY_PER_OPEN_DISPUTE: i32 = -110;
@@ -84,6 +94,7 @@ impl ScoreCalculator {
     /// Build a bounded 0–1000 score from identity, social, and behavioral signals.
     pub fn build_score(
         user_id: Uuid,
+        doc_type: DocumentType,
         doc_status: DocumentStatus,
         social: &[SocialAccountSnapshot],
         ctx: &BehavioralContext,
@@ -92,20 +103,50 @@ impl ScoreCalculator {
         let mut factors: Vec<RiskFactor> = Vec::new();
 
         // ── Identity ────────────────────────────────────────────────────────
-        match doc_status {
-            DocumentStatus::Valid => {
-                raw += POINTS_CPF_REGULAR;
-                factors.push(RiskFactor::SefazStatus { weight: POINTS_CPF_REGULAR });
-            }
-            DocumentStatus::Invalid => {
-                raw += PENALTY_CPF_IRREGULAR;
-                factors.push(RiskFactor::SefazStatus { weight: PENALTY_CPF_IRREGULAR });
-            }
-            DocumentStatus::Unknown => {
-                factors.push(RiskFactor::Other {
-                    code: "document_unknown".into(),
-                    weight: 0,
+        match doc_type {
+            DocumentType::Cpf => match doc_status {
+                DocumentStatus::Valid => {
+                    raw += POINTS_CPF_REGULAR;
+                    factors.push(RiskFactor::SefazStatus { weight: POINTS_CPF_REGULAR });
+                }
+                DocumentStatus::Invalid => {
+                    raw += PENALTY_CPF_IRREGULAR;
+                    factors.push(RiskFactor::SefazStatus { weight: PENALTY_CPF_IRREGULAR });
+                }
+                DocumentStatus::Unknown => {
+                    factors.push(RiskFactor::Other {
+                        code: "document_unknown".into(),
+                        weight: 0,
+                    });
+                }
+            },
+            DocumentType::Cnpj => {
+                let id_weight = match doc_status {
+                    DocumentStatus::Valid => POINTS_CNPJ_ATIVA,
+                    DocumentStatus::Invalid => PENALTY_CNPJ_INATIVA,
+                    DocumentStatus::Unknown => 0,
+                };
+                if id_weight != 0 {
+                    raw += id_weight;
+                }
+                factors.push(RiskFactor::CnpjStatus {
+                    active: doc_status == DocumentStatus::Valid,
+                    weight: id_weight,
                 });
+
+                if let Some(months) = ctx.company_age_months {
+                    let age_weight = if months >= CNPJ_AGE_ESTABLISHED_MONTHS {
+                        POINTS_CNPJ_ESTABLISHED
+                    } else if months < CNPJ_AGE_NEW_MONTHS {
+                        PENALTY_CNPJ_NEW
+                    } else {
+                        0
+                    };
+                    if age_weight != 0 {
+                        raw += age_weight;
+                        factors.push(RiskFactor::CompanyAge { months, weight: age_weight });
+                    }
+                }
             }
         }
 

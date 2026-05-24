@@ -24,6 +24,8 @@ pub struct BehavioralContext {
     pub account_age_days: u32,
     /// Amount of the current transaction being evaluated (for structuring + anomaly checks).
     pub current_tx_amount: Option<Decimal>,
+    /// CNPJ company age in months from Receita Federal opening date; `None` for CPF or unknown.
+    pub company_age_months: Option<u32>,
 }
 
 impl BehavioralContext {
@@ -39,6 +41,7 @@ impl BehavioralContext {
             avg_tx_value: None,
             account_age_days: 0,
             current_tx_amount: None,
+            company_age_months: None,
         }
     }
 }

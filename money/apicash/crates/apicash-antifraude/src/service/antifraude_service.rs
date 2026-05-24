@@ -39,9 +39,15 @@ impl AntiFraudeService {
         current_tx_amount: Option<Decimal>,
     ) -> Result<UserScore, ApiCashError> {
         // ── Identity validation ───────────────────────────────────────────
+        let digits: String = cpf.chars().filter(|c| c.is_ascii_digit()).collect();
+        let doc_type = if digits.len() == 14 {
+            DocumentType::Cnpj
+        } else {
+            DocumentType::Cpf
+        };
         let doc_status = self
             .document_validator
-            .validate(cpf, DocumentType::Cpf)
+            .validate(cpf, doc_type)
             .await
             .map_err(ApiCashError::from)?;
 
@@ -89,9 +95,10 @@ impl AntiFraudeService {
             avg_tx_value,
             account_age_days,
             current_tx_amount,
+            company_age_months: None, // populated when SEFAZ lookup is implemented
         };
 
-        let score = ScoreCalculator::build_score(user_id, doc_status, &snapshots, &ctx);
+        let score = ScoreCalculator::build_score(user_id, doc_type, doc_status, &snapshots, &ctx);
 
         self.repository
             .save_score(&score)

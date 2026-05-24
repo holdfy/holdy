@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use apicash_antifraude::{
-    AntiFraudeService, BehavioralContext, DocumentStatus, InMemoryScoreRepository,
+    AntiFraudeService, BehavioralContext, DocumentStatus, DocumentType, InMemoryScoreRepository,
     LocalDocumentValidator, OnRampDecision, RiskLevel, ScoreCalculator, SocialAccountSnapshot,
     SocialValidator,
 };
@@ -117,9 +117,74 @@ fn calculator_direct_regular_and_social() {
         avg_tx_value: None,
         account_age_days: 30,
         current_tx_amount: None,
+        company_age_months: None,
     };
-    let s = ScoreCalculator::build_score(uid, DocumentStatus::Valid, &social, &ctx);
+    let s = ScoreCalculator::build_score(uid, DocumentType::Cpf, DocumentStatus::Valid, &social, &ctx);
     // 350 + 180 + 60 (clean history 5–29 tx) = 590
     assert_eq!(s.score, 590);
     assert_eq!(s.get_risk_recommendation(), "REVIEW");
+}
+
+#[test]
+fn cnpj_ativa_established_company_scores_correctly() {
+    let uid = Uuid::nil();
+    let ctx = BehavioralContext {
+        tx_count_total: 10,
+        open_dispute_count: 0,
+        disputes_as_counterparty: 0,
+        dispute_rate: 0.0,
+        tx_count_24h: 0,
+        tx_volume_24h_brl: Decimal::ZERO,
+        avg_tx_value: None,
+        account_age_days: 30,
+        current_tx_amount: None,
+        company_age_months: Some(36), // 3 years old → established
+    };
+    let s = ScoreCalculator::build_score(uid, DocumentType::Cnpj, DocumentStatus::Valid, &[], &ctx);
+    // 100 (CNPJ ATIVA) + 50 (>24 months) + 60 (clean history) = 210
+    assert_eq!(s.score, 210);
+    // 210 < THRESHOLD_HIGH_MIN (250) → Critical; CNPJ gets lower base trust than CPF by design
+    assert_eq!(s.risk_level, RiskLevel::Critical);
+}
+
+#[test]
+fn cnpj_ativa_new_company_gets_age_penalty() {
+    let uid = Uuid::nil();
+    let ctx = BehavioralContext {
+        tx_count_total: 10,
+        open_dispute_count: 0,
+        disputes_as_counterparty: 0,
+        dispute_rate: 0.0,
+        tx_count_24h: 0,
+        tx_volume_24h_brl: Decimal::ZERO,
+        avg_tx_value: None,
+        account_age_days: 30,
+        current_tx_amount: None,
+        company_age_months: Some(3), // 3 months old → new company penalty
+    };
+    let s = ScoreCalculator::build_score(uid, DocumentType::Cnpj, DocumentStatus::Valid, &[], &ctx);
+    // 100 (CNPJ ATIVA) - 150 (<6 months) + 60 (clean history) = 10
+    assert_eq!(s.score, 10);
+    assert_eq!(s.decision, OnRampDecision::Block);
+}
+
+#[test]
+fn cnpj_inativa_blocks() {
+    let uid = Uuid::nil();
+    let ctx = BehavioralContext {
+        tx_count_total: 0,
+        open_dispute_count: 0,
+        disputes_as_counterparty: 0,
+        dispute_rate: 0.0,
+        tx_count_24h: 0,
+        tx_volume_24h_brl: Decimal::ZERO,
+        avg_tx_value: None,
+        account_age_days: 0,
+        current_tx_amount: None,
+        company_age_months: Some(60),
+    };
+    let s = ScoreCalculator::build_score(uid, DocumentType::Cnpj, DocumentStatus::Invalid, &[], &ctx);
+    // -200 (BAIXADA/SUSPENSA) + 50 (>24 months) - 40 (first tx) = clamped to 0
+    assert_eq!(s.score, 0);
+    assert_eq!(s.decision, OnRampDecision::Block);
 }

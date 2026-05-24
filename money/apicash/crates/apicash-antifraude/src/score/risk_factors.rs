@@ -52,6 +52,12 @@ pub enum RiskFactor {
     /// Current transaction amount is anomalously high relative to historical average.
     ValueAnomaly { ratio_pct: u32, weight: i32 },
 
+    /// CNPJ registration status at Receita Federal (active vs. inactive/suspended).
+    CnpjStatus { active: bool, weight: i32 },
+
+    /// Company age in months — trust bonus for established companies, penalty for new ones.
+    CompanyAge { months: u32, weight: i32 },
+
     /// Generic adjustment (IP, device fingerprint, etc.).
     Other { code: String, weight: i32 },
 }
