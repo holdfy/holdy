@@ -103,43 +103,26 @@ Isso bloqueia PIX de CNPJ de ir como NATURAL_PERSON para o banco parceiro.
 - `RequireAuth` guard: redireciona `/login` se não autenticado
 - Rotas `/buyer/*` e `/seller/*` protegidas no router
 
-### 1.3 Fluxo Buyer — 5 telas [ ]
-1. `AppOrders` → `GET /orders`
-2. `AppOrders/:id` → `GET /orders/{id}`
-3. `AppPayment` → `POST /orders` + `POST /payments/pix` → retorna PIX code
-4. `AppWallet` → saldo calculado dos pedidos
-5. `TransactionComplete` → `POST /custody/release`
+### 1.3 Fluxo Buyer — 5 telas [~]
+1. `AppOrders` → mock (sem endpoint GET /orders — backend pendente)
+2. `AppOrders/:id` → [x] `GET /orders/{id}` via TanStack Query + loading/error states
+3. `AppPayment` → [x] aceita `{ pixBrCode, amount, orderId }` via route state; copy real
+4. `AppWallet` → mock (sem endpoint de saldo ainda)
+5. `TransactionComplete` → [x] recebe `{ orderId, amount }` via route state
+- Confirm delivery → [x] `POST /custody/release` com mutation + loading
+- Open dispute → [x] `POST /orders/{id}/dispute` com mutation + loading
 
-### 1.4 Fluxo Seller — 4 telas [ ]
-1. `SellerDashboard` → `GET /dashboard` (apicash-admin-backend)
-2. `SellerOrders` → `GET /proposals` + `GET /orders`
-3. `SellerDisputes` → `GET /orders?status=Disputed`
-4. `SellerWallet` → saldo + yield acumulado
+### 1.4 Fluxo Seller — 4 telas [~]
+1. `SellerDashboard` → mock (sem endpoint GET /dashboard ainda)
+2. `SellerOrders` → [x] botão "Nova Proposta" → `POST /proposals`; exibe ID gerado para compartilhar
+3. `SellerDisputes` → mock (sem endpoint ainda)
+4. `SellerWallet` → mock (sem endpoint ainda)
 
-### 1.5 UI do Importador (placeholder) [ ]
-Campo "Cole o link do produto" em SellerOrders — apenas UI + loading state.
+### 1.5 UI do Importador (placeholder) [x]
+Botão "Importar Produto" em SellerOrders → dialog com campo URL + mensagem "em breve".
 O endpoint `POST /v1/listings/import` será criado na Fase 3.1.
 
-**Verificação:** Login real → criar pedido → ver PIX code → confirmar entrega.
-
-### 1.3 Fluxo Buyer — 5 telas [ ]
-1. `AppOrders` → `GET /orders`
-2. `AppOrders/:id` → `GET /orders/{id}`
-3. `AppPayment` → `POST /orders` + `POST /payments/pix` → retorna PIX code
-4. `AppWallet` → saldo calculado dos pedidos
-5. `TransactionComplete` → `POST /custody/release`
-
-### 1.4 Fluxo Seller — 4 telas [ ]
-1. `SellerDashboard` → `GET /dashboard` (apicash-admin-backend)
-2. `SellerOrders` → `GET /proposals` + `GET /orders`
-3. `SellerDisputes` → `GET /orders?status=Disputed`
-4. `SellerWallet` → saldo + yield acumulado
-
-### 1.5 UI do Importador (placeholder) [ ]
-Campo "Cole o link do produto" em SellerOrders — apenas UI + loading state.
-O endpoint `POST /v1/listings/import` será criado na Fase 3.1.
-
-**Verificação:** Login real → criar pedido → ver PIX code → confirmar entrega.
+**Verificação:** Login real → criar proposta → buyer aceita → PIX code → confirmar entrega.
 
 ---
 

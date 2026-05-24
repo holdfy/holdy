@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Shield, ArrowLeft, Copy, Clock, Lock, Zap, HelpCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, QrCode } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,9 +14,31 @@ import {
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 
+interface PaymentRouteState {
+  pixBrCode?: string;
+  amount?: number | string;
+  orderId?: string;
+  description?: string;
+}
+
 export default function AppPayment() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const state = (location.state ?? {}) as PaymentRouteState;
   const [helpOpen, setHelpOpen] = useState(false);
+
+  const pixBrCode = state.pixBrCode ?? null;
+  const amount = state.amount ? parseFloat(String(state.amount)) : 250;
+
+  const copyPixCode = () => {
+    if (pixBrCode) {
+      navigator.clipboard.writeText(pixBrCode).then(() => {
+        toast.success(t("payment.copied"));
+      });
+    } else {
+      toast.info(t("payment.noPixCode", "Código PIX ainda não disponível"));
+    }
+  };
 
   return (
     <div className="px-5 pt-6 space-y-5">
@@ -41,26 +63,35 @@ export default function AppPayment() {
       <div className="bg-card rounded-2xl p-6 border border-border text-center space-y-5">
         <div>
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t("payment.amount")}</p>
-          <p className="text-4xl font-display font-bold mt-1">{formatCurrency(250)}</p>
+          <p className="text-4xl font-display font-bold mt-1">{formatCurrency(amount)}</p>
         </div>
 
         <div className="mx-auto w-48 h-48 rounded-2xl vault-card flex items-center justify-center">
-          <div className="text-center text-white/60">
-            <div className="grid grid-cols-3 gap-1.5 mx-auto w-20">
-              {Array.from({ length: 9 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-5 w-5 rounded-sm ${i % 3 === 0 ? "bg-white/80" : i % 2 === 0 ? "bg-white/40" : "bg-white/20"}`}
-                />
-              ))}
+          {pixBrCode ? (
+            <div className="text-center text-white/80 px-4">
+              <QrCode className="h-16 w-16 mx-auto mb-2 text-white" />
+              <p className="text-[10px] font-mono break-all leading-tight text-white/60">
+                {pixBrCode.slice(0, 40)}…
+              </p>
             </div>
-            <p className="text-[10px] mt-2 font-mono">PIX</p>
-          </div>
+          ) : (
+            <div className="text-center text-white/60">
+              <div className="grid grid-cols-3 gap-1.5 mx-auto w-20">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-5 w-5 rounded-sm ${i % 3 === 0 ? "bg-white/80" : i % 2 === 0 ? "bg-white/40" : "bg-white/20"}`}
+                  />
+                ))}
+              </div>
+              <p className="text-[10px] mt-2 font-mono">PIX</p>
+            </div>
+          )}
         </div>
 
         <Button
           className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
-          onClick={() => toast.success(t("payment.copied"))}
+          onClick={copyPixCode}
         >
           <Copy className="mr-2 h-4 w-4" />
           {t("payment.copyPaste")}
