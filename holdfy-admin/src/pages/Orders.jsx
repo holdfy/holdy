@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Box, Typography, Alert, TextField, MenuItem, Stack, Chip,
+  Box, Typography, Alert, TextField, MenuItem, Stack, Chip, ToggleButton, ToggleButtonGroup,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { adminApi } from "../api";
@@ -17,7 +17,22 @@ const STATUS_COLORS = {
 
 const columns = [
   { field: "order_id", headerName: "ID", width: 280, renderCell: (p) => p.value?.slice(0, 8) + "…" },
-  { field: "amount_minor", headerName: "Valor (R$)", width: 120, valueFormatter: (v) => (parseFloat(v) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) },
+  {
+    field: "person_type",
+    headerName: "Tipo",
+    width: 80,
+    renderCell: (p) => {
+      const v = p.value;
+      const isPJ = v === "legal" || v === "pj";
+      return <Chip label={isPJ ? "PJ" : "PF"} color={isPJ ? "primary" : "default"} size="small" />;
+    },
+  },
+  {
+    field: "amount_minor",
+    headerName: "Valor (R$)",
+    width: 120,
+    valueFormatter: (v) => (parseFloat(v) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+  },
   {
     field: "status",
     headerName: "Status",
@@ -34,8 +49,15 @@ const columns = [
   },
 ];
 
+function matchesPersonFilter(order, filter) {
+  if (filter === "all") return true;
+  const isPJ = order.person_type === "legal" || order.person_type === "pj";
+  return filter === "pj" ? isPJ : !isPJ;
+}
+
 export default function Orders() {
   const [status, setStatus] = useState("");
+  const [personFilter, setPersonFilter] = useState("all");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["orders", status],
@@ -43,14 +65,16 @@ export default function Orders() {
     refetchInterval: 60_000,
   });
 
-  const rows = (data?.orders ?? []).map((o, i) => ({ id: i, ...o }));
+  const rows = (data?.orders ?? [])
+    .filter((o) => matchesPersonFilter(o, personFilter))
+    .map((o, i) => ({ id: i, ...o }));
 
   return (
     <Box>
       <Typography variant="h5" fontWeight={700} mb={3}>
         Pedidos
       </Typography>
-      <Stack direction="row" spacing={2} mb={2}>
+      <Stack direction="row" spacing={2} mb={2} alignItems="center" flexWrap="wrap" rowGap={2}>
         <TextField
           select
           label="Status"
@@ -64,6 +88,16 @@ export default function Orders() {
             <MenuItem key={s} value={s}>{s}</MenuItem>
           ))}
         </TextField>
+        <ToggleButtonGroup
+          value={personFilter}
+          exclusive
+          onChange={(_, v) => v && setPersonFilter(v)}
+          size="small"
+        >
+          <ToggleButton value="all">Todos</ToggleButton>
+          <ToggleButton value="pf">PF</ToggleButton>
+          <ToggleButton value="pj">PJ</ToggleButton>
+        </ToggleButtonGroup>
       </Stack>
       {error && <Alert severity="error" sx={{ mb: 2 }}>Erro: {error.message}</Alert>}
       <DataGrid
@@ -77,7 +111,9 @@ export default function Orders() {
       />
       {data && (
         <Typography variant="body2" color="text.secondary" mt={1}>
-          {data.total} pedido(s) encontrado(s)
+          {rows.length} pedido(s) exibido(s)
+          {personFilter !== "all" ? ` (${personFilter.toUpperCase()})` : ""}
+          {data.total ? ` de ${data.total} total` : ""}
         </Typography>
       )}
     </Box>
