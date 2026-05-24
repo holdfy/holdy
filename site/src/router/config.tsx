@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import Home from "@/pages/home/page";
 import NotFound from "@/pages/NotFound";
 import AppLogin from "@/pages/app/AppLogin";
+import RequireAuth from "@/components/RequireAuth";
 
 import BuyerLayout from "@/pages/buyer/BuyerLayout";
 import AppHome from "@/pages/app/AppHome";
@@ -21,16 +22,12 @@ import SellerDisputes from "@/pages/seller/SellerDisputes";
 import SellerWallet from "@/pages/seller/SellerWallet";
 import SellerProfile from "@/pages/seller/SellerProfile";
 
-/**
- * Central route table — same roles as Readdy preview `router/config.tsx`,
- * extended with buyer/seller shells and legacy redirect.
- */
 const routes: RouteObject[] = [
   { path: "/", element: <Home /> },
   { path: "/login", element: <AppLogin /> },
   {
     path: "/buyer",
-    element: <BuyerLayout />,
+    element: <RequireAuth><BuyerLayout /></RequireAuth>,
     children: [
       { index: true, element: <AppHome /> },
       { path: "orders", element: <AppOrders /> },
@@ -43,7 +40,7 @@ const routes: RouteObject[] = [
   },
   {
     path: "/seller",
-    element: <SellerLayout />,
+    element: <RequireAuth><SellerLayout /></RequireAuth>,
     children: [
       { index: true, element: <SellerDashboard /> },
       { path: "orders", element: <SellerOrders /> },

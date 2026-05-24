@@ -85,19 +85,42 @@ Isso bloqueia PIX de CNPJ de ir como NATURAL_PERSON para o banco parceiro.
 
 ---
 
-## Fase 1 — Integrar site/ com o backend [ ]
+## Fase 1 — Integrar site/ com o backend [~]
 **Duração: 1 semana | Sprint 1**
 **Objetivo:** Transformar `site/` de mock para produto real.
 
-### 1.1 Criar API client [ ]
-Criar `site/src/lib/api-client.ts` com TanStack Query (já instalado).
-- Base URL: APICash core porta 3000, admin porta 3001
-- Auth: JWT em localStorage com interceptor de refresh automático
+### 1.1 Criar API client [x]
+`site/src/lib/api-client.ts` criado com:
+- Proxy Vite dev: `/auth`, `/orders`, `/proposals`, `/custody` → localhost:3000
+- tokenStore em localStorage (access + refresh)
+- Interceptor de refresh automático (singleton Promise anti-race)
+- Todos os endpoints: login, orders, proposals, custody/release
 
-### 1.2 Auth real [ ]
-- `POST /auth/login` → substituir mock em `site/src/pages/app/AppLogin`
-- Armazenar access + refresh token
-- Proteger rotas `/buyer/*` e `/seller/*` (UserRoleContext já existe)
+### 1.2 Auth real [x]
+- `POST /auth/login` → `AppLogin.tsx` chama `login()` do contexto
+- Access + refresh em localStorage via `tokenStore`
+- `UserRoleContext` estendido: user identity, isAuthenticated, login(), logout()
+- `RequireAuth` guard: redireciona `/login` se não autenticado
+- Rotas `/buyer/*` e `/seller/*` protegidas no router
+
+### 1.3 Fluxo Buyer — 5 telas [ ]
+1. `AppOrders` → `GET /orders`
+2. `AppOrders/:id` → `GET /orders/{id}`
+3. `AppPayment` → `POST /orders` + `POST /payments/pix` → retorna PIX code
+4. `AppWallet` → saldo calculado dos pedidos
+5. `TransactionComplete` → `POST /custody/release`
+
+### 1.4 Fluxo Seller — 4 telas [ ]
+1. `SellerDashboard` → `GET /dashboard` (apicash-admin-backend)
+2. `SellerOrders` → `GET /proposals` + `GET /orders`
+3. `SellerDisputes` → `GET /orders?status=Disputed`
+4. `SellerWallet` → saldo + yield acumulado
+
+### 1.5 UI do Importador (placeholder) [ ]
+Campo "Cole o link do produto" em SellerOrders — apenas UI + loading state.
+O endpoint `POST /v1/listings/import` será criado na Fase 3.1.
+
+**Verificação:** Login real → criar pedido → ver PIX code → confirmar entrega.
 
 ### 1.3 Fluxo Buyer — 5 telas [ ]
 1. `AppOrders` → `GET /orders`

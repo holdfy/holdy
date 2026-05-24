@@ -1,6 +1,6 @@
 import { Shield, Lock, User, Eye, EyeOff, Fingerprint, ShieldCheck, HelpCircle, Store, ShoppingBag } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useUserRole, UserRole } from "@/contexts/UserRoleContext";
 import { toast } from "sonner";
+import type { ApiError } from "@/lib/api-client";
 
 export default function AppLogin() {
   const { t } = useTranslation();
@@ -27,12 +28,31 @@ export default function AppLogin() {
   const [resetEmail, setResetEmail] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { setRole } = useUserRole();
+  const { login } = useUserRole();
 
-  const handleLogin = () => {
-    setRole(selectedRole);
-    navigate(selectedRole === "seller" ? "/seller" : "/buyer");
+  const handleLogin = async () => {
+    if (!username.trim() || !password.trim()) {
+      toast.error(t("auth.toastFillFields"));
+      return;
+    }
+    setLoading(true);
+    try {
+      await login(username.trim(), password, selectedRole);
+      navigate(selectedRole === "seller" ? "/seller" : "/buyer");
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr?.status === 401) {
+        toast.error(t("auth.invalidCredentials", "Usuário ou senha incorretos"));
+      } else {
+        toast.error(t("auth.loginError", "Erro ao entrar. Tente novamente."));
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const sendReset = () => {
@@ -45,17 +65,24 @@ export default function AppLogin() {
     setResetEmail("");
   };
 
-  const createAccount = () => {
+  const createAccount = async () => {
     if (!regEmail.trim() || !regPassword.trim()) {
       toast.error(t("auth.toastFillFields"));
       return;
     }
-    toast.success(t("auth.toastAccountCreated"));
-    setSignUpOpen(false);
-    setRegEmail("");
-    setRegPassword("");
-    setRole("buyer");
-    navigate("/buyer");
+    setLoading(true);
+    try {
+      await login(regEmail.trim(), regPassword, "buyer");
+      toast.success(t("auth.toastAccountCreated"));
+      setSignUpOpen(false);
+      setRegEmail("");
+      setRegPassword("");
+      navigate("/buyer");
+    } catch {
+      toast.error(t("auth.loginError", "Erro ao entrar. Tente novamente."));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -115,6 +142,10 @@ export default function AppLogin() {
               <Input
                 placeholder={t("auth.credentialsPlaceholder")}
                 className="h-14 pl-11 rounded-xl bg-muted border-0 text-sm"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                autoComplete="username"
               />
             </div>
           </div>
@@ -134,8 +165,11 @@ export default function AppLogin() {
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type={showPassword ? "text" : "password"}
-                defaultValue="password123"
                 className="h-14 pl-11 pr-12 rounded-xl bg-muted border-0 text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                autoComplete="current-password"
               />
               <button
                 type="button"
@@ -150,9 +184,10 @@ export default function AppLogin() {
           <Button
             className="w-full h-14 rounded-xl vault-card border-0 text-white font-semibold text-base hover:opacity-90"
             onClick={handleLogin}
+            disabled={loading}
           >
             <ShieldCheck className="mr-2 h-5 w-5" />
-            {t("auth.secureLogin")}
+            {loading ? t("auth.loggingIn", "Entrando...") : t("auth.secureLogin")}
           </Button>
 
           <Button
