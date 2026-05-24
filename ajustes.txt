@@ -55,8 +55,7 @@
 
 ## FOTO 2 — Fluxos por ator
 
-**Coluna esquerda 
-- anuncio
+**Coluna esquerda
 - criar Link de pagamento
 - enviar fotos
 - enviar rastreio correios
@@ -99,7 +98,6 @@
 **Vendedor**
 - Cadastra produto
 - Tira fotos
-- Gera anúncio
 - Recebe link de venda
 - Envia produto
 - Acompanha rastreio
@@ -216,6 +214,64 @@
 5. Judge manual ou automático
 6. Dinheiro vai para uma das partes
 
+### 2.7 Importador Universal de Produtos
+
+**Conceito:** Vendedor envia qualquer link de produto — OLX, Mercado Livre, Instagram, TikTok Shop, Facebook Marketplace, WhatsApp Business, loja desconhecida, e-commerce próprio, qualquer URL — via WhatsApp, API ou Site. A Holdfy extrai automaticamente título, preço, fotos e descrição e gera um link de pagamento protegido. Sem re-cadastro.
+
+**Por que faz sentido**
+- Holdfy não é plataforma de anúncio: é camada de pagamento protegido em cima de onde o vendedor já vende.
+- Fluxo natural no Brasil: vendedor negocia no WhatsApp, manda qualquer link, recebe link de escrow.
+- Não depende de lista de plataformas suportadas: funciona com qualquer URL da internet.
+- Diferencial direto: nenhum concorrente de escrow faz isso de forma universal.
+
+**Por que funciona com qualquer URL**
+
+A maioria dos sites de e-commerce implementa dados estruturados para SEO. O extrator opera em camadas:
+
+| Camada | Técnica | Cobertura |
+|---|---|---|
+| 1 | `schema.org/Product` JSON-LD no HTML | Maioria dos e-commerces modernos, OLX, Shopee, ML |
+| 2 | Open Graph meta tags (`og:title`, `og:image`) | Instagram, Facebook, TikTok, qualquer site com OG |
+| 3 | Parser específico por plataforma | Mercado Livre (API oficial), OLX — precisão garantida |
+| 4 | LLM fallback (Claude) | Qualquer página restante — manda HTML, extrai dados via IA |
+
+A combinação cobre literalmente qualquer URL pública. O vendedor sempre confirma preço e fotos antes de gerar o link (dado pode estar desatualizado).
+
+**Dados extraídos**
+- Título do produto
+- Preço sugerido (vendedor confirma / ajusta)
+- Fotos (re-hospedadas internamente — nunca usar URL externa direta)
+- Descrição
+
+**Componente técnico: `apicash-importer`**
+- Trait `Extractor` com pipeline em camadas (JSON-LD → OG → parser específico → LLM)
+- Downloader de imagens com re-hospedagem interna
+- Headless browser (Chromium) para páginas com JS dinâmico
+- Fila de processamento via Pulsar
+- Cache de resultado no Redis (TTL ~5 min)
+- Sandbox de URL (validação, bloqueio de IPs internos, timeout)
+
+**Fluxo WhatsApp**
+1. Vendedor envia qualquer URL no WhatsApp
+2. Bot detecta que é um link e aciona `apicash-importer`
+3. Extrator passa pelas camadas até obter dados
+4. Bot exibe preview: título, preço, foto principal → "Confirma? Pode ajustar o preço."
+5. Vendedor confirma ou corrige o preço
+6. Holdfy cria transação + gera link de pagamento protegido
+7. Bot entrega link para vendedor compartilhar com comprador
+
+**Fluxo Site**
+1. Campo "Cole o link do produto (qualquer plataforma)"
+2. Auto-preenchimento do formulário com dados importados
+3. Vendedor revisa e ajusta preço/descrição se necessário
+4. Confirma → gera link de checkout Holdfy
+
+**Fluxo API**
+- `POST /v1/listings/import`
+- Body: `{ "url": "https://...", "seller_id": "..." }`
+- Response: dados extraídos do produto + link de pagamento gerado
+- Parceiros e integradores podem automatizar importação em massa
+
 ---
 
 ## 3. Canais de entrada
@@ -226,6 +282,7 @@
 - Tracking
 - Suporte
 - Compra via fluxo conversacional
+- **Importação de link externo**: vendedor envia URL (OLX, ML, Instagram…) → bot importa produto → gera link de escrow
 
 **API** (para parceiros)
 - Criar transação
@@ -233,11 +290,13 @@
 - Webhooks
 - Disputa
 - Pagamento
+- **`POST /v1/listings/import`**: importação de produto a partir de URL externa
 
 **Site**
 - Compra normal
 - Painel
 - Checkout
+- **Campo "importar de outra plataforma"**: cola URL → formulário preenchido automaticamente
 
 **Mobile**
 - Android
@@ -281,36 +340,37 @@
 
 ---
 
-## 6. Arquitetura técnica (Go + AWS)
+## 6. Arquitetura técnica (Rust)
 
 ### Backend Core
-- GoLang
-- PostgreSQL
+- Rust (workspace Cargo com 13 crates)
+- Axum (HTTP REST externo)
+- PostgreSQL (APICash :5432, Gatebox :5433)
 - Redis
-- Pulsar (preferência sobre Kafka)
+- Apache Pulsar (eventos)
 - gRPC interno
-- REST externo
 
-### Microserviços
-1. Auth Service
-2. Payment Service
-3. Escrow Service
-4. Logistics Service
-5. Chat Service
-6. Dispute Service
-7. Reputation Service
-8. AI Service
-9. Notification Service
-10. Audit Service
+### Crates / Serviços
+1. apicash-shared — tipos de domínio, config, logging
+2. apicash-core — API pública (porta 3000)
+3. apicash-auth — JWT, rate limiting
+4. apicash-custody — escrow + yield (Soroban opcional)
+5. apicash-anchor — Stellar/Anchor on/off-ramp
+6. apicash-antifraude — score de risco (0–1000)
+7. apicash-whatsapp — fluxo conversacional WhatsApp
+8. apicash-admin-backend — admin API (porta 3001)
+9. apicash-frontend — Leptos SSR (porta 3002)
+10. apicash-events — produtores Pulsar
+11. apicash-disputes — disputas
+12. apicash-notifications — notificações
+13. apicash-cli — CLI dev (test-flow, deploy-contracts)
+14. soroban-contracts — contrato Wasm de escrow on-chain
+15. gatebox-rust — gateway PIX separado (porta 8081)
+16. apicash-importer — importação de listings externos (OLX, ML, Instagram…)
 
 ### Infra
-- Kubernetes
-- AWS EKS
-- S3 (fotos/evidências)
-- CloudFront
-- RDS
-- ElastiCache
-- OpenSearch (logs)
+- Docker Compose (Postgres, Redis, Pulsar)
+- Stellar testnet (Horizon + Soroban RPC)
 
 ---
 

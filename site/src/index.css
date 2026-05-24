@@ -1,0 +1,457 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 25% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 10%;
+
+    --primary: 217 90% 20%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 165 55% 42%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 15% 95%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 210 20% 94%;
+    --accent-foreground: 217 90% 20%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 217 90% 20%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 220 25% 8%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-primary: 217 90% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 14%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 217 90% 55%;
+
+    --success: 165 55% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --vault: 217 90% 15%;
+    --vault-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 220 25% 6%;
+    --foreground: 220 10% 95%;
+
+    --card: 220 20% 10%;
+    --card-foreground: 220 10% 95%;
+
+    --popover: 220 20% 10%;
+    --popover-foreground: 220 10% 95%;
+
+    --primary: 217 90% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 165 55% 40%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 15% 15%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 217 50% 18%;
+    --accent-foreground: 217 90% 80%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 217 90% 55%;
+
+    --sidebar-background: 220 25% 5%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-primary: 217 90% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 12%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 15% 15%;
+    --sidebar-ring: 217 90% 55%;
+
+    --success: 165 55% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --vault: 217 90% 12%;
+    --vault-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  /* In-page anchors + footer links (WCAG); buttons use shadcn focus styles */
+  main a[href^='#']:focus-visible,
+  footer a:focus-visible {
+    @apply rounded-sm outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(217 90% 15%), hsl(217 90% 25%));
+  }
+  .gradient-vault {
+    background: linear-gradient(145deg, hsl(217 90% 12%), hsl(217 90% 22%));
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(217 90% 20%), hsl(165 55% 42%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-success {
+    background: linear-gradient(135deg, hsl(165 55% 42%), hsl(165 60% 50%));
+  }
+  .glass-card {
+    background: hsla(0, 0%, 100%, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsla(220, 13%, 90%, 0.5);
+  }
+  .vault-card {
+    background: linear-gradient(145deg, hsl(217 90% 12%), hsl(217 85% 20%));
+    color: white;
+  }
+  .font-display {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Landing page (light) */
+  .landing-grid {
+    background-image:
+      linear-gradient(hsl(217 90% 20% / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(217 90% 20% / 0.05) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .landing-glow {
+    background: radial-gradient(
+      ellipse 80% 50% at 50% -25%,
+      hsl(165 55% 42% / 0.14),
+      transparent 58%
+    );
+  }
+  .landing-orb {
+    filter: blur(80px);
+    opacity: 0.32;
+    animation: landing-orb-drift 18s ease-in-out infinite;
+  }
+  @keyframes landing-orb-drift {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(8%, -4%) scale(1.05);
+    }
+    66% {
+      transform: translate(-6%, 6%) scale(0.95);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .landing-orb {
+      animation: none;
+    }
+  }
+
+  /* WhatsApp-style landing animations */
+  .wa-chat-bg {
+    background-color: #ece5dd;
+    background-image: url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='1' cy='1' r='0.35' fill='%23d4cdc4'/%3E%3C/svg%3E");
+    background-size: 12px 12px;
+  }
+  @keyframes wa-dot-bounce {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.35;
+    }
+    30% {
+      transform: translateY(-5px);
+      opacity: 1;
+    }
+  }
+  .wa-typing-dot {
+    animation: wa-dot-bounce 1.05s ease-in-out infinite;
+  }
+  @keyframes wa-bubble-in {
+    0% {
+      transform: scale(0.92);
+      opacity: 0.65;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  .wa-bubble-pop {
+    animation: wa-bubble-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes wa-online {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 hsl(142 70% 45% / 0.45);
+    }
+    50% {
+      box-shadow: 0 0 0 6px hsl(142 70% 45% / 0);
+    }
+  }
+  .wa-online-pulse {
+    animation: wa-online 2.2s ease-in-out infinite;
+  }
+  @keyframes wa-tick {
+    0% {
+      transform: scale(0.6) translateY(2px);
+      opacity: 0.2;
+    }
+    100% {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+  }
+  .wa-tick-pop {
+    animation: wa-tick 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .wa-tick-pop-delay {
+    animation: wa-tick 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation-delay: 0.12s;
+    opacity: 0;
+    animation-fill-mode: forwards;
+  }
+
+  .landing-hero-beam {
+    background: linear-gradient(
+      115deg,
+      transparent 0%,
+      hsl(165 55% 42% / 0.12) 35%,
+      hsl(217 90% 45% / 0.1) 55%,
+      transparent 75%
+    );
+    background-size: 200% 200%;
+    animation: landing-beam-shift 14s ease-in-out infinite;
+  }
+  @keyframes landing-beam-shift {
+    0%,
+    100% {
+      background-position: 0% 40%;
+    }
+    50% {
+      background-position: 100% 60%;
+    }
+  }
+
+  .landing-cta-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .landing-cta-shimmer::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      120deg,
+      transparent 0%,
+      hsl(165 55% 50% / 0.35) 42%,
+      hsl(217 90% 55% / 0.25) 58%,
+      transparent 100%
+    );
+    background-size: 220% 220%;
+    animation: landing-shimmer-border 5s linear infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  @keyframes landing-shimmer-border {
+    0% {
+      background-position: 200% 50%;
+    }
+    100% {
+      background-position: -200% 50%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wa-typing-dot,
+    .wa-bubble-pop,
+    .wa-online-pulse,
+    .wa-tick-pop,
+    .wa-tick-pop-delay {
+      animation: none !important;
+    }
+    .wa-tick-pop-delay {
+      opacity: 1;
+    }
+    .landing-hero-beam,
+    .landing-cta-shimmer::before {
+      animation: none !important;
+    }
+  }
+
+  .landing-btn-glow {
+    position: relative;
+    overflow: hidden;
+  }
+  .landing-btn-glow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    translate: -120% 0;
+    background: linear-gradient(
+      105deg,
+      transparent,
+      hsl(0 0% 100% / 0.18),
+      transparent 70%
+    );
+    transition: translate 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .landing-btn-glow:hover::after {
+    translate: 120% 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .landing-btn-glow::after {
+      display: none;
+    }
+  }
+}
+
+/* Readdy-style landing chat — keyframes for Tailwind arbitrary `animate-[readdy…]` */
+@keyframes readdyTyping {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+@keyframes readdyFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@keyframes readdyOnline {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes readdyMsgIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes readdyFloat {
+    0%,
+    100% {
+      transform: none;
+    }
+  }
+}
+
+/* Hero: scroll cue below WhatsApp mock */
+@keyframes heroScrollCue {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(8px);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes heroScrollCue {
+    0%,
+    100% {
+      transform: none;
+      opacity: 0.75;
+    }
+  }
+}
+
+/* Dispute chat scrollbar (match reference: thin green thumb on dark rail). */
+.readdy-chat-scrollbar-dispute {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 160, 0.8) rgba(9, 30, 22, 0.95);
+}
+.readdy-chat-scrollbar-dispute::-webkit-scrollbar {
+  width: 8px;
+}
+.readdy-chat-scrollbar-dispute::-webkit-scrollbar-track {
+  background: rgba(9, 30, 22, 0.95);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+}
+.readdy-chat-scrollbar-dispute::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00e5a0 0%, #00c98a 100%);
+  border-radius: 999px;
+  border: 1px solid rgba(0, 229, 160, 0.35);
+}
+.readdy-chat-scrollbar-dispute::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #2af1b5 0%, #00d793 100%);
+}

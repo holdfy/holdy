@@ -138,7 +138,6 @@ lcov.info
 # --- Frontend / Leptos / WASM / Trunk ---
 **/dist/
 **/pkg/
-**/site/
 **/.trunk/
 
 # --- Docker (overrides locais) ---
