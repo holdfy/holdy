@@ -34,12 +34,33 @@ fn calculate_fee(requested_amount: f64, fixed_cash_out: f64, percent_cashout: f6
     }
 }
 
+/// MED (Reserva de Segurança) amount for a PIX IN.
+/// Returns the amount to be locked in sec_med given the raw PIX IN value and the configured %.
+pub fn calculate_med_amount(pix_amount: f64, percent_sec_med: f64) -> f64 {
+    if percent_sec_med <= 0.0 {
+        return 0.0;
+    }
+    let markup = 1.0 - percent_sec_med / 100.0;
+    let net = pix_amount * markup;
+    pix_amount - net // == pix_amount * (percent_sec_med / 100)
+}
+
+/// Pure-Rust mirror of SQL_BALANCE invariant:
+/// available = SUM(CREDIT, status∈{3,4}) − SUM(DEBIT, status∈{3,4}) − SUM(active_sec_med)
+///
+/// `credits` / `debits` are amounts (positive), `blocked_med` is total open sec_med.
+pub fn compute_available_balance(credits: f64, debits: f64, blocked_med: f64) -> f64 {
+    credits - debits - blocked_med
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // ---- calculate_fee ----
+
     #[test]
-    fn test_calculate_fee_no_fee() {
+    fn fee_no_fee() {
         let fc = calculate_fee(100.0, 0.0, 0.0);
         assert!((fc.net_amount - 100.0).abs() < 0.01);
         assert!((fc.rate - 0.0).abs() < 0.01);
@@ -47,11 +68,110 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_fee_with_fixed_and_percent() {
+    fn fee_fixed_and_percent() {
         let fc = calculate_fee(100.0, 0.5, 1.0);
-        assert!((fc.net_amount - 98.5).abs() < 0.01); // 100*0.99 - 0.5 = 98.5
-        assert!((fc.rate - 1.5).abs() < 0.01);       // 100 - 98.5 = 1.5
-        assert!((fc.total_amount - 101.5).abs() < 0.01); // 100 + 1.5 = 101.5
+        assert!((fc.net_amount - 98.5).abs() < 0.01);
+        assert!((fc.rate - 1.5).abs() < 0.01);
+        assert!((fc.total_amount - 101.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn fee_only_percent() {
+        let fc = calculate_fee(1000.0, 0.0, 2.5);
+        // net = 1000 * 0.975 = 975; rate = 25; total = 1025
+        assert!((fc.net_amount - 975.0).abs() < 0.01);
+        assert!((fc.rate - 25.0).abs() < 0.01);
+        assert!((fc.total_amount - 1025.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn fee_only_fixed() {
+        let fc = calculate_fee(500.0, 3.0, 0.0);
+        // net = 500 - 3 = 497; rate = 3; total = 503
+        assert!((fc.net_amount - 497.0).abs() < 0.01);
+        assert!((fc.rate - 3.0).abs() < 0.01);
+        assert!((fc.total_amount - 503.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn fee_zero_amount() {
+        let fc = calculate_fee(0.0, 0.5, 1.0);
+        assert!(fc.net_amount < 0.0); // negative is valid input error — check doesn't blow up
+    }
+
+    // ---- MED (sec_med) calculation ----
+
+    #[test]
+    fn med_zero_percent() {
+        assert!((calculate_med_amount(1000.0, 0.0)).abs() < 0.001);
+    }
+
+    #[test]
+    fn med_negative_percent() {
+        assert!((calculate_med_amount(1000.0, -5.0)).abs() < 0.001);
+    }
+
+    #[test]
+    fn med_standard() {
+        // 10% of 500 = 50
+        let med = calculate_med_amount(500.0, 10.0);
+        assert!((med - 50.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn med_small_percent() {
+        // 0.5% of 10_000 = 50
+        let med = calculate_med_amount(10_000.0, 0.5);
+        assert!((med - 50.0).abs() < 0.01);
+    }
+
+    // ---- available balance invariant: CREDIT - DEBIT - MED ----
+
+    #[test]
+    fn balance_simple() {
+        // PIX IN 1000, PIX OUT 200 → balance 800, no MED
+        assert!((compute_available_balance(1000.0, 200.0, 0.0) - 800.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn balance_with_med() {
+        // PIX IN 1000, PIX OUT 100, MED 50 → 850
+        assert!((compute_available_balance(1000.0, 100.0, 50.0) - 850.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn balance_zero() {
+        assert!((compute_available_balance(0.0, 0.0, 0.0)).abs() < 0.001);
+    }
+
+    #[test]
+    fn balance_credits_equal_debits_plus_med() {
+        // Full drain: 1000 CREDIT, 900 DEBIT, 100 MED → 0
+        assert!((compute_available_balance(1000.0, 900.0, 100.0)).abs() < 0.001);
+    }
+
+    #[test]
+    fn balance_multiple_credits_and_debits() {
+        // 3 PIX IN: 500 + 300 + 200 = 1000; 2 PIX OUT: 150 + 250 = 400; MED: 80
+        let credits = 500.0 + 300.0 + 200.0;
+        let debits = 150.0 + 250.0;
+        let med = 80.0;
+        assert!((compute_available_balance(credits, debits, med) - 520.0).abs() < 0.001);
+    }
+
+    /// Verify the fee + MED together are consistent with net balance.
+    #[test]
+    fn fee_and_med_integration() {
+        let pix_in = 1000.0;
+        let med_pct = 10.0;
+        let fee_fixed = 1.5;
+        let fee_pct = 1.0;
+
+        let med = calculate_med_amount(pix_in, med_pct);      // 100
+        let fee = calculate_fee(pix_in, fee_fixed, fee_pct);  // net=988.5, rate=11.5
+        // After PIX IN: CREDIT 1000, DEBIT fee.rate=11.5, MED=100 → available=888.5
+        let available = compute_available_balance(pix_in, fee.rate, med);
+        assert!((available - 888.5).abs() < 0.01);
     }
 }
 

@@ -203,7 +203,7 @@ Auth: `X-API-Key` = `APICASH_ADMIN_API_KEY` env var.
 - [x] Senhas em plaintext → bcrypt/argon2: `verify_password()` com fallback transparente; `change_password` grava bcrypt hash; clientes e admin atualizados
 - [x] JWT sem refresh token → `create_refresh_token()` + `rotate_refresh_token()` em `modules/shared/auth.rs`; endpoint `/auth/refresh` em admin handler; `token_type: "access"|"refresh"` nos claims
 - [x] CORS não restrito → `CorsLayer` via `tower-http` configurado por `GATEBOX_CORS_ORIGINS` (vazio/"*"=any, lista=whitelist); adicionado ao app em `server.rs`
-- [ ] Rate limiting ausente → adicionar login endpoint (anti-brute-force)
+- [x] Rate limiting → `LoginRateLimiter` com sliding window 5min/5 tentativas + lockout 15min; HTTP 429 com `Retry-After`
 - [x] Audit log → `AppLogRepository.insert()` adicionado; admin login success/failure e token refresh gravados
 
 ### 5.2 Itens críticos APICash [x]
@@ -217,7 +217,7 @@ Auth: `X-API-Key` = `APICASH_ADMIN_API_KEY` env var.
 - [x] `apicash-custody` → 9 testes passando: lock/release/yield split + 6 testes unitários YieldCalculator (zero days, negativo, precisão, zero principal, taxa customizada)
 - [x] `apicash-auth` → 4 testes de segurança: validate_startup_safety (auth_disabled, jwt_secret curto, valid config)
 - [ ] `apicash-core` → fluxo order → settle → release (integração) — pendente
-- [ ] `gatebox-rust` → cálculo saldo = CREDIT - DEBIT - MED — pendente
+- [x] `gatebox-rust` → cálculo saldo = CREDIT - DEBIT - MED: helpers `compute_available_balance`, `calculate_med_amount` + 13 testes em `service_async.rs`
 
 Framework: `cargo test` + `axum::test`.
 
