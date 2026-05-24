@@ -15,7 +15,7 @@ use std::sync::Arc;
 use apicash_antifraude::AntiFraudeService;
 
 use crate::config::AuthConfig;
-use crate::models::claims::{JwtClaims, Role};
+use crate::models::claims::{JwtClaims, PersonType, Role};
 use crate::models::user::UserIdentity;
 
 #[derive(Debug, Error)]
@@ -62,11 +62,11 @@ impl AuthService {
         &self.config
     }
 
-    /// Valida utilizador/senha (lista `APICASH_AUTH_USERS`: `user:pass:role`, separado por `;`).
+    /// Valida utilizador/senha (lista `APICASH_AUTH_USERS`: `user:pass:role[:documento]`, separado por `;`).
     pub fn login(&self, username: &str, password: &str) -> Result<LoginResponse, AuthError> {
         let user = self.resolve_user(username, password)?;
-        let access = self.generate_token(user.id, user.role, None)?;
-        let refresh = self.generate_refresh_token(user.id, user.role)?;
+        let access = self.generate_token_full(user.id, user.role, user.person_type, user.document.clone(), None)?;
+        let refresh = self.generate_refresh_token(user.id, user.role, user.person_type, user.document)?;
         Ok(LoginResponse::new(
             access,
             self.config.jwt_ttl_secs,
@@ -95,8 +95,8 @@ impl AuthService {
         } else {
             None
         };
-        let access = self.generate_token(user.id, user.role, risk)?;
-        let refresh = self.generate_refresh_token(user.id, user.role)?;
+        let access = self.generate_token_full(user.id, user.role, user.person_type, user.document.clone(), risk)?;
+        let refresh = self.generate_refresh_token(user.id, user.role, user.person_type, user.document)?;
         Ok(LoginResponse::new(
             access,
             self.config.jwt_ttl_secs,
@@ -127,8 +127,8 @@ impl AuthService {
         } else {
             None
         };
-        let access = self.generate_token(claims.sub, claims.role, risk)?;
-        let refresh = self.generate_refresh_token(claims.sub, claims.role)?;
+        let access = self.generate_token_full(claims.sub, claims.role, claims.person_type, claims.document.clone(), risk)?;
+        let refresh = self.generate_refresh_token(claims.sub, claims.role, claims.person_type, claims.document)?;
         Ok(LoginResponse::new(
             access,
             self.config.jwt_ttl_secs,
@@ -146,8 +146,8 @@ impl AuthService {
         if !claims.is_refresh_token() {
             return Err(AuthError::InvalidToken("expected refresh token".into()));
         }
-        let access = self.generate_token(claims.sub, claims.role, None)?;
-        let refresh = self.generate_refresh_token(claims.sub, claims.role)?;
+        let access = self.generate_token_full(claims.sub, claims.role, claims.person_type, claims.document.clone(), None)?;
+        let refresh = self.generate_refresh_token(claims.sub, claims.role, claims.person_type, claims.document)?;
         Ok(LoginResponse::new(
             access,
             self.config.jwt_ttl_secs,
@@ -175,6 +175,18 @@ impl AuthService {
         role: Role,
         risk_score: Option<u32>,
     ) -> Result<String, AuthError> {
+        self.generate_token_full(user_id, role, PersonType::default(), String::new(), risk_score)
+    }
+
+    /// Emite JWT HS256 com person_type e document.
+    pub fn generate_token_full(
+        &self,
+        user_id: Uuid,
+        role: Role,
+        person_type: PersonType,
+        document: String,
+        risk_score: Option<u32>,
+    ) -> Result<String, AuthError> {
         if self.config.jwt_secret.len() < 8 {
             return Err(AuthError::Misconfigured);
         }
@@ -184,6 +196,8 @@ impl AuthService {
             sub: user_id,
             user_id: Some(user_id),
             role,
+            person_type,
+            document,
             risk_score,
             token_use: None,
             exp,
@@ -199,7 +213,13 @@ impl AuthService {
     }
 
     /// Refresh token (não usar em rotas protegidas como Bearer de API).
-    pub fn generate_refresh_token(&self, user_id: Uuid, role: Role) -> Result<String, AuthError> {
+    pub fn generate_refresh_token(
+        &self,
+        user_id: Uuid,
+        role: Role,
+        person_type: PersonType,
+        document: String,
+    ) -> Result<String, AuthError> {
         if self.config.jwt_secret.len() < 8 {
             return Err(AuthError::Misconfigured);
         }
@@ -209,6 +229,8 @@ impl AuthService {
             sub: user_id,
             user_id: Some(user_id),
             role,
+            person_type,
+            document,
             risk_score: None,
             token_use: Some("refresh".into()),
             exp,
@@ -251,6 +273,7 @@ impl AuthService {
     }
 
     fn resolve_user(&self, username: &str, password: &str) -> Result<UserIdentity, AuthError> {
+        // Format: user:pass:role[:document]  — document is CPF (11 digits) or CNPJ (14 digits)
         let spec = std::env::var("APICASH_AUTH_USERS")
             .unwrap_or_else(|_| "admin:admin:admin;seller:seller:seller;buyer:buyer:buyer".into());
         for entry in spec.split(';') {
@@ -262,10 +285,12 @@ impl AuthService {
             let u = p.next().unwrap_or("").trim();
             let pw = p.next().unwrap_or("").trim();
             let role_s = p.next().unwrap_or("buyer").trim();
+            let document = p.next().unwrap_or("").trim().to_string();
             if u != username || pw != password {
                 continue;
             }
             let role = Role::from_str(role_s).map_err(|_| AuthError::InvalidCredentials)?;
+            let person_type = PersonType::from_document(&document);
             let id = Uuid::new_v5(
                 &Uuid::NAMESPACE_DNS,
                 format!("apicash:user:{username}").as_bytes(),
@@ -274,6 +299,8 @@ impl AuthService {
                 id,
                 username: username.to_string(),
                 role,
+                person_type,
+                document,
             });
         }
         Err(AuthError::InvalidCredentials)

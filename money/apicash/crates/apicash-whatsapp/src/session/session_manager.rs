@@ -26,6 +26,12 @@ pub enum OrderFlowState {
         amount: String,
         description: String,
     },
+    /// Comprador (B) aceitou; aguardamos CPF/CNPJ para criar o pedido.
+    AwaitingBuyerDocument {
+        seller_peer_key: String,
+        amount: String,
+        description: String,
+    },
     /// Pedido criado e PIX gerado; aguarda o comprador efetuar o pagamento.
     AwaitingPayment {
         order_id: Uuid,

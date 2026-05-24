@@ -173,3 +173,11 @@ pub fn release_ok(amount: &str) -> String {
 pub fn release_unauthorized() -> &'static str {
     "Somente quem pagou pode confirmar o recebimento."
 }
+
+pub fn ask_buyer_document() -> &'static str {
+    "Para gerar o PIX, informe seu *CPF* (pessoa física, 11 dígitos) ou *CNPJ* (empresa, 14 dígitos).\n\nEx: `12345678901` ou `12345678000195`"
+}
+
+pub fn invalid_document() -> &'static str {
+    "Documento inválido. Envie um *CPF* (11 dígitos) ou *CNPJ* (14 dígitos) somente com números.\n\nEx: `52998224725`"
+}

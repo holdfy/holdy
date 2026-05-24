@@ -157,6 +157,21 @@ pub fn parse_cpf(s: &str) -> Option<String> {
     }
 }
 
+/// Aceita CPF (11 dígitos) ou CNPJ (14 dígitos). Retorna os dígitos extraídos.
+pub fn parse_document(s: &str) -> Option<String> {
+    let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() == 11 || digits.len() == 14 {
+        Some(digits)
+    } else {
+        None
+    }
+}
+
+/// Retorna `true` se o texto parece uma PF (CPF = 11 dígitos).
+pub fn is_pf_document(doc: &str) -> bool {
+    doc.chars().filter(|c| c.is_ascii_digit()).count() == 11
+}
+
 /// Descrição do pedido (texto livre, truncada).
 pub fn parse_description(s: &str) -> Option<String> {
     let t = s.trim();

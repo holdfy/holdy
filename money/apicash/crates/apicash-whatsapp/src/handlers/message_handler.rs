@@ -22,8 +22,6 @@ use crate::utils::masking::mask_whatsapp_peer;
 use crate::utils::message_templates;
 use crate::utils::qr_code;
 
-/// CPF de preenchimento interno apenas para satisfazer `POST /orders` quando o WhatsApp não recolhe CPF aqui — alinhado aos testes de sandbox do projeto.
-const WA_ESCROW_PLACEHOLDER_CPF: &str = "52998224725";
 
 pub struct MessageHandler {
     core: CoreApiClient,
@@ -348,13 +346,14 @@ impl MessageHandler {
         Ok(())
     }
 
-    /// Após comprador responder *ACEITO*: criar pedido, enviar PIX a B e avisos a A/B.
+    /// Após comprador responder *ACEITO* e fornecer documento: criar pedido, enviar PIX a B e avisos a A/B.
     async fn finalize_order_after_buyer_accepted(
         &self,
         seller_peer_key: &str,
         buyer_peer_key: &str,
         amount: String,
         description: String,
+        document: &str,
         peer_hint_buyer: &str,
     ) -> Result<(), CoreApiError> {
         let buyer_id = crate::session::user_id_for_peer_key(buyer_peer_key);
@@ -389,7 +388,7 @@ impl MessageHandler {
 
         if let Err(e) = self
             .core
-            .calculate_risk_score_internal_only(buyer_id, WA_ESCROW_PLACEHOLDER_CPF, social_empty)
+            .calculate_risk_score_internal_only(buyer_id, document, social_empty)
             .await
         {
             tracing::warn!(
@@ -406,7 +405,7 @@ impl MessageHandler {
                 buyer_id,
                 seller_id,
                 &amount,
-                WA_ESCROW_PLACEHOLDER_CPF,
+                document,
                 social_empty,
                 Some(description.as_str()),
                 Some(&seller_bearer),
@@ -772,14 +771,16 @@ impl MessageHandler {
                     return Ok(());
                 }
                 if order_flow::is_accept_proposal(body) {
-                    self.finalize_order_after_buyer_accepted(
-                        &seller_peer_key,
-                        &peer,
+                    session.state = OrderFlowState::AwaitingBuyerDocument {
+                        seller_peer_key,
                         amount,
                         description,
-                        &peer_hint,
-                    )
-                    .await?;
+                    };
+                    session.touch();
+                    self.sessions.update(&peer, session).await;
+                    self.outbound
+                        .send_text(&peer, message_templates::ask_buyer_document())
+                        .await;
                     return Ok(());
                 }
 
@@ -837,11 +838,17 @@ impl MessageHandler {
                                 .clone()
                                 .unwrap_or_else(|| "HoldFy".into());
                             if order_flow::peers_same_phone(&bpk, &peer) {
-                                return self
-                                    .finalize_order_after_buyer_accepted(
-                                        &peer, &peer, amt, desc, &peer_hint,
-                                    )
+                                session.state = OrderFlowState::AwaitingBuyerDocument {
+                                    seller_peer_key: peer.clone(),
+                                    amount: amt,
+                                    description: desc,
+                                };
+                                session.touch();
+                                self.sessions.update(&peer, session).await;
+                                self.outbound
+                                    .send_text(&peer, message_templates::ask_buyer_document())
                                     .await;
+                                return Ok(());
                             }
                         }
                         session.state = OrderFlowState::CreatingOrder {
@@ -864,6 +871,34 @@ impl MessageHandler {
                     self.sessions.update(&peer, session).await;
                     self.outbound
                         .send_text(&peer, message_templates::seller_still_waiting_buyer())
+                        .await;
+                }
+            }
+            OrderFlowState::AwaitingBuyerDocument {
+                seller_peer_key,
+                amount,
+                description,
+            } => {
+                if let Some(doc) = order_flow::parse_document(body) {
+                    self.finalize_order_after_buyer_accepted(
+                        &seller_peer_key,
+                        &peer,
+                        amount,
+                        description,
+                        &doc,
+                        &peer_hint,
+                    )
+                    .await?;
+                } else {
+                    session.state = OrderFlowState::AwaitingBuyerDocument {
+                        seller_peer_key,
+                        amount,
+                        description,
+                    };
+                    session.touch();
+                    self.sessions.update(&peer, session).await;
+                    self.outbound
+                        .send_text(&peer, message_templates::invalid_document())
                         .await;
                 }
             }

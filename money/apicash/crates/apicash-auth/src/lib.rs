@@ -11,7 +11,7 @@ pub mod models;
 pub mod service;
 
 pub use config::AuthConfig;
-pub use models::claims::{JwtClaims, Role};
+pub use models::claims::{JwtClaims, PersonType, Role};
 pub use models::session::SessionInfo;
 pub use models::user::UserIdentity;
 pub use service::{AuthError, AuthService, LoginRequest, LoginResponse, RefreshRequest};

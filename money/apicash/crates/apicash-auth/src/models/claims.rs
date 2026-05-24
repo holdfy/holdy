@@ -13,6 +13,27 @@ pub enum Role {
     Platform,
 }
 
+/// Tipo de pessoa: física (CPF, 11 dígitos) ou jurídica (CNPJ, 14 dígitos).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum PersonType {
+    #[default]
+    Natural,
+    Legal,
+}
+
+impl PersonType {
+    /// Infere o tipo de pessoa a partir do documento (CPF=11 dígitos, CNPJ=14).
+    pub fn from_document(doc: &str) -> Self {
+        let digits: String = doc.chars().filter(|c| c.is_ascii_digit()).collect();
+        if digits.len() == 14 {
+            Self::Legal
+        } else {
+            Self::Natural
+        }
+    }
+}
+
 impl Role {
     #[must_use]
     pub fn is_admin_or_platform(self) -> bool {
@@ -32,6 +53,12 @@ pub struct JwtClaims {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<Uuid>,
     pub role: Role,
+    /// Pessoa Física (CPF) ou Pessoa Jurídica (CNPJ).
+    #[serde(default)]
+    pub person_type: PersonType,
+    /// Documento do utilizador (CPF ou CNPJ). Omitido se vazio.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub document: String,
     /// Score agregado 0–1000 (antifraude), se conhecido no momento da emissão.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub risk_score: Option<u32>,
