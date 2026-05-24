@@ -19,6 +19,8 @@ pub trait FeesRepository: Send + Sync {
     async fn list(&self, offset: i64, limit: i64) -> Result<ItemsPage<Vec<Fees>>, RepositoryError>;
     async fn get_by_id(&self, id: i64) -> Result<Option<Fees>, RepositoryError>;
     async fn get_by_account_id(&self, account_id: i64) -> Result<Option<Fees>, RepositoryError>;
+    /// Returns a fee row tagged for this person type (1=PF, 2=PJ), ignoring per-account rows.
+    async fn get_by_person_type(&self, person_type_id: i64) -> Result<Option<Fees>, RepositoryError>;
     async fn insert(&self, item: &Fees) -> Result<i64, RepositoryError>;
     async fn update(&self, id: i64, item: &Fees) -> Result<(), RepositoryError>;
     async fn delete(&self, id: i64) -> Result<bool, RepositoryError>;
@@ -50,6 +52,7 @@ struct Row {
     percent_ref_cashin: rust_decimal::Decimal,
     percent_ref_cashout: rust_decimal::Decimal,
     deleted_at: Option<DateTime<Utc>>,
+    person_type_id: Option<i64>,
 }
 
 fn to_fees(r: Row) -> Fees {
@@ -67,6 +70,7 @@ fn to_fees(r: Row) -> Fees {
         percent_ref_cashin: r.percent_ref_cashin,
         percent_ref_cashout: r.percent_ref_cashout,
         deleted_at: r.deleted_at,
+        person_type_id: r.person_type_id,
         full_count: None,
     }
 }
@@ -90,6 +94,13 @@ impl FeesRepository for FeesRepositoryImpl {
             .await?;
         Ok(row.map(to_fees))
     }
+    async fn get_by_person_type(&self, person_type_id: i64) -> Result<Option<Fees>, RepositoryError> {
+        let row: Option<Row> = sqlx::query_as(ddl::SQL_GET_BY_PERSON_TYPE)
+            .bind(person_type_id)
+            .fetch_optional(self.read.as_ref())
+            .await?;
+        Ok(row.map(to_fees))
+    }
     async fn insert(&self, item: &Fees) -> Result<i64, RepositoryError> {
         let (id,): (i64,) = sqlx::query_as(ddl::SQL_INSERT)
             .bind(item.account_id)
@@ -104,6 +115,7 @@ impl FeesRepository for FeesRepositoryImpl {
             .bind(item.percent_ref_cashin)
             .bind(item.percent_ref_cashout)
             .bind(item.deleted_at)
+            .bind(item.person_type_id)
             .fetch_one(self.write.as_ref())
             .await?;
         Ok(id)
@@ -122,6 +134,7 @@ impl FeesRepository for FeesRepositoryImpl {
             .bind(item.percent_ref_cashin)
             .bind(item.percent_ref_cashout)
             .bind(item.deleted_at)
+            .bind(item.person_type_id)
             .bind(id)
             .execute(self.write.as_ref())
             .await?;

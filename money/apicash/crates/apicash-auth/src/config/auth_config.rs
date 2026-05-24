@@ -58,6 +58,7 @@ impl AuthConfig {
         }
     }
 
+    #[cfg(test)]
     fn make_cfg(auth_disabled: bool, jwt_secret: &str) -> Self {
         Self {
             jwt_secret: jwt_secret.into(),

@@ -275,6 +275,22 @@ impl PixWebhookService for PixWebhookServiceImpl {
             .await
             .map_err(|e| e.to_string())?;
 
+        // PIX IN limit advisory: Banco Central imposes higher default limits for PJ (type 2).
+        // PF accounts that receive unusually large amounts are flagged for review (not blocked).
+        const PIX_LIMIT_PF: f64 = 20_000.0;  // R$ 20.000 — standard daily advisory for PF
+        const PIX_LIMIT_PJ: f64 = 500_000.0; // R$ 500.000 — advisory cap for PJ per transaction
+        let person_type_id = provider.customer.person_type_id;
+        let limit = if person_type_id == 2 { PIX_LIMIT_PJ } else { PIX_LIMIT_PF };
+        if req.amount > limit {
+            tracing::warn!(
+                account_id = account_id,
+                person_type_id = person_type_id,
+                amount = req.amount,
+                limit = limit,
+                "pix_in: amount exceeds advisory limit for person type — flagging for review"
+            );
+        }
+
         let fixed = if provider.customer.fixed_cash_in > 0.0 {
             provider.customer.fixed_cash_in
         } else {

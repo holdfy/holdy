@@ -27,6 +27,8 @@ pub struct CustomerProviderInfo {
     pub data: CustomerData,
     #[serde(rename = "accountId")]
     pub account_id: i64,
+    /// 1 = NATURAL_PERSON (PF), 2 = LEGAL_PERSON (PJ), 0 = unknown.
+    pub person_type_id: i64,
     pub fixed_cash_in: f64,
     pub fixed_cash_out: f64,
     pub percent_cashin: f64,

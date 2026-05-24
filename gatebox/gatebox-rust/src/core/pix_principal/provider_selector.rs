@@ -105,7 +105,7 @@ impl ProviderSelector for ProviderSelectorImpl {
         let auth_id = account.authentication_id;
 
         let customer = self.customer_repo.get_by_authentication_id(auth_id).await?;
-        let (customer_data, customer_acc_id, customer_rates) = if let Some(ref c) = customer {
+        let (customer_data, customer_acc_id, customer_rates, customer_person_type_id) = if let Some(ref c) = customer {
             let data = CustomerData {
                 authentication_id: c.authentication_id,
                 full_name: c.full_name.clone(),
@@ -113,7 +113,11 @@ impl ProviderSelector for ProviderSelectorImpl {
                 email: c.email.clone(),
                 phone_number: c.phone_number.clone(),
             };
-            let fees = self.fees_repo.get_by_account_id(account_id).await?;
+            // Prefer per-account fee; fall back to person-type default fee.
+            let fees = match self.fees_repo.get_by_account_id(account_id).await? {
+                Some(f) => Some(f),
+                None => self.fees_repo.get_by_person_type(c.type_person_id).await?,
+            };
             let (fix_in, fix_out, pct_in, pct_out, pct_sec, fix_ref_in, fix_ref_out, pct_ref_in, pct_ref_out) =
                 fees.map(|f| {
                     (
@@ -128,7 +132,7 @@ impl ProviderSelector for ProviderSelectorImpl {
                         f.percent_ref_cashout.to_string().parse::<f64>().unwrap_or(0.0),
                     )
                 }).unwrap_or((0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
-            (data, account_id, (fix_in, fix_out, pct_in, pct_out, pct_sec, fix_ref_in, fix_ref_out, pct_ref_in, pct_ref_out))
+            (data, account_id, (fix_in, fix_out, pct_in, pct_out, pct_sec, fix_ref_in, fix_ref_out, pct_ref_in, pct_ref_out), c.type_person_id)
         } else {
             (
                 CustomerData {
@@ -140,6 +144,7 @@ impl ProviderSelector for ProviderSelectorImpl {
                 },
                 account_id,
                 (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                0i64,
             )
         };
 
@@ -223,6 +228,7 @@ impl ProviderSelector for ProviderSelectorImpl {
             customer: CustomerProviderInfo {
                 data: customer_data,
                 account_id: customer_acc_id,
+                person_type_id: customer_person_type_id,
                 fixed_cash_in: fix_in,
                 fixed_cash_out: fix_out,
                 percent_cashin: pct_in,

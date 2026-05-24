@@ -17,6 +17,8 @@ pub struct Fees {
     pub percent_ref_cashin: Decimal,
     pub percent_ref_cashout: Decimal,
     pub deleted_at: Option<DateTime<Utc>>,
+    /// 1 = NATURAL_PERSON (PF), 2 = LEGAL_PERSON (PJ), NULL = any type.
+    pub person_type_id: Option<i64>,
     #[serde(skip_serializing)]
     pub full_count: Option<i64>,
 }
