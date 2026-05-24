@@ -1,4 +1,4 @@
-import { Shield, Lock, User, Eye, EyeOff, Fingerprint, ShieldCheck, HelpCircle, Store, ShoppingBag } from "lucide-react";
+import { Shield, Lock, User, Eye, EyeOff, Fingerprint, ShieldCheck, HelpCircle, Store, ShoppingBag, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { useUserRole, UserRole } from "@/contexts/UserRoleContext";
+import { useUserRole, UserRole, type PersonType } from "@/contexts/UserRoleContext";
 import { toast } from "sonner";
 import type { ApiError } from "@/lib/api-client";
 
@@ -28,6 +28,8 @@ export default function AppLogin() {
   const [resetEmail, setResetEmail] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
+  const [regPersonType, setRegPersonType] = useState<PersonType>("pf");
+  const [regName, setRegName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -77,6 +79,7 @@ export default function AppLogin() {
       setSignUpOpen(false);
       setRegEmail("");
       setRegPassword("");
+      setRegName("");
       navigate("/buyer");
     } catch {
       toast.error(t("auth.loginError", "Erro ao entrar. Tente novamente."));
@@ -287,13 +290,64 @@ export default function AppLogin() {
             <DialogTitle>{t("auth.signUpTitle")}</DialogTitle>
             <DialogDescription>{t("auth.signUpDesc")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold tracking-wider uppercase text-foreground mb-2 block">
+                {t("auth.personType", "Tipo de pessoa")}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRegPersonType("pf")}
+                  className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                    regPersonType === "pf"
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-card hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <User className={`h-4 w-4 ${regPersonType === "pf" ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-sm font-semibold ${regPersonType === "pf" ? "text-primary" : "text-muted-foreground"}`}>
+                    {t("auth.personPF", "Pessoa Física")}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegPersonType("pj")}
+                  className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                    regPersonType === "pj"
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-card hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <Building2 className={`h-4 w-4 ${regPersonType === "pj" ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-sm font-semibold ${regPersonType === "pj" ? "text-primary" : "text-muted-foreground"}`}>
+                    {t("auth.personPJ", "Pessoa Jurídica")}
+                  </span>
+                </button>
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="reg-email">{t("common.email")}</Label>
+              <Label htmlFor="reg-name">
+                {regPersonType === "pj"
+                  ? t("auth.companyName", "Razão social")
+                  : t("auth.fullName", "Nome completo")}
+              </Label>
+              <Input
+                id="reg-name"
+                placeholder={regPersonType === "pj" ? "Ex: Empresa Ltda" : "Ex: João da Silva"}
+                value={regName}
+                onChange={(e) => setRegName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reg-email">
+                {regPersonType === "pj"
+                  ? t("auth.cnpjLabel", "CNPJ")
+                  : t("auth.cpfLabel", "CPF")}
+              </Label>
               <Input
                 id="reg-email"
-                type="email"
-                placeholder={t("auth.resetPlaceholder")}
+                placeholder={regPersonType === "pj" ? "00.000.000/0001-00" : "000.000.000-00"}
                 value={regEmail}
                 onChange={(e) => setRegEmail(e.target.value)}
               />

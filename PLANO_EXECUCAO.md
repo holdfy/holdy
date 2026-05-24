@@ -25,12 +25,12 @@ Monorepo com três stacks paralelas (APICash Rust, Gatebox Rust, site/ React) qu
 | Gatebox — front-gatebox (React, ~90% telas) | ✅ 90% telas | Gráficos, refinamento |
 | site/ — marketplace React (Vite+shadcn+Tailwind) | 🟡 UI completa | Backend: 0% integrado (tudo mock) |
 | front-template/ — Material Dashboard 3 PRO | ✅ pronto p/ usar | Aguardando admin Holdfy ser criado |
-| PF/PJ — antifraude valida CPF e CNPJ | ✅ completo | Score idêntico para ambos (ok por ora) |
+| PF/PJ — antifraude valida CPF e CNPJ | ✅ completo | Score diferenciado: CNPJ ATIVA=+100, BAIXADA=-200, idade empresa |
 | PF/PJ — Gatebox modelos (type_person_types) | ✅ presente | Seeds: NATURAL_PERSON(1), LEGAL_PERSON(2) |
 | PF/PJ — Gateway Next | ✅ corrigido | `infer_person_type()` por tamanho do documento (CNPJ=14 dígitos) |
-| PF/PJ — Auth/JWT claims | 🔴 ausente | `person_type` não propagado nos tokens |
-| PF/PJ — WhatsApp | 🔴 ausente | Só coleta CPF placeholder hardcoded |
-| PF/PJ — site/ | 🔴 ausente | Sem campos CNPJ no cadastro/login |
+| PF/PJ — Auth/JWT claims | ✅ implementado | `PersonType` no JWT; `document` propagado; `APICASH_AUTH_USERS` aceita 4o campo |
+| PF/PJ — WhatsApp | ✅ implementado | `AwaitingBuyerDocument` state; aceita CPF (11) e CNPJ (14) |
+| PF/PJ — site/ | ✅ implementado | Toggle PF/PJ no cadastro; person_type lido do JWT |
 | PF/PJ — limites/taxas | 🔴 ausente | PJ e PF têm mesmas condições no Gatebox |
 | Importador Universal de Produtos | 🔴 não existe | Criar crate apicash-importer |
 | Ranking/Reputação/Selos | 🔴 não existe | Score antifraude existe, sistema separado não |
@@ -157,12 +157,13 @@ O endpoint `POST /v1/listings/import` será criado na Fase 3.1.
 - `finalize_order_after_buyer_accepted()` recebe `document: &str` real
 - Templates `ask_buyer_document()` e `invalid_document()` adicionados
 
-### 7.5 Cadastro PF/PJ no site/ [ ]
-**Arquivo:** `site/src/pages/app/AppLogin.tsx` e telas de perfil
-- Toggle PF/PJ no formulário
-- PF: CPF + nome + data nascimento
-- PJ: CNPJ + razão social + nome fantasia + CPF do responsável
-- `personType: 'pf' | 'pj'` já no `UserRoleContext` (adicionado na Fase 1.2)
+### 7.5 Cadastro PF/PJ no site/ [x]
+**Arquivos:** `site/src/pages/app/AppLogin.tsx`, `site/src/contexts/UserRoleContext.tsx`
+- Toggle PF/PJ no dialog de cadastro: Pessoa Física (CPF, ícone User) / Pessoa Jurídica (CNPJ, ícone Building2)
+- Campo nome muda dinamicamente: "Nome completo" (PF) / "Razão social" (PJ)
+- Placeholder CPF/CNPJ muda conforme seleção
+- `buildIdentity()` agora lê `person_type` do JWT claim → `"legal"` vira `"pj"`, qualquer outro → `"pf"`
+- `personType` propagado do servidor ao contexto em vez de hardcodado como `"pf"`
 
 ---
 

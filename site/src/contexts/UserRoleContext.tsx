@@ -37,11 +37,12 @@ function buildIdentity(resp: LoginResponse, roleHint: "buyer" | "seller"): UserI
   const jwtRole = (claims.role as string | undefined) ?? roleHint;
   const role: UserRole = jwtRole === "seller" ? "seller" : jwtRole === "admin" ? "admin" : "buyer";
   const riskScore = typeof claims.risk_score === "number" ? claims.risk_score : null;
+  const personType: PersonType = (claims.person_type as string | undefined) === "legal" ? "pj" : "pf";
   return {
     id: (claims.sub as string | undefined) ?? "",
     username: (claims.username as string | undefined) ?? "",
     role,
-    personType: "pf",
+    personType,
     riskScore,
   };
 }
