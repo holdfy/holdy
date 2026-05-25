@@ -10,6 +10,8 @@ pub struct Accounts {
     pub account_status_id: i64,
     pub deleted_at: Option<DateTime<Utc>>,
     pub authentication_id: i64,
+    /// 1 = NATURAL_PERSON (PF), 2 = LEGAL_PERSON (PJ). NULL when customer row is absent.
+    pub type_person_id: Option<i64>,
     #[serde(skip_serializing)]
     pub full_count: Option<i64>,
 }

@@ -10,8 +10,8 @@ use tower_governor::GovernorLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::handlers::{
-    auth_handler, custody_handler, order_handler, payment_handler, proposal_handler,
-    testnet_handler, webhook_handler,
+    auth_handler, custody_handler, importer_handler, logistics_handler, order_handler,
+    payment_handler, proposal_handler, reputation_handler, testnet_handler, webhook_handler,
 };
 use crate::middleware::{auth_middleware, build_x402_layer};
 use crate::state::AppState;
@@ -44,6 +44,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/orders/{id}/off-ramp", post(order_handler::order_off_ramp))
         .route("/orders/{id}/dispute", post(order_handler::open_dispute))
         .route("/risk/score", post(order_handler::calculate_risk_score))
+        .route("/reputation/{user_id}", get(reputation_handler::get_reputation))
+        .route("/v1/listings/import", post(importer_handler::import_listing))
+        .route("/logistics/shipping/quote", post(logistics_handler::quote_shipping))
+        .route("/logistics/shipping/label", post(logistics_handler::generate_label))
+        .route("/logistics/tracking/{code}", get(logistics_handler::track_shipment))
         .route("/payments/pix", post(payment_handler::create_pix_payment))
         .route("/custody/release", post(custody_handler::release_custody))
         // Proposal flow: two-party escrow negotiation

@@ -307,41 +307,47 @@ Verificar: `scripts/testnet-onchain-smoke.sh` → hash real no Stellar Explorer.
 
 ---
 
-## Fase 3.1 — Importador Universal de Produtos [ ]
+## Fase 3.1 — Importador Universal de Produtos [x]
 **Duração: 1 semana | Sprint 4**
 **Novo crate:** `money/apicash/crates/apicash-importer/`
 
-Trait central:
-```rust
-trait Extractor: Send + Sync {
-    async fn extract(&self, url: &Url) -> Result<ProductDraft, ImporterError>;
-}
-```
+Implementado:
+- `JsonLdExtractor` — `schema.org/Product` JSON-LD (cobre OLX, Shopee, maioria dos e-commerces)
+- `OpenGraphExtractor` — `og:title`, `og:image`, `og:description` (Instagram, Facebook, TikTok)
+- `MercadoLivreExtractor` — API oficial `api.mercadolibre.com/items/{id}` com detecção de MLB{id}
+- `LlmExtractor` — fallback: envia HTML ao Claude API (claude-haiku-4-5), requer `ANTHROPIC_API_KEY`
+- `ImporterService` — cadeia de extratores, `User-Agent` próprio, timeout 15s
+- Endpoint `POST /v1/listings/import` em `apicash-core/src/handlers/importer_handler.rs`
+- `AppState.importer: Arc<ImporterService>` injetado
+- Proxy Vite `/v1` → localhost:3000
+- `api.importListing(url)` em `api-client.ts`
+- Dialog em `SellerOrders.tsx`: importa, exibe preview (foto + título + preço), botão "Criar Proposta"
 
-Pipeline em camadas (implementar nesta ordem):
-1. `JsonLdExtractor` — `schema.org/Product` JSON-LD (cobre OLX, Shopee, maioria dos e-commerces)
-2. `OpenGraphExtractor` — `og:title`, `og:image`, `og:description` (Instagram, Facebook, TikTok)
-3. `MercadoLivreExtractor` — API oficial `api.mercadolibre.com/items/{id}`
-4. `LlmExtractor` — fallback: envia HTML ao Claude API, extrai campos
-
-Infraestrutura:
-- `ImageDownloader` — baixa e re-hospeda fotos (nunca URL externa direta)
-- `HeadlessFetcher` — Chromium via crate `chromiumoxide` (para JS dinâmico)
-- Cache Redis TTL 5min por URL
-- Fila Pulsar para processamento async
-- Sandbox: validar URL, bloquear IPs internos, timeout
-
-Endpoint: `POST /v1/listings/import` → body `{ url }` → response `ProductDraft { title, price_suggested, description, photos, source_url, source_platform }`
-
-WhatsApp: em `message_handler.rs`, detectar URL enviada → acionar importer → preview → confirmar → criar proposta.
-
-**Verificação:** `POST /v1/listings/import` com URL OLX real → retorna título e foto.
+Pendente (MVP2):
+- Cache Redis por URL (TTL 5min)
+- Fila Pulsar para async
+- `ImageDownloader` para re-hospedar fotos
+- Integração WhatsApp (detectar URL enviada → importar → preview)
 
 ---
 
-## Fase 3.3 — Ranking, Reputação e Selos [ ]
-**Duração: 3-4 dias | Sprint 5**
-**Adicionar em:** `money/apicash/crates/apicash-antifraude/src/` (ou novo crate `apicash-reputation`)
+## Fase 3.3 — Ranking, Reputação e Selos [x]
+**Implementado:**
+- `apicash-antifraude/src/reputation/`: `UserReputation`, `ReputationSeal` (Verified/Premium/Authenticated), `ReputationService`
+- `GET /reputation/{user_id}` com auth (self ou admin)
+- `AppState.reputation: Arc<ReputationService>` injetado
+- `ReputationBadge.tsx` no `site/`: badge colorido com ícone, tooltip com score e txns
+- Perfil comprador (`AppProfile`) e vendedor (`SellerProfile`) exibem badge
+- `api.getReputation()` + tipos `ReputationSeal`/`ReputationResponse` em `api-client.ts`
+- 8 testes em `reputation_model.rs` (no_kyc, too_few_txns, verified, premium, authenticated)
+
+**Arquivos chave:**
+- `crates/apicash-antifraude/src/reputation/`
+- `crates/apicash-core/src/handlers/reputation_handler.rs`
+- `site/src/components/ReputationBadge.tsx`
+
+**Notas de design:**
+
 
 ```rust
 struct UserReputation {
@@ -365,16 +371,26 @@ Expor como badges no `site/` nas telas de perfil e pedidos.
 
 ---
 
-## Fase 4 — Logística [ ]
+## Fase 4 — Logística [x]
 **Duração: 1 semana | Sprint 5**
 **Novo crate:** `money/apicash/crates/apicash-logistics/`
 
-MVP: integrar **Melhor Envio API** (agrega Correios + Jadlog, mais simples que Correios direto).
-- `POST /logistics/shipping/quote` — cotação
-- `POST /logistics/shipping/label` — gerar etiqueta (PDF)
-- `GET /logistics/tracking/{code}` — rastreamento
+Implementado:
+- `MelhorEnvioClient` — HTTP client com Bearer token + User-Agent correto; sandbox/prod via `MELHOR_ENVIO_SANDBOX`
+- `LogisticsService` com `quote()`, `generate_label()`, `track()`
+- Tipos: `ShippingQuote`, `ShippingLabel`, `TrackingInfo`, `TrackingEvent`, `CarrierCode` (PAC/SEDEX/Jadlog)
+- Endpoints em `apicash-core`:
+  - `POST /logistics/shipping/quote`
+  - `POST /logistics/shipping/label`
+  - `GET /logistics/tracking/{code}`
+- `AppState.logistics: Arc<LogisticsService>` — fallback graceful se token ausente
+- Proxy Vite `/logistics` → localhost:3000
+- `api.quoteShipping()` + `api.trackShipment()` em `api-client.ts`
+- Variáveis: `MELHOR_ENVIO_TOKEN` (obrigatória), `MELHOR_ENVIO_SANDBOX=1` (dev)
 
-WhatsApp: quando comprador digitar "rastrear" ou enviar código → chamar `apicash-logistics`.
+Pendente (MVP2):
+- Tela de cotação no `site/` (estimativa de frete no checkout)
+- Integração WhatsApp: "rastrear {código}" → `track()` → resposta formatada
 
 ---
 

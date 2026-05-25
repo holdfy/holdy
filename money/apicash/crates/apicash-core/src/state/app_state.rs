@@ -6,13 +6,16 @@ use apicash_anchor::{AnchorService, StellarConfig, StellarNetwork};
 use apicash_antifraude::{
     AntiFraudeService, CachedDocumentValidator, DocumentCache, DocumentValidator,
     HttpDocumentValidator, InMemoryDocumentCache, InMemoryScoreRepository, LocalDocumentValidator,
-    PostgresDocumentCache, PostgresScoreRepository, ScoreRepository, SocialValidator,
+    PostgresDocumentCache, PostgresScoreRepository, ReputationService, ScoreRepository,
+    SocialValidator,
 };
 use apicash_auth::{AuthConfig, AuthService};
 use apicash_custody::{
     CustodyRepository, CustodyService, InMemoryCustodyRepository, PostgresCustodyRepository,
     YieldCalculator,
 };
+use apicash_importer::ImporterService;
+use apicash_logistics::LogisticsService;
 use apicash_shared::Order;
 use reqwest::Client;
 use sqlx::postgres::PgPoolOptions;
@@ -52,10 +55,13 @@ pub struct StoredOrder {
 pub struct AppState {
     pub auth: Arc<AuthService>,
     pub antifraude: Arc<AntiFraudeService>,
+    pub reputation: Arc<ReputationService>,
     pub custody: Arc<CustodyService>,
     pub anchor: Arc<AnchorService>,
     pub orders: Arc<dyn OrderRepository>,
     pub proposals: Arc<dyn ProposalRepository>,
+    pub importer: Arc<ImporterService>,
+    pub logistics: Arc<LogisticsService>,
 }
 
 impl AppState {
@@ -189,7 +195,8 @@ impl AppState {
         ));
 
         let social = SocialValidator::new(http, social_check);
-        let antifraude = Arc::new(AntiFraudeService::new(doc_validator, social, score_repo));
+        let antifraude = Arc::new(AntiFraudeService::new(doc_validator, social, score_repo.clone()));
+        let reputation = Arc::new(ReputationService::new(score_repo));
         let auth = Arc::new(AuthService::with_antifraude(auth_cfg, antifraude.clone()));
         let custody = Arc::new(CustodyService::new(
             custody_repo,
@@ -197,6 +204,8 @@ impl AppState {
         ));
         let anchor = Arc::new(AnchorService::new(cfg));
         let proposals = Arc::new(InMemoryProposalRepository::new());
+        let importer = Arc::new(ImporterService::new());
+        let logistics = Arc::new(build_logistics_service());
         tracing::info!(
             fiat_rail = anchor.fiat_rail_name(),
             "anchor service (simulated rail = PIX EMV via Gatebox quando GATEBOX_BASE_URL está definido)",
@@ -204,10 +213,13 @@ impl AppState {
         Self {
             auth,
             antifraude,
+            reputation,
             custody,
             anchor,
             orders,
             proposals,
+            importer,
+            logistics,
         }
     }
 }
@@ -235,4 +247,21 @@ fn env_enabled(name: &str) -> bool {
     std::env::var(name)
         .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
         .unwrap_or(false)
+}
+
+fn build_logistics_service() -> LogisticsService {
+    match LogisticsService::from_env() {
+        Ok(svc) => {
+            tracing::info!("logistics: Melhor Envio configurado (MELHOR_ENVIO_TOKEN presente)");
+            svc
+        }
+        Err(_) => {
+            tracing::warn!(
+                "logistics: MELHOR_ENVIO_TOKEN ausente — cotações retornarão erro 500 em produção"
+            );
+            // Build a no-op service that fails gracefully at request time.
+            let token = "MISSING_TOKEN".to_string();
+            LogisticsService::new(apicash_logistics::MelhorEnvioClient::new(token, true))
+        }
+    }
 }

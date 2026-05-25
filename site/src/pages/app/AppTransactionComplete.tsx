@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Shield, CheckCircle2, ArrowRight, FileText } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,9 +12,20 @@ import {
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format";
 
+interface TransactionCompleteState {
+  orderId?: string;
+  amount?: string | number;
+}
+
 export default function AppTransactionComplete() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const state = (location.state ?? {}) as TransactionCompleteState;
   const [receiptOpen, setReceiptOpen] = useState(false);
+
+  const amount = state.amount != null ? parseFloat(String(state.amount)) : null;
+  const orderId = state.orderId ?? null;
+  const orderRef = orderId ? orderId.slice(-8).toUpperCase() : "—";
 
   return (
     <div className="px-5 pt-6 space-y-5">
@@ -46,7 +57,9 @@ export default function AppTransactionComplete() {
       <div className="bg-card rounded-2xl p-5 border border-border">
         <div className="min-w-0">
           <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{t("order.stepReleased")}</p>
-          <p className="text-3xl font-display font-bold mt-1">{formatCurrency(1240)}</p>
+          <p className="text-3xl font-display font-bold mt-1">
+            {amount != null ? formatCurrency(amount) : "—"}
+          </p>
           <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
             <Shield className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">{t("common.protectedPayment")} · PIX</span>
@@ -69,7 +82,7 @@ export default function AppTransactionComplete() {
           </div>
           <div>
             <p className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Ref</p>
-            <p className="text-sm font-semibold mt-1 font-mono">#8921-X</p>
+            <p className="text-sm font-semibold mt-1 font-mono">#{orderRef}</p>
           </div>
         </div>
       </div>
@@ -99,16 +112,16 @@ export default function AppTransactionComplete() {
           </DialogHeader>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">{t("common.product")}</dt>
-              <dd className="font-medium">TechStore Ltd.</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">{t("navBuyer.orders")}</dt>
-              <dd className="font-mono">#8921-X</dd>
+              <dt className="text-muted-foreground">Ref</dt>
+              <dd className="font-mono">#{orderRef}</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">{t("payment.amount")}</dt>
-              <dd className="font-semibold">{formatCurrency(1240)}</dd>
+              <dd className="font-semibold">{amount != null ? formatCurrency(amount) : "—"}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Status</dt>
+              <dd className="font-semibold text-secondary">{t("status.RELEASED")}</dd>
             </div>
           </dl>
         </DialogContent>

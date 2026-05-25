@@ -111,6 +111,63 @@ export interface OrdersListResponse {
   total: number;
 }
 
+export interface ImportedProductDraft {
+  title: string;
+  description: string | null;
+  price_suggested: string | null;
+  photos: string[];
+  source_url: string;
+  source_platform: string;
+  extractor_used: string;
+}
+
+export interface ShippingQuoteRequest {
+  from_postal_code: string;
+  to_postal_code: string;
+  weight_kg: string;
+  width_cm: number;
+  height_cm: number;
+  length_cm: number;
+}
+
+export interface ShippingQuote {
+  carrier: string;
+  carrier_label: string;
+  service_name: string;
+  price_brl: string;
+  estimated_days: number;
+  currency: string;
+}
+
+export interface TrackingInfo {
+  tracking_code: string;
+  carrier: string;
+  current_status: string;
+  events: Array<{
+    status: string;
+    description: string;
+    location: string | null;
+    occurred_at: string;
+  }>;
+  estimated_delivery: string | null;
+}
+
+export interface ReputationSeal {
+  name: "verified" | "premium" | "authenticated";
+  label: string;
+  badge_color: "blue" | "gold" | "green";
+}
+
+export interface ReputationResponse {
+  user_id: string;
+  score: number;
+  completed_transactions: number;
+  dispute_rate: string;
+  seal: ReputationSeal | null;
+  kyc_approved: boolean;
+  computed_at: string;
+}
+
 // ─── HTTP core ────────────────────────────────────────────────────────────────
 
 let refreshPromise: Promise<LoginResponse> | null = null;
@@ -230,10 +287,36 @@ export const api = {
   rejectProposal: (id: string) =>
     request<ProposalResponse>(`/proposals/${id}/reject`, { method: "POST" }),
 
+  // Reputation
+  getReputation: (userId: string, params?: { completed?: number; dispute_count?: number; kyc_approved?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.completed != null) q.set("completed", String(params.completed));
+    if (params?.dispute_count != null) q.set("dispute_count", String(params.dispute_count));
+    if (params?.kyc_approved != null) q.set("kyc_approved", String(params.kyc_approved));
+    return request<ReputationResponse>(`/reputation/${userId}?${q.toString()}`);
+  },
+
   // Custody
   releaseCustody: (data: ReleaseCustodyRequest) =>
     request(`/custody/release`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  // Importer
+  importListing: (url: string) =>
+    request<ImportedProductDraft>("/v1/listings/import", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    }),
+
+  // Logistics
+  quoteShipping: (data: ShippingQuoteRequest) =>
+    request<{ quotes: ShippingQuote[] }>("/logistics/shipping/quote", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  trackShipment: (code: string) =>
+    request<TrackingInfo>(`/logistics/tracking/${encodeURIComponent(code)}`),
 };

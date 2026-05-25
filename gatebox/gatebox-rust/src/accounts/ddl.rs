@@ -12,9 +12,12 @@ pub const SQL_GET_BY_ID: &str = r#"
 "#;
 
 pub const SQL_GET_BY_AUTHENTICATION_ID: &str = r#"
-    SELECT id, account_number, branch, account_type_id, account_status_id,
-           deleted_at, authentication_id
-    FROM accounts WHERE authentication_id = $1 AND deleted_at IS NULL LIMIT 1
+    SELECT a.id, a.account_number, a.branch, a.account_type_id, a.account_status_id,
+           a.deleted_at, a.authentication_id,
+           c.type_person_id
+    FROM accounts a
+    LEFT JOIN customer c ON c.authentication_id = a.authentication_id AND c.deleted_at IS NULL
+    WHERE a.authentication_id = $1 AND a.deleted_at IS NULL LIMIT 1
 "#;
 
 pub const SQL_INSERT: &str = r#"

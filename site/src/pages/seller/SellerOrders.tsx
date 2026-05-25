@@ -1,4 +1,4 @@
-import { ChevronRight, Plus, Link2, Loader2, Copy, ExternalLink } from "lucide-react";
+import { ChevronRight, Plus, Link2, Loader2, Copy, ExternalLink, PackageSearch } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
-import type { ApiError, ProposalResponse } from "@/lib/api-client";
+import type { ApiError, ImportedProductDraft, ProposalResponse } from "@/lib/api-client";
 
 const statusFilters = ["ALL", "PENDING", "IN_CUSTODY", "COMPLETED", "CANCELLED"] as const;
 
@@ -32,6 +32,7 @@ export default function SellerOrders() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [importUrl, setImportUrl] = useState("");
+  const [importedDraft, setImportedDraft] = useState<ImportedProductDraft | null>(null);
   const [createdProposal, setCreatedProposal] = useState<ProposalResponse | null>(null);
 
   const filtered = filter === "ALL" ? mockOrders : mockOrders.filter((o) => o.status === filter);
@@ -62,6 +63,23 @@ export default function SellerOrders() {
     },
     onError: (err: ApiError) => {
       toast.error(err?.error ?? t("seller.proposalError", "Erro ao criar proposta"));
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: () => api.importListing(importUrl.trim()),
+    onSuccess: (data) => {
+      setImportedDraft(data);
+      if (data.price_suggested) {
+        setAmount(data.price_suggested);
+      }
+      if (data.title) {
+        setDescription(data.title);
+      }
+      toast.success(t("seller.importSuccess", "Produto importado com sucesso!"));
+    },
+    onError: (err: ApiError) => {
+      toast.error(err?.error ?? t("seller.importError", "Erro ao importar produto"));
     },
   });
 
@@ -245,51 +263,101 @@ export default function SellerOrders() {
         </DialogContent>
       </Dialog>
 
-      {/* Importar Produto — placeholder (Fase 3.1) */}
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+      {/* Importar Produto */}
+      <Dialog open={importOpen} onOpenChange={(open) => { setImportOpen(open); if (!open) { setImportUrl(""); setImportedDraft(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("seller.importProduct", "Importar Produto")}</DialogTitle>
             <DialogDescription>
-              {t("seller.importDesc", "Cole o link do produto de qualquer marketplace (OLX, Mercado Livre, Instagram, TikTok, etc.)")}
+              {t("seller.importDesc", "Cole o link do produto (OLX, Mercado Livre, Instagram, TikTok, etc.)")}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <Label>{t("seller.productUrl", "Link do Produto")}</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="https://..."
-                value={importUrl}
-                onChange={(e) => setImportUrl(e.target.value)}
-                type="url"
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={!importUrl}
-                onClick={() => window.open(importUrl, "_blank")}
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>{t("seller.productUrl", "Link do Produto")}</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://..."
+                  value={importUrl}
+                  onChange={(e) => { setImportUrl(e.target.value); setImportedDraft(null); }}
+                  type="url"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={!importUrl}
+                  onClick={() => window.open(importUrl, "_blank")}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
+
+            {importedDraft && (
+              <div className="bg-secondary/10 rounded-xl p-4 border border-secondary/20 space-y-2">
+                <div className="flex items-start gap-3">
+                  {importedDraft.photos[0] && (
+                    <img
+                      src={importedDraft.photos[0]}
+                      alt={importedDraft.title}
+                      className="h-16 w-16 rounded-lg object-cover flex-shrink-0 border border-border"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{importedDraft.title}</p>
+                    {importedDraft.price_suggested && (
+                      <p className="text-xs text-secondary font-medium mt-0.5">
+                        R$ {importedDraft.price_suggested}
+                      </p>
+                    )}
+                    {importedDraft.description && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {importedDraft.description}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground/60 mt-1 uppercase tracking-wider">
+                      via {importedDraft.extractor_used}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!importedDraft && !importMutation.isPending && (
+              <div className="flex items-center gap-2 bg-muted rounded-xl p-3 text-xs text-muted-foreground">
+                <PackageSearch className="h-4 w-4 flex-shrink-0" />
+                {t("seller.importHint", "Título, fotos e preço serão extraídos automaticamente.")}
+              </div>
+            )}
           </div>
-          <div className="bg-muted rounded-xl p-4 text-sm text-muted-foreground">
-            {t("seller.importComingSoon", "Em breve: o importador irá extrair título, fotos e preço automaticamente do link fornecido.")}
-          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setImportOpen(false); setImportUrl(""); }}>
+            <Button variant="outline" onClick={() => { setImportOpen(false); setImportUrl(""); setImportedDraft(null); }}>
               {t("common.cancel")}
             </Button>
-            <Button
-              className="vault-card border-0 text-white hover:opacity-90"
-              onClick={() => {
-                toast.info(t("seller.importComingSoon", "Importador em breve"));
-                setImportOpen(false);
-              }}
-            >
-              {t("seller.import", "Importar")}
-            </Button>
+            {!importedDraft ? (
+              <Button
+                className="vault-card border-0 text-white hover:opacity-90"
+                onClick={() => importMutation.mutate()}
+                disabled={!importUrl.trim() || importMutation.isPending}
+              >
+                {importMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("seller.import", "Importar")}
+              </Button>
+            ) : (
+              <Button
+                className="vault-card border-0 text-white hover:opacity-90"
+                onClick={() => {
+                  setImportOpen(false);
+                  setImportedDraft(null);
+                  setPropOpen(true);
+                }}
+              >
+                {t("seller.createProposalFromImport", "Criar Proposta")}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

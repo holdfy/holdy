@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, QrCode } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, QrCode, Loader2 } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -13,30 +16,59 @@ import {
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
+import { api } from "@/lib/api-client";
+import type { ApiError } from "@/lib/api-client";
 
 interface PaymentRouteState {
   pixBrCode?: string;
   amount?: number | string;
   orderId?: string;
   description?: string;
+  proposalId?: string;
 }
 
 export default function AppPayment() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const state = (location.state ?? {}) as PaymentRouteState;
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const pixBrCode = state.pixBrCode ?? null;
-  const amount = state.amount ? parseFloat(String(state.amount)) : 250;
+  // Se já temos um código PIX (veio de aceitação de proposta ou link externo)
+  const [pixBrCode, setPixBrCode] = useState<string | null>(state.pixBrCode ?? null);
+  const [amount, setAmount] = useState<number>(state.amount ? parseFloat(String(state.amount)) : 0);
+  const [orderId, setOrderId] = useState<string | null>(state.orderId ?? null);
+
+  // Formulário de aceite de proposta
+  const [proposalId, setProposalId] = useState(state.proposalId ?? "");
+  const [cpf, setCpf] = useState("");
+
+  const acceptMutation = useMutation({
+    mutationFn: () => api.acceptProposal(proposalId.trim(), cpf.trim() || undefined),
+    onSuccess: (data) => {
+      setPixBrCode(data.pix_br_code);
+      setAmount(parseFloat(data.amount));
+      setOrderId(data.order_id);
+      toast.success(t("payment.proposalAccepted", "Proposta aceita! Pague o PIX abaixo."));
+    },
+    onError: (err: ApiError) => {
+      toast.error(err?.error ?? t("payment.acceptError", "Erro ao aceitar proposta"));
+    },
+  });
 
   const copyPixCode = () => {
     if (pixBrCode) {
       navigator.clipboard.writeText(pixBrCode).then(() => {
         toast.success(t("payment.copied"));
       });
+    }
+  };
+
+  const handleConfirmPaid = () => {
+    if (orderId) {
+      navigate(`/buyer/orders/${orderId}`);
     } else {
-      toast.info(t("payment.noPixCode", "Código PIX ainda não disponível"));
+      navigate("/buyer/orders");
     }
   };
 
@@ -60,63 +92,95 @@ export default function AppPayment() {
         <p className="text-sm text-muted-foreground mt-1">{t("payment.helpDesc")}</p>
       </div>
 
-      <div className="bg-card rounded-2xl p-6 border border-border text-center space-y-5">
-        <div>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t("payment.amount")}</p>
-          <p className="text-4xl font-display font-bold mt-1">{formatCurrency(amount)}</p>
+      {/* Etapa 1 — Formulário de proposta (antes do PIX ser gerado) */}
+      {!pixBrCode && (
+        <div className="bg-card rounded-2xl p-6 border border-border space-y-4">
+          <p className="font-semibold text-sm">{t("payment.enterProposal", "Cole o ID da proposta recebida do vendedor")}</p>
+          <div className="space-y-2">
+            <Label htmlFor="proposal-id">{t("payment.proposalId", "ID da Proposta")}</Label>
+            <Input
+              id="proposal-id"
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              value={proposalId}
+              onChange={(e) => setProposalId(e.target.value)}
+              className="font-mono text-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cpf">{t("payment.cpfOptional", "CPF (opcional — para verificação antifraude)")}</Label>
+            <Input
+              id="cpf"
+              placeholder="000.000.000-00"
+              value={cpf}
+              onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))}
+              inputMode="numeric"
+            />
+          </div>
+          <Button
+            className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
+            onClick={() => acceptMutation.mutate()}
+            disabled={!proposalId.trim() || acceptMutation.isPending}
+          >
+            {acceptMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
+            {t("payment.acceptProposal", "Aceitar Proposta e Gerar PIX")}
+          </Button>
         </div>
+      )}
 
-        <div className="mx-auto w-48 h-48 rounded-2xl vault-card flex items-center justify-center">
-          {pixBrCode ? (
-            <div className="text-center text-white/80 px-4">
-              <QrCode className="h-16 w-16 mx-auto mb-2 text-white" />
-              <p className="text-[10px] font-mono break-all leading-tight text-white/60">
-                {pixBrCode.slice(0, 40)}…
-              </p>
+      {/* Etapa 2 — Código PIX gerado */}
+      {pixBrCode && (
+        <>
+          <div className="bg-card rounded-2xl p-6 border border-border text-center space-y-5">
+            <div>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t("payment.amount")}</p>
+              <p className="text-4xl font-display font-bold mt-1">{formatCurrency(amount)}</p>
             </div>
-          ) : (
-            <div className="text-center text-white/60">
-              <div className="grid grid-cols-3 gap-1.5 mx-auto w-20">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`h-5 w-5 rounded-sm ${i % 3 === 0 ? "bg-white/80" : i % 2 === 0 ? "bg-white/40" : "bg-white/20"}`}
-                  />
-                ))}
+
+            <div className="mx-auto w-48 h-48 rounded-2xl vault-card flex items-center justify-center">
+              <div className="text-center text-white/80 px-4">
+                <QrCode className="h-16 w-16 mx-auto mb-2 text-white" />
+                <p className="text-[10px] font-mono break-all leading-tight text-white/60">
+                  {pixBrCode.slice(0, 50)}…
+                </p>
               </div>
-              <p className="text-[10px] mt-2 font-mono">PIX</p>
             </div>
-          )}
-        </div>
 
-        <Button
-          className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
-          onClick={copyPixCode}
-        >
-          <Copy className="mr-2 h-4 w-4" />
-          {t("payment.copyPaste")}
-        </Button>
-      </div>
+            <Button
+              className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
+              onClick={copyPixCode}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              {t("payment.copyPaste")}
+            </Button>
 
-      <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
-        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-          <Clock className="h-5 w-5 text-muted-foreground animate-pulse" />
-        </div>
-        <div>
-          <p className="font-semibold text-sm">{t("payment.confirm")}</p>
-          <p className="text-xs text-muted-foreground">{t("payment.helpDesc")}</p>
-        </div>
-      </div>
+            <Button variant="outline" className="w-full h-12 rounded-xl" onClick={handleConfirmPaid}>
+              {t("payment.alreadyPaid", "Já paguei — Ver pedido")}
+            </Button>
+          </div>
 
-      <div className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
-        <div className="h-10 w-10 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
-          <Lock className="h-5 w-5 text-secondary" />
-        </div>
-        <div>
-          <p className="font-semibold text-sm">{t("order.inCustody")}</p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("buyer.protectedDesc")}</p>
-        </div>
-      </div>
+          <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+              <Clock className="h-5 w-5 text-muted-foreground animate-pulse" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">{t("payment.confirm")}</p>
+              <p className="text-xs text-muted-foreground">{t("payment.helpDesc")}</p>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
+            <div className="h-10 w-10 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
+              <Lock className="h-5 w-5 text-secondary" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">{t("order.inCustody")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("buyer.protectedDesc")}</p>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
         <button type="button" className="inline-flex items-center gap-2 hover:text-foreground transition" onClick={() => setHelpOpen(true)}>

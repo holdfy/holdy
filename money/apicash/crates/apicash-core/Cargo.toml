@@ -27,6 +27,8 @@ apicash-shared = { workspace = true }
 apicash-custody = { workspace = true }
 apicash-anchor = { workspace = true }
 apicash-antifraude = { workspace = true }
+apicash-importer = { workspace = true }
+apicash-logistics = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }

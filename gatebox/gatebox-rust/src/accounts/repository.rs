@@ -111,6 +111,7 @@ struct AccountsRow {
     account_status_id: i64,
     deleted_at: Option<chrono::DateTime<chrono::Utc>>,
     authentication_id: i64,
+    type_person_id: Option<i64>,
 }
 
 impl From<AccountsRow> for Accounts {
@@ -123,6 +124,7 @@ impl From<AccountsRow> for Accounts {
             account_status_id: r.account_status_id,
             deleted_at: r.deleted_at,
             authentication_id: r.authentication_id,
+            type_person_id: r.type_person_id,
             full_count: None,
         }
     }

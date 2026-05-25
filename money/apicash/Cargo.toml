@@ -13,6 +13,8 @@ members = [
     "crates/apicash-disputes",
     "crates/apicash-events",
     "crates/apicash-frontend",
+    "crates/apicash-importer",
+    "crates/apicash-logistics",
     "crates/apicash-notifications",
     "crates/apicash-shared",
     "crates/apicash-whatsapp",
@@ -114,6 +116,8 @@ apicash-custody = { path = "crates/apicash-custody" }
 apicash-disputes = { path = "crates/apicash-disputes" }
 apicash-events = { path = "crates/apicash-events" }
 apicash-frontend = { path = "crates/apicash-frontend" }
+apicash-importer = { path = "crates/apicash-importer" }
+apicash-logistics = { path = "crates/apicash-logistics" }
 apicash-notifications = { path = "crates/apicash-notifications" }
 apicash-shared = { path = "crates/apicash-shared" }
 apicash-whatsapp = { path = "crates/apicash-whatsapp" }

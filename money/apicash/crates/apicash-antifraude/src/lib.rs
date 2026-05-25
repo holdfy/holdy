@@ -11,12 +11,14 @@ pub use rust_decimal::Decimal;
 pub mod error;
 pub mod models;
 pub mod repository;
+pub mod reputation;
 pub mod score;
 pub mod service;
 pub mod validation;
 
 pub use crate::error::AntiFraudeError;
 pub use crate::repository::{InMemoryScoreRepository, PostgresScoreRepository, ScoreRepository};
+pub use crate::reputation::{ReputationSeal, ReputationService, UserReputation};
 pub use crate::score::{BehavioralContext, OnRampDecision, RiskFactor, RiskLevel, ScoreCalculator, UserScore};
 pub use crate::service::AntiFraudeService;
 pub use crate::validation::{

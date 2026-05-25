@@ -4,6 +4,8 @@ import { Shield, ChevronRight, Key, Bell, HelpCircle, Store, LogOut } from "luci
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ReputationBadge } from "@/components/ReputationBadge";
+import { tokenStore } from "@/lib/api-client";
 import {
   Dialog,
   DialogContent,
@@ -12,9 +14,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+function getUserIdFromToken(): string | null {
+  const token = tokenStore.getAccess();
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function SellerProfile() {
   const { t } = useTranslation();
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const userId = getUserIdFromToken();
 
   const rows = useMemo(
     () => [
@@ -43,6 +57,7 @@ export default function SellerProfile() {
             <div>
               <p className="font-semibold text-lg">TechStore</p>
               <p className="text-sm text-muted-foreground">seller@holdfy.com</p>
+              {userId && <ReputationBadge userId={userId} className="mt-2" />}
             </div>
           </div>
         </div>

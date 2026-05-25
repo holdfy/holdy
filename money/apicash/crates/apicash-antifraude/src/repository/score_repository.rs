@@ -14,6 +14,7 @@ use crate::score::{OnRampDecision, RiskFactor, RiskLevel, UserScore};
 #[async_trait]
 pub trait ScoreRepository: Send + Sync {
     async fn save_score(&self, score: &UserScore) -> Result<(), AntiFraudeError>;
+    async fn get_by_user_id(&self, user_id: Uuid) -> Result<Option<UserScore>, AntiFraudeError>;
     async fn list_all_scores(&self) -> Result<Vec<UserScore>, AntiFraudeError>;
 
     // ── Dispute signals ───────────────────────────────────────────────────
@@ -118,6 +119,10 @@ impl ScoreRepository for InMemoryScoreRepository {
         Ok(())
     }
 
+    async fn get_by_user_id(&self, user_id: Uuid) -> Result<Option<UserScore>, AntiFraudeError> {
+        Ok(self.scores.read().await.get(&user_id).cloned())
+    }
+
     async fn list_all_scores(&self) -> Result<Vec<UserScore>, AntiFraudeError> {
         Ok(self.scores.read().await.values().cloned().collect())
     }
@@ -190,6 +195,28 @@ impl PostgresScoreRepository {
 
 #[async_trait]
 impl ScoreRepository for PostgresScoreRepository {
+    async fn get_by_user_id(&self, user_id: Uuid) -> Result<Option<UserScore>, AntiFraudeError> {
+        let rows = sqlx::query(
+            "SELECT user_id, score, risk_level, factors, last_updated, decision
+             FROM user_scores WHERE user_id = $1 LIMIT 1",
+        )
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AntiFraudeError::Repository(e.to_string()))?;
+        rows.map(|r| {
+            Self::map_row(
+                r.try_get("user_id").map_err(|e| AntiFraudeError::Repository(e.to_string()))?,
+                r.try_get("score").map_err(|e| AntiFraudeError::Repository(e.to_string()))?,
+                r.try_get("risk_level").map_err(|e| AntiFraudeError::Repository(e.to_string()))?,
+                r.try_get("factors").map_err(|e| AntiFraudeError::Repository(e.to_string()))?,
+                r.try_get("last_updated").map_err(|e| AntiFraudeError::Repository(e.to_string()))?,
+                r.try_get("decision").map_err(|e| AntiFraudeError::Repository(e.to_string()))?,
+            )
+        })
+        .transpose()
+    }
+
     async fn save_score(&self, score: &UserScore) -> Result<(), AntiFraudeError> {
         let score_i32 = i32::try_from(score.score)
             .map_err(|_| AntiFraudeError::Repository("score overflow".into()))?;
