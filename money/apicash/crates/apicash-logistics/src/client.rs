@@ -14,6 +14,16 @@ pub struct MelhorEnvioClient {
     token: String,
 }
 
+impl Clone for MelhorEnvioClient {
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            base_url: self.base_url,
+            token: self.token.clone(),
+        }
+    }
+}
+
 impl MelhorEnvioClient {
     pub fn from_env() -> Result<Self, LogisticsError> {
         let token = std::env::var("MELHOR_ENVIO_TOKEN")

@@ -51,11 +51,17 @@ impl Extractor for OpenGraphExtractor {
         Ok(Some(ProductDraft {
             title,
             description: description.filter(|s| !s.is_empty()),
-            price_suggested: None, // OpenGraph rarely carries price
+            price_suggested: None,
             photos,
             source_url: url.to_string(),
             source_platform: SourcePlatform::detect(url),
             extractor_used: self.name().to_string(),
+            guarantee: None,
+            condition: None,
+            location: None,
+            seller_name: None,
+            seller_rating: None,
+            raw_attributes: serde_json::Value::Object(Default::default()),
         }))
     }
 }

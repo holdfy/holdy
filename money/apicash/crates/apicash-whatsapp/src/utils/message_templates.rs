@@ -181,3 +181,37 @@ pub fn ask_buyer_document() -> &'static str {
 pub fn invalid_document() -> &'static str {
     "Documento inválido. Envie um *CPF* (11 dígitos) ou *CNPJ* (14 dígitos) somente com números.\n\nEx: `52998224725`"
 }
+
+pub fn importing_product() -> &'static str {
+    "🔍 Buscando produto no link..."
+}
+
+pub fn product_imported_with_price(title: &str, price: &str) -> String {
+    format!(
+        "✅ *{title}*\n💰 R$ *{price}*\n\nPara qual número de celular devo enviar o Holdfy?\nEx.: *(41) 99999-9999*"
+    )
+}
+
+pub fn product_imported_no_price(title: &str) -> String {
+    format!(
+        "✅ *{title}*\n\nNão encontrei o preço. Qual o *valor* do Holdfy? (ex. *99,90*)"
+    )
+}
+
+pub fn product_import_failed() -> &'static str {
+    "Não consegui ler esse link. Vamos criar o pedido manualmente.\n\nQual o *valor* e o *celular do comprador*? (pode ser numa frase só)"
+}
+
+// ─── Tracking ─────────────────────────────────────────────────────────────────
+
+pub fn tracking_result(code: &str, status: &str, last_event: &str, provider: &str) -> String {
+    format!("📦 *{code}*\n*Status:* {status}\n*Último evento:* {last_event}\n_(via {provider})_")
+}
+
+pub fn tracking_not_found(code: &str) -> String {
+    format!("Código *{code}* não encontrado. Verifique se está correto (ex.: AA123456789BR).")
+}
+
+pub fn tracking_all_providers_down() -> &'static str {
+    "Serviço de rastreio temporariamente indisponível. Tente novamente em alguns minutos."
+}

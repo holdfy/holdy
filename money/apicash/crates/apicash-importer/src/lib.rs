@@ -8,9 +8,11 @@
 
 pub mod error;
 pub mod extractors;
+pub mod image_store;
 pub mod service;
 pub mod types;
 
 pub use error::ImporterError;
+pub use image_store::MinioImageStore;
 pub use service::ImporterService;
 pub use types::ProductDraft;

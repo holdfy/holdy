@@ -1,22 +1,25 @@
-//! LogisticsService: cotação, geração de etiqueta e rastreamento.
+//! LogisticsService: cotação, geração de etiqueta e rastreamento multi-provedor.
 
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
 use crate::client::MelhorEnvioClient;
 use crate::error::LogisticsError;
+use crate::tracking::CascadingTracker;
 use crate::types::{
-    CarrierCode, ShippingAddress, ShippingLabel, ShippingQuote, ShippingQuoteRequest,
-    TrackingEvent, TrackingInfo, TrackingStatus,
+    CarrierCode, PackageDimensions, ShippingAddress, ShippingLabel, ShippingQuote,
+    ShippingQuoteRequest, TrackingInfo,
 };
 
 pub struct LogisticsService {
     client: MelhorEnvioClient,
+    tracker: CascadingTracker,
 }
 
 impl LogisticsService {
     pub fn new(client: MelhorEnvioClient) -> Self {
-        Self { client }
+        let tracker = CascadingTracker::from_env(client.clone());
+        Self { client, tracker }
     }
 
     pub fn from_env() -> Result<Self, LogisticsError> {
@@ -59,7 +62,7 @@ impl LogisticsService {
         from: &ShippingAddress,
         to: &ShippingAddress,
         carrier: &CarrierCode,
-        package: &crate::types::PackageDimensions,
+        package: &PackageDimensions,
     ) -> Result<ShippingLabel, LogisticsError> {
         // Step 1: add to cart
         let cart_body = serde_json::json!({
@@ -125,42 +128,9 @@ impl LogisticsService {
         })
     }
 
-    /// Rastreia uma encomenda pelo código de rastreio.
+    /// Rastreia uma encomenda pelo código de rastreio (multi-provedor com circuit breaker).
     pub async fn track(&self, tracking_code: &str) -> Result<TrackingInfo, LogisticsError> {
-        let path = format!("/me/shipment/tracking?orders={tracking_code}");
-        let resp = self.client.get_json(&path).await?;
-
-        let entry = resp
-            .get(tracking_code)
-            .ok_or_else(|| LogisticsError::TrackingNotFound(tracking_code.to_string()))?;
-
-        let current_status = entry
-            .get("status")
-            .and_then(|v| v.as_str())
-            .map(parse_tracking_status)
-            .unwrap_or(TrackingStatus::Unknown);
-
-        let events: Vec<TrackingEvent> = entry
-            .get("tracking")
-            .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(parse_tracking_event).collect())
-            .unwrap_or_default();
-
-        let carrier = entry
-            .get("service")
-            .and_then(|v| v.get("company"))
-            .and_then(|v| v.get("name"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("Desconhecido")
-            .to_string();
-
-        Ok(TrackingInfo {
-            tracking_code: tracking_code.to_string(),
-            carrier,
-            current_status,
-            events,
-            estimated_delivery: None,
-        })
+        self.tracker.track(tracking_code).await
     }
 }
 
@@ -220,40 +190,3 @@ fn parse_quote(item: &serde_json::Value) -> Option<ShippingQuote> {
     })
 }
 
-fn parse_tracking_status(s: &str) -> TrackingStatus {
-    match s.to_lowercase().as_str() {
-        "posted" => TrackingStatus::Posted,
-        "in_transit" | "in transit" => TrackingStatus::InTransit,
-        "out_for_delivery" | "out for delivery" => TrackingStatus::OutForDelivery,
-        "delivered" => TrackingStatus::Delivered,
-        "return_in_progress" => TrackingStatus::ReturnInProgress,
-        "returned" => TrackingStatus::Returned,
-        "exception" | "incident" => TrackingStatus::Exception,
-        _ => TrackingStatus::Unknown,
-    }
-}
-
-fn parse_tracking_event(item: &serde_json::Value) -> Option<TrackingEvent> {
-    let description = item.get("message")?.as_str()?.to_string();
-    let location = item
-        .get("location")
-        .and_then(|v| v.as_str())
-        .map(str::to_string);
-    let occurred_at_str = item.get("date")?.as_str()?;
-    let occurred_at = chrono::DateTime::parse_from_rfc3339(occurred_at_str)
-        .ok()
-        .map(|dt| dt.with_timezone(&chrono::Utc))
-        .unwrap_or_else(chrono::Utc::now);
-    let status = item
-        .get("status")
-        .and_then(|v| v.as_str())
-        .map(parse_tracking_status)
-        .unwrap_or(TrackingStatus::InTransit);
-
-    Some(TrackingEvent {
-        status,
-        description,
-        location,
-        occurred_at,
-    })
-}

@@ -7,12 +7,14 @@ use crate::error::ImporterError;
 use crate::extractors::{
     Extractor, JsonLdExtractor, LlmExtractor, MercadoLivreExtractor, OpenGraphExtractor,
 };
+use crate::image_store::MinioImageStore;
 use crate::types::ProductDraft;
 
 /// Orchestrates the extractor pipeline.
 pub struct ImporterService {
     client: Client,
     extractors: Vec<Box<dyn Extractor>>,
+    image_store: Option<MinioImageStore>,
 }
 
 impl ImporterService {
@@ -30,15 +32,19 @@ impl ImporterService {
             Box::new(LlmExtractor::new(client.clone())),
         ];
 
-        Self { client, extractors }
+        let image_store = MinioImageStore::from_env();
+        if image_store.is_some() {
+            tracing::info!("importer: MinIO image store enabled");
+        }
+
+        Self { client, extractors, image_store }
     }
 
     /// Import a product from `url`.
     ///
     /// Validates the URL, fetches HTML once, then tries each extractor in order.
-    /// Returns the first `ProductDraft` produced.
+    /// If MinIO is configured, re-hosts all extracted photos and replaces the URLs.
     pub async fn import(&self, url: &str) -> Result<ProductDraft, ImporterError> {
-        // Validate URL and block internal IPs.
         let parsed = Url::parse(url).map_err(|_| ImporterError::InvalidUrl(url.to_string()))?;
         let scheme = parsed.scheme();
         if scheme != "https" && scheme != "http" {
@@ -61,8 +67,9 @@ impl ImporterService {
 
         for extractor in &self.extractors {
             match extractor.extract(url, &html).await {
-                Ok(Some(draft)) => {
+                Ok(Some(mut draft)) => {
                     tracing::info!(extractor = extractor.name(), url, "importer: extracted");
+                    draft.photos = self.rehost_photos(draft.photos).await;
                     return Ok(draft);
                 }
                 Ok(None) => continue,
@@ -73,6 +80,24 @@ impl ImporterService {
         }
 
         Err(ImporterError::NoDataExtracted)
+    }
+
+    /// Upload all external photo URLs to MinIO. Silently skips failures (keeps original URL).
+    async fn rehost_photos(&self, photos: Vec<String>) -> Vec<String> {
+        let Some(store) = &self.image_store else {
+            return photos;
+        };
+        let mut result = Vec::with_capacity(photos.len());
+        for url in photos {
+            match store.upload_from_url(&url).await {
+                Ok(minio_url) => result.push(minio_url),
+                Err(e) => {
+                    tracing::warn!(url, error = %e, "importer: photo rehost failed, keeping original");
+                    result.push(url);
+                }
+            }
+        }
+        result
     }
 }
 

@@ -185,6 +185,12 @@ pub fn parse_description(s: &str) -> Option<String> {
     Some(out)
 }
 
+/// Retorna `true` se o corpo da mensagem é uma URL HTTP/HTTPS (link de anúncio, reel, shop…).
+pub fn is_product_url(s: &str) -> bool {
+    let t = s.trim();
+    (t.starts_with("http://") || t.starts_with("https://")) && t.len() > 12 && !t.contains('\n')
+}
+
 pub fn parse_social_links(s: &str) -> Vec<String> {
     s.split(&[',', '\n'][..])
         .map(|x| x.trim().to_string())
@@ -221,6 +227,36 @@ pub fn peers_same_phone(a: &str, b: &str) -> bool {
     let da = peer_digits(a);
     let db = peer_digits(b);
     !da.is_empty() && da == db
+}
+
+/// Extrai código de rastreio do corpo da mensagem.
+/// Aceita: "rastrear AA123456789BR", "AA123456789BR" (sozinho), "tracking AA123..."
+pub fn extract_tracking_code(body: &str) -> Option<String> {
+    // Strip prefix "rastrear", "tracking", "rastreio" (case insensitive)
+    let clean = body.trim();
+    let text = ["rastrear ", "tracking ", "rastreio ", "rastrear:", "tracking:"]
+        .iter()
+        .fold(clean.to_string(), |s, p| {
+            if s.to_lowercase().starts_with(p) {
+                s[p.len()..].trim().to_string()
+            } else {
+                s
+            }
+        });
+    // Check if remainder is a Correios code: 2 alpha + 9 digit + 2 alpha
+    let t = text.trim().to_uppercase();
+    if t.len() == 13
+        && t.chars().take(2).all(|c| c.is_ascii_alphabetic())
+        && t.chars().skip(2).take(9).all(|c| c.is_ascii_digit())
+        && t.chars().skip(11).all(|c| c.is_ascii_alphabetic())
+    {
+        return Some(t);
+    }
+    // Also accept longer codes (Jadlog, etc.) that are 13-20 alphanumeric chars
+    if t.len() >= 10 && t.len() <= 20 && t.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Some(t);
+    }
+    None
 }
 
 /// Próximo estado após comando global (ex.: disputa).

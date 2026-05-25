@@ -12,4 +12,6 @@ pub enum LogisticsError {
     TrackingNotFound(String),
     #[error("Endereço inválido: {0}")]
     InvalidAddress(String),
+    #[error("Todos os provedores de rastreio falharam para o código: {0}")]
+    AllProvidersUnavailable(String),
 }

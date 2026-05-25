@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Shield, CheckCircle2, ArrowRight, FileText } from "lucide-react";
+import { Shield, CheckCircle2, ArrowRight, FileText, PackageSearch } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format";
+import { api, type TrackingInfo } from "@/lib/api-client";
+import { TrackingCard } from "@/components/TrackingCard";
 
 interface TransactionCompleteState {
   orderId?: string;
@@ -26,6 +30,31 @@ export default function AppTransactionComplete() {
   const amount = state.amount != null ? parseFloat(String(state.amount)) : null;
   const orderId = state.orderId ?? null;
   const orderRef = orderId ? orderId.slice(-8).toUpperCase() : "—";
+
+  const [trackingOpen, setTrackingOpen] = useState(false);
+  const [trackingCode, setTrackingCode] = useState("");
+  const [trackingResult, setTrackingResult] = useState<TrackingInfo | null>(null);
+  const [trackingError, setTrackingError] = useState<string | null>(null);
+
+  const trackMutation = useMutation({
+    mutationFn: (code: string) => api.trackShipment(code),
+    onSuccess: (data) => {
+      setTrackingResult(data);
+      setTrackingError(null);
+    },
+    onError: (err: { error?: string }) => {
+      setTrackingResult(null);
+      setTrackingError(err.error ?? "Código não encontrado.");
+    },
+  });
+
+  function handleTrack() {
+    const code = trackingCode.trim().toUpperCase();
+    if (!code) return;
+    setTrackingResult(null);
+    setTrackingError(null);
+    trackMutation.mutate(code);
+  }
 
   return (
     <div className="px-5 pt-6 space-y-5">
@@ -96,6 +125,15 @@ export default function AppTransactionComplete() {
       <button
         type="button"
         className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground font-medium hover:text-foreground transition"
+        onClick={() => { setTrackingOpen(true); setTrackingResult(null); setTrackingError(null); }}
+      >
+        <PackageSearch className="h-4 w-4" />
+        Rastrear Encomenda
+      </button>
+
+      <button
+        type="button"
+        className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground font-medium hover:text-foreground transition"
         onClick={() => setReceiptOpen(true)}
       >
         <FileText className="h-4 w-4" />
@@ -124,6 +162,46 @@ export default function AppTransactionComplete() {
               <dd className="font-semibold text-secondary">{t("status.RELEASED")}</dd>
             </div>
           </dl>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tracking dialog */}
+      <Dialog open={trackingOpen} onOpenChange={setTrackingOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageSearch className="h-5 w-5" />
+              Rastrear Encomenda
+            </DialogTitle>
+            <DialogDescription>
+              Informe o código de rastreio (ex.: AA123456789BR).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-2">
+            <Input
+              placeholder="Ex.: AA123456789BR"
+              value={trackingCode}
+              onChange={(e) => setTrackingCode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleTrack()}
+              className="font-mono uppercase"
+            />
+            <Button
+              onClick={handleTrack}
+              disabled={trackMutation.isPending || !trackingCode.trim()}
+              className="shrink-0"
+            >
+              {trackMutation.isPending ? "..." : "Buscar"}
+            </Button>
+          </div>
+
+          {trackingError && (
+            <p className="text-sm text-destructive">{trackingError}</p>
+          )}
+
+          {trackingResult && (
+            <TrackingCard info={trackingResult} />
+          )}
         </DialogContent>
       </Dialog>
     </div>

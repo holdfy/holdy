@@ -11,6 +11,7 @@ pub mod dto;
 pub mod error;
 pub mod handlers;
 pub mod middleware;
+pub mod repository;
 pub mod router;
 pub mod state;
 

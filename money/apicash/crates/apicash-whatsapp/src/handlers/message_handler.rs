@@ -3,7 +3,12 @@
 use std::sync::Arc;
 
 use apicash_auth::{AuthConfig, AuthService, Role};
+use apicash_importer::ImporterService;
+use apicash_logistics::LogisticsService;
+use chrono::Utc;
 use uuid::Uuid;
+
+use crate::conversation_store::{ConversationStore, MessageDirection, SummaryTrigger, WaMessage};
 
 use crate::core_api::{CoreApiClient, CoreApiError};
 use crate::handlers::holdfy::{
@@ -29,6 +34,9 @@ pub struct MessageHandler {
     sessions: Arc<SessionManager>,
     payment_registry: Arc<PaymentNotifyRegistry>,
     jwt: AuthService,
+    importer: Arc<ImporterService>,
+    conv_store: Arc<ConversationStore>,
+    logistics: Arc<LogisticsService>,
 }
 
 impl MessageHandler {
@@ -37,6 +45,9 @@ impl MessageHandler {
         outbound: Outbound,
         sessions: Arc<SessionManager>,
         payment_registry: Arc<PaymentNotifyRegistry>,
+        importer: Arc<ImporterService>,
+        conv_store: Arc<ConversationStore>,
+        logistics: Arc<LogisticsService>,
     ) -> Self {
         Self {
             core,
@@ -44,7 +55,90 @@ impl MessageHandler {
             sessions,
             payment_registry,
             jwt: AuthService::new(AuthConfig::from_env()),
+            importer,
+            conv_store,
+            logistics,
         }
+    }
+
+    /// Persiste uma mensagem no MongoDB (fire-and-forget).
+    fn record_inbound(&self, ev: &WhatsAppEvent, flow_state_tag: &str, order_id: Option<Uuid>) {
+        let store = self.conv_store.clone();
+        let msg = WaMessage {
+            session_key: ev.sender_id.clone(),
+            user_id: crate::session::user_id_for_peer_key(&ev.sender_id).to_string(),
+            direction: MessageDirection::Inbound,
+            body: ev.body.clone(),
+            timestamp: Utc::now(),
+            order_id: order_id.map(|id| id.to_string()),
+            flow_state_tag: flow_state_tag.to_string(),
+            message_id: Some(ev.message_id.clone()),
+        };
+        tokio::spawn(async move { store.record_message(msg).await });
+    }
+
+    #[allow(dead_code)]
+    fn record_outbound(&self, peer: &str, body: &str, order_id: Option<Uuid>) {
+        let store = self.conv_store.clone();
+        let user_id = crate::session::user_id_for_peer_key(peer).to_string();
+        let msg = WaMessage {
+            session_key: peer.to_string(),
+            user_id,
+            direction: MessageDirection::Outbound,
+            body: body.to_string(),
+            timestamp: Utc::now(),
+            order_id: order_id.map(|id| id.to_string()),
+            flow_state_tag: "outbound".to_string(),
+            message_id: None,
+        };
+        tokio::spawn(async move { store.record_message(msg).await });
+    }
+
+    /// Responde a um pedido de rastreio via WhatsApp.
+    async fn handle_tracking_request(&self, peer: &str, code: &str, _order_id: Option<Uuid>) {
+        use apicash_logistics::LogisticsError;
+
+        match self.logistics.track(code).await {
+            Ok(info) => {
+                let status_str = apicash_logistics::tracking::status_label(&info.current_status);
+                let last_event = info
+                    .events
+                    .first()
+                    .map(|e| e.description.as_str())
+                    .unwrap_or("—");
+                let msg = message_templates::tracking_result(
+                    code,
+                    status_str,
+                    last_event,
+                    &info.provider_used,
+                );
+                self.outbound.send_text(peer, &msg).await;
+            }
+            Err(LogisticsError::TrackingNotFound(_)) => {
+                self.outbound
+                    .send_text(peer, &message_templates::tracking_not_found(code))
+                    .await;
+            }
+            Err(LogisticsError::AllProvidersUnavailable(_)) => {
+                self.outbound
+                    .send_text(peer, message_templates::tracking_all_providers_down())
+                    .await;
+            }
+            Err(e) => {
+                tracing::warn!(peer = %mask_whatsapp_peer(peer), code = %code, error = %e, "tracking: falha inesperada");
+                self.outbound
+                    .send_text(peer, message_templates::tracking_all_providers_down())
+                    .await;
+            }
+        }
+    }
+
+    fn trigger_summary(&self, session_key: &str, user_id: Uuid, order_id: Option<Uuid>, trigger: SummaryTrigger) {
+        let store = self.conv_store.clone();
+        let sk = session_key.to_string();
+        tokio::spawn(async move {
+            store.generate_and_save_summary(&sk, user_id, order_id, trigger).await;
+        });
     }
 
     /// Pagamento confirmado no Gatebox: avisa vendedor e comprador (sem settle nem liberação de custódia).
@@ -76,6 +170,12 @@ impl MessageHandler {
         self.outbound.send_text(&parties.seller_peer, &msg).await;
         self.outbound.send_text(&parties.buyer_peer, &msg).await;
         self.payment_registry.mark_notified(order_id).await;
+
+        // Gerar resumo quando pagamento confirmado
+        let buyer_uid = crate::session::user_id_for_peer_key(&parties.buyer_peer);
+        let seller_uid = crate::session::user_id_for_peer_key(&parties.seller_peer);
+        self.trigger_summary(&parties.buyer_peer, buyer_uid, Some(order_id), SummaryTrigger::PaymentConfirmed);
+        self.trigger_summary(&parties.seller_peer, seller_uid, Some(order_id), SummaryTrigger::PaymentConfirmed);
 
         let mut buyer_sess = self.sessions.session_for(&parties.buyer_peer).await;
         buyer_sess.reset_flow();
@@ -198,10 +298,9 @@ impl MessageHandler {
                 .await;
             return Ok(true);
         }
-        let description = format!(
-            "HoldFy (contato comprador ~{})",
-            mask_whatsapp_peer(&buyer_peer_key)
-        );
+        let description = draft.description.clone().unwrap_or_else(|| {
+            format!("HoldFy (contato comprador ~{})", mask_whatsapp_peer(&buyer_peer_key))
+        });
 
         session.state = OrderFlowState::CreatingOrder {
             step: CreatingOrderStep::WaitingBuyerAccept,
@@ -254,6 +353,62 @@ impl MessageHandler {
             )
             .await;
         Ok(true)
+    }
+
+    /// Vendedor enviou um link de produto — importar e pré-preencher rascunho.
+    async fn handle_url_import(
+        &self,
+        session: &mut UserSession,
+        seller_peer: &str,
+        url: &str,
+    ) -> Result<(), CoreApiError> {
+        self.outbound
+            .send_text(seller_peer, message_templates::importing_product())
+            .await;
+
+        match self.importer.import(url).await {
+            Ok(draft_product) => {
+                let title = draft_product.title.clone();
+                let price_str = draft_product.price_suggested.map(|p| p.round_dp(2).normalize().to_string());
+
+                let mut draft = OrderDraft {
+                    description: Some(title.clone()),
+                    ..Default::default()
+                };
+
+                if let Some(ref price) = price_str {
+                    draft.amount = Some(price.clone());
+                    session.state = OrderFlowState::CreatingOrder {
+                        step: CreatingOrderStep::AskCounterparty,
+                        draft,
+                    };
+                    session.touch();
+                    self.sessions.update(seller_peer, session.clone()).await;
+                    self.outbound
+                        .send_text(seller_peer, &message_templates::product_imported_with_price(&title, price))
+                        .await;
+                } else {
+                    session.state = OrderFlowState::CreatingOrder {
+                        step: CreatingOrderStep::AskAmount,
+                        draft,
+                    };
+                    session.touch();
+                    self.sessions.update(seller_peer, session.clone()).await;
+                    self.outbound
+                        .send_text(seller_peer, &message_templates::product_imported_no_price(&title))
+                        .await;
+                }
+            }
+            Err(e) => {
+                tracing::warn!(peer = %mask_whatsapp_peer(seller_peer), url_len = url.len(), error = %e, "importer: URL import failed");
+                session.state = OrderFlowState::Idle;
+                self.sessions.update(seller_peer, session.clone()).await;
+                self.outbound
+                    .send_text(seller_peer, message_templates::product_import_failed())
+                    .await;
+            }
+        }
+        Ok(())
     }
 
     async fn start_holdfy_flow(
@@ -486,6 +641,10 @@ impl MessageHandler {
             "tri_party: pedido criado após ACEITO do comprador"
         );
 
+        // Gerar resumo da conversa no momento da criação do pedido
+        self.trigger_summary(buyer_peer_key, buyer_id, Some(order_id), SummaryTrigger::OrderCreated);
+        self.trigger_summary(seller_peer_key, seller_id, Some(order_id), SummaryTrigger::OrderCreated);
+
         let pix_br_code = match order.pix_br_code.clone() {
             Some(v) if !v.trim().is_empty() => v,
             _ => {
@@ -591,6 +750,10 @@ impl MessageHandler {
         let mut session = self.sessions.session_for(&peer).await;
         let body = ev.body.trim();
 
+        // Persistir mensagem inbound no MongoDB
+        let state_tag = format!("{:?}", session.state).split(' ').next().unwrap_or("Unknown").to_string();
+        self.record_inbound(&ev, &state_tag, session.active_order_id);
+
         tracing::info!(
             peer = %peer_hint,
             user_id = %session.user_id,
@@ -680,6 +843,7 @@ impl MessageHandler {
         }
 
         if let Some(next) = order_flow::try_dispute(&session.state, &ev.body) {
+            let dispute_order_id = match &next { OrderFlowState::DisputeHint { order_id } => Some(*order_id), _ => None };
             session.state = next;
             tracing::info!(
                 peer = %peer_hint,
@@ -688,7 +852,8 @@ impl MessageHandler {
                 success = true,
                 "whatsapp: disputa solicitada"
             );
-            self.sessions.update(&peer, session).await;
+            self.sessions.update(&peer, session.clone()).await;
+            self.trigger_summary(&peer, session.user_id, dispute_order_id, SummaryTrigger::DisputeOpened);
             self.outbound
                 .send_text(&peer, message_templates::dispute_message())
                 .await;
@@ -796,7 +961,11 @@ impl MessageHandler {
                 return Ok(());
             }
             OrderFlowState::Idle => {
-                if order_flow::is_new_order(body) || body.eq_ignore_ascii_case("NOVO_PEDIDO") {
+                if let Some(tracking_code) = order_flow::extract_tracking_code(body) {
+                    self.handle_tracking_request(&peer, &tracking_code, session.active_order_id).await;
+                } else if order_flow::is_product_url(body) {
+                    self.handle_url_import(&mut session, &peer, body).await?;
+                } else if order_flow::is_new_order(body) || body.eq_ignore_ascii_case("NOVO_PEDIDO") {
                     self.start_holdfy_flow(&mut session, &peer, body, &ev).await?;
                 } else {
                     session.state = OrderFlowState::Idle;
@@ -908,24 +1077,42 @@ impl MessageHandler {
                 description,
                 pix_br_code,
             } => {
-                session.state = OrderFlowState::AwaitingPayment {
-                    order_id,
-                    amount,
-                    description,
-                    pix_br_code,
-                };
-                self.sessions.update(&peer, session).await;
-                self.outbound
-                    .send_text(&peer, message_templates::awaiting_payment_hint())
-                    .await;
+                if let Some(tracking_code) = order_flow::extract_tracking_code(body) {
+                    session.state = OrderFlowState::AwaitingPayment {
+                        order_id,
+                        amount,
+                        description,
+                        pix_br_code,
+                    };
+                    self.sessions.update(&peer, session).await;
+                    self.handle_tracking_request(&peer, &tracking_code, Some(order_id)).await;
+                } else {
+                    session.state = OrderFlowState::AwaitingPayment {
+                        order_id,
+                        amount,
+                        description,
+                        pix_br_code,
+                    };
+                    self.sessions.update(&peer, session).await;
+                    self.outbound
+                        .send_text(&peer, message_templates::awaiting_payment_hint())
+                        .await;
+                }
             }
             OrderFlowState::AwaitingConfirmation { order_id, .. } => {
-                session.reset_flow();
-                session.active_order_id = Some(order_id);
-                self.sessions.update(&peer, session).await;
-                self.outbound
-                    .send_text(&peer, message_templates::awaiting_payment_hint())
-                    .await;
+                if let Some(tracking_code) = order_flow::extract_tracking_code(body) {
+                    session.reset_flow();
+                    session.active_order_id = Some(order_id);
+                    self.sessions.update(&peer, session).await;
+                    self.handle_tracking_request(&peer, &tracking_code, Some(order_id)).await;
+                } else {
+                    session.reset_flow();
+                    session.active_order_id = Some(order_id);
+                    self.sessions.update(&peer, session).await;
+                    self.outbound
+                        .send_text(&peer, message_templates::awaiting_payment_hint())
+                        .await;
+                }
             }
             OrderFlowState::DisputeHint { order_id } => {
                 session.state = OrderFlowState::DisputeHint { order_id };

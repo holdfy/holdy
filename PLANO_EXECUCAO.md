@@ -285,25 +285,33 @@ Padrão a seguir: webhook Cloud API em `whatsapp_service.rs` linhas 71-79 — re
 
 ---
 
-## Fase 6 — Soroban Testnet Live [ ]
+## Fase 6 — Soroban Testnet Live [x]
 **Duração: 2-3 dias | Sprint 4**
 
-```bash
-cd money/apicash
-scripts/bootstrap-testnet-env.sh    # funda identidades holdfy-*
-scripts/soroban-testnet-deploy.sh   # deploy contrato → imprime CONTRACT_ID
-```
+Executado em 2026-05-25. Contas:
+- `holdfy-deployer`: `GA7F43PVEWTY2SWGL5PIIUG2SPY4YXWZFFMCSSRA7BB4OCITZ5MZFRMS`
+- `holdfy-buyer`:   `GDNKUCMTGITERRALPY7UYKPQCX563AZGRJ5SOTZAFRHEZC64L4XAJG7R`
+- `holdfy-seller`:  (ver `stellar keys address holdfy-seller`)
 
-Atualizar `money/.env`:
-```env
+Contratos deployados na testnet:
+- BRLx SAC: `CD6HDZ5SXDQXDEEVEFK3CBF3U46K7DPK6BTAZ2X3BWQB5DG7EFQ2KWML`
+- Escrow:   `CDKH7DSK3BLY53MQBMVATSQ3O2LEJ5MGT7OPJYCTWNXNLO7IQ5TLQD4B`
+
+Smoke test passou: transfer 1 BRLx buyer→escrow + lock(order_id=42) — transações reais.
+
+Variáveis ativas em `money/.env`:
+```
+APICASH_FIAT_RAIL=anchor
 APICASH_SOROBAN_ENABLED=1
 APICASH_SOROBAN_STRICT=1
-APICASH_SOROBAN_ESCROW_CONTRACT_ID=<id>
-APICASH_FIAT_RAIL=anchor
+APICASH_REQUIRE_TESTNET=1
+APICASH_BRLX_TOKEN_CONTRACT_ID=CD6HDZ5SXDQXDEEVEFK3CBF3U46K7DPK6BTAZ2X3BWQB5DG7EFQ2KWML
+APICASH_SOROBAN_ESCROW_CONTRACT_ID=CDKH7DSK3BLY53MQBMVATSQ3O2LEJ5MGT7OPJYCTWNXNLO7IQ5TLQD4B
 ```
 
-Compilar: `cargo build -p apicash-custody --features soroban`
-Verificar: `scripts/testnet-onchain-smoke.sh` → hash real no Stellar Explorer.
+Obs: `stellar` CLI 23.0.1 instalado via binário pré-compilado (não `cargo install` — falha por openssl-sys sem libssl-dev).
+Contas identidades migradas para `~/.config/stellar/identity/`.
+Trustlines BRLx criadas para buyer e seller. Buyer fundado com 1000 BRLx via SAC `mint`.
 
 ---
 
@@ -315,7 +323,7 @@ Implementado:
 - `JsonLdExtractor` — `schema.org/Product` JSON-LD (cobre OLX, Shopee, maioria dos e-commerces)
 - `OpenGraphExtractor` — `og:title`, `og:image`, `og:description` (Instagram, Facebook, TikTok)
 - `MercadoLivreExtractor` — API oficial `api.mercadolibre.com/items/{id}` com detecção de MLB{id}
-- `LlmExtractor` — fallback: envia HTML ao Claude API (claude-haiku-4-5), requer `ANTHROPIC_API_KEY`
+- `LlmExtractor` — fallback: envia HTML ao OpenAI (`gpt-4o-mini`, configurável via `OPENAI_MODEL`), requer `OPENAI_API_KEY`
 - `ImporterService` — cadeia de extratores, `User-Agent` próprio, timeout 15s
 - Endpoint `POST /v1/listings/import` em `apicash-core/src/handlers/importer_handler.rs`
 - `AppState.importer: Arc<ImporterService>` injetado
@@ -323,11 +331,18 @@ Implementado:
 - `api.importListing(url)` em `api-client.ts`
 - Dialog em `SellerOrders.tsx`: importa, exibe preview (foto + título + preço), botão "Criar Proposta"
 
+Implementado completo:
+- **Plataformas suportadas (3 fluxos: API, WhatsApp, site):** Mercado Livre, OLX, Shopee, Instagram, Facebook Marketplace, TikTok Shop, WhatsApp Business, e-commerce genérico
+- **`ProductDraft` rico:** title, description, price, photos, guarantee, condition (new/used), location, seller_name, seller_rating, raw_attributes (JSONB)
+- Todos os 4 extractors atualizados (JsonLd, OpenGraph, MercadoLivre API, LLM) para extrair os novos campos
+- **PostgreSQL:** tabela `listings` (migration `20260525000001_listings.sql`); `ListingRepository` em `apicash-core`; salvo automaticamente em `POST /v1/listings/import` com `listing_id` na resposta
+- **MinIO:** `MinioImageStore` (SigV4) re-hospeda fotos externas; `minio` + `minio-init` no docker-compose
+- **Integração WhatsApp:** vendedor envia URL → `is_product_url` detecta, importa, pre-preenche proposta com título+preço
+- **MongoDB:** `wa_messages` (todas as mensagens inbound+outbound) + `wa_conversation_summaries` (resumos LLM); `ConversationStore` fire-and-forget; resumos gerados em OrderCreated/PaymentConfirmed/DisputeOpened
+
 Pendente (MVP2):
 - Cache Redis por URL (TTL 5min)
-- Fila Pulsar para async
-- `ImageDownloader` para re-hospedar fotos
-- Integração WhatsApp (detectar URL enviada → importar → preview)
+- Fila Pulsar para async importer
 
 ---
 
@@ -388,9 +403,15 @@ Implementado:
 - `api.quoteShipping()` + `api.trackShipment()` em `api-client.ts`
 - Variáveis: `MELHOR_ENVIO_TOKEN` (obrigatória), `MELHOR_ENVIO_SANDBOX=1` (dev)
 
+Expandido (sessão anterior):
+- **3 providers com circuit breaker:** Correios Business API → LinkTrack → Melhor Envio; `CascadingTracker` em `apicash-logistics/src/tracking/`; threshold=3 falhas, reset=60s
+- **WhatsApp:** `extract_tracking_code()` + `handle_tracking_request()` em `AwaitingPayment`/`AwaitingConfirmation`/`Idle`; templates `tracking_result()` / `tracking_not_found()` / `tracking_all_providers_down()`
+- **Site:** `TrackingCard.tsx` + dialog "Rastrear Encomenda" em `AppTransactionComplete.tsx`
+- Variáveis: `CORREIOS_USER`, `CORREIOS_ACCESS_CODE`, `LINKETRACK_USER`, `LINKETRACK_TOKEN`, `MELHOR_ENVIO_TOKEN`
+
 Pendente (MVP2):
 - Tela de cotação no `site/` (estimativa de frete no checkout)
-- Integração WhatsApp: "rastrear {código}" → `track()` → resposta formatada
+- **Job de monitoramento proativo:** tokio task / cron que polling `order_tracking_status` (Postgres) a cada 30min, compara último status, envia WhatsApp ao comprador quando muda; vendedor envia código no chat → salvo na tabela com `order_id` + `peer_id` comprador
 
 ---
 

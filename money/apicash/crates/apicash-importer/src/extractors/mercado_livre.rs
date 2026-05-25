@@ -102,6 +102,43 @@ impl Extractor for MercadoLivreExtractor {
             .and_then(|v| v.as_str())
             .map(str::to_string);
 
+        let guarantee = json
+            .get("warranty")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+
+        let condition = json
+            .get("condition")
+            .and_then(|v| v.as_str())
+            .map(|s| match s { "new" => "new", "used" => "used", _ => s }.to_string());
+
+        let location = json
+            .get("seller_address")
+            .and_then(|a| {
+                let city = a.get("city").and_then(|c| c.get("name")).and_then(|v| v.as_str()).unwrap_or("");
+                let state = a.get("state").and_then(|s| s.get("name")).and_then(|v| v.as_str()).unwrap_or("");
+                if city.is_empty() && state.is_empty() { None }
+                else { Some(format!("{city}, {state}").trim_matches(',').trim().to_string()) }
+            });
+
+        // ML attributes array: [{"id":"…","name":"…","value_name":"…"}]
+        let raw_attributes: serde_json::Value = json
+            .get("attributes")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                let mut map = serde_json::Map::new();
+                for attr in arr {
+                    if let (Some(name), Some(value)) = (
+                        attr.get("name").and_then(|v| v.as_str()),
+                        attr.get("value_name").and_then(|v| v.as_str()),
+                    ) {
+                        map.insert(name.to_string(), serde_json::Value::String(value.to_string()));
+                    }
+                }
+                serde_json::Value::Object(map)
+            })
+            .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
+
         Ok(Some(ProductDraft {
             title,
             description,
@@ -110,6 +147,12 @@ impl Extractor for MercadoLivreExtractor {
             source_url: url.to_string(),
             source_platform: SourcePlatform::MercadoLivre,
             extractor_used: self.name().to_string(),
+            guarantee,
+            condition,
+            location,
+            seller_name: None, // would require /users/{seller_id} — skip for now
+            seller_rating: None,
+            raw_attributes,
         }))
     }
 }

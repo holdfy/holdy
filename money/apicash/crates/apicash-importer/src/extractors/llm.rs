@@ -1,7 +1,7 @@
-//! Extrator de fallback: envia o HTML para o Claude API e solicita extração estruturada.
+//! Extrator de fallback: envia o HTML para a OpenAI API e solicita extração estruturada.
 //!
-//! Requer variável de ambiente `ANTHROPIC_API_KEY`.
-//! Usa o modelo `claude-haiku-4-5-20251001` (custo mínimo para extração simples).
+//! Requer variável de ambiente `OPENAI_API_KEY`.
+//! Modelo: `OPENAI_MODEL` (padrão `gpt-4o-mini`).
 
 use async_trait::async_trait;
 use reqwest::Client;
@@ -20,7 +20,7 @@ pub struct LlmExtractor {
 
 impl LlmExtractor {
     pub fn new(client: Client) -> Self {
-        let api_key = std::env::var("ANTHROPIC_API_KEY").ok().filter(|s| !s.is_empty());
+        let api_key = std::env::var("OPENAI_API_KEY").ok().filter(|s| !s.is_empty());
         Self { client, api_key }
     }
 }
@@ -33,7 +33,7 @@ impl Extractor for LlmExtractor {
 
     async fn extract(&self, url: &str, html: &str) -> Result<Option<ProductDraft>, ImporterError> {
         let Some(api_key) = &self.api_key else {
-            tracing::debug!("LlmExtractor: ANTHROPIC_API_KEY ausente, pulando");
+            tracing::debug!("LlmExtractor: OPENAI_API_KEY ausente, pulando");
             return Ok(None);
         };
 
@@ -42,26 +42,30 @@ impl Extractor for LlmExtractor {
 
         let prompt = format!(
             r#"Extraia informações do produto desta página HTML. Responda APENAS com JSON válido no formato:
-{{"title":"...","description":"...","price_brl":"123.45","image_urls":["https://..."]}}
+{{"title":"...","description":"...","price_brl":"123.45","image_urls":["https://..."],"guarantee":"...","condition":"new|used|refurbished","location":"cidade, estado","seller_name":"...","seller_rating":"...","attributes":{{"chave":"valor"}}}}
 
-Se não encontrar informação, use null para o campo. Não inclua explicações.
+Regras:
+- Use null para campos ausentes.
+- condition: APENAS "new", "used" ou "refurbished".
+- attributes: extraia qualquer atributo extra (material, cor, tamanho, voltagem, etc.).
+- Não inclua explicações fora do JSON.
 
 URL: {url}
 HTML:
 {html_snippet}"#
         );
 
+        let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
         let body = serde_json::json!({
-            "model": "claude-haiku-4-5-20251001",
+            "model": model,
             "max_tokens": 512,
             "messages": [{ "role": "user", "content": prompt }]
         });
 
         let resp = self
             .client
-            .post("https://api.anthropic.com/v1/messages")
-            .header("x-api-key", api_key.as_str())
-            .header("anthropic-version", "2023-06-01")
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", api_key.as_str()))
             .json(&body)
             .send()
             .await
@@ -79,10 +83,11 @@ HTML:
             .map_err(|e| ImporterError::LlmApi(e.to_string()))?;
 
         let content = json
-            .get("content")
+            .get("choices")
             .and_then(|c| c.as_array())
             .and_then(|arr| arr.first())
-            .and_then(|b| b.get("text"))
+            .and_then(|c| c.get("message"))
+            .and_then(|m| m.get("content"))
             .and_then(|t| t.as_str())
             .unwrap_or("");
 
@@ -121,6 +126,13 @@ HTML:
             })
             .unwrap_or_default();
 
+        let guarantee = extracted.get("guarantee").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string);
+        let condition = extracted.get("condition").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string);
+        let location = extracted.get("location").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string);
+        let seller_name = extracted.get("seller_name").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string);
+        let seller_rating = extracted.get("seller_rating").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string);
+        let raw_attributes = extracted.get("attributes").cloned().unwrap_or_else(|| serde_json::Value::Object(Default::default()));
+
         Ok(Some(ProductDraft {
             title,
             description,
@@ -129,6 +141,12 @@ HTML:
             source_url: url.to_string(),
             source_platform: SourcePlatform::detect(url),
             extractor_used: self.name().to_string(),
+            guarantee,
+            condition,
+            location,
+            seller_name,
+            seller_rating,
+            raw_attributes,
         }))
     }
 }

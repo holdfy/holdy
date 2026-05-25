@@ -16,6 +16,7 @@ use apicash_custody::{
 };
 use apicash_importer::ImporterService;
 use apicash_logistics::LogisticsService;
+use crate::repository::ListingRepository;
 use apicash_shared::Order;
 use reqwest::Client;
 use sqlx::postgres::PgPoolOptions;
@@ -62,6 +63,7 @@ pub struct AppState {
     pub proposals: Arc<dyn ProposalRepository>,
     pub importer: Arc<ImporterService>,
     pub logistics: Arc<LogisticsService>,
+    pub listing_repo: Option<Arc<ListingRepository>>,
 }
 
 impl AppState {
@@ -206,6 +208,7 @@ impl AppState {
         let proposals = Arc::new(InMemoryProposalRepository::new());
         let importer = Arc::new(ImporterService::new());
         let logistics = Arc::new(build_logistics_service());
+        let listing_repo = pool.map(|p| Arc::new(ListingRepository::new(p)));
         tracing::info!(
             fiat_rail = anchor.fiat_rail_name(),
             "anchor service (simulated rail = PIX EMV via Gatebox quando GATEBOX_BASE_URL está definido)",
@@ -220,6 +223,7 @@ impl AppState {
             proposals,
             importer,
             logistics,
+            listing_repo,
         }
     }
 }

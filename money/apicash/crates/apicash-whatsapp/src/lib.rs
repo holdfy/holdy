@@ -5,6 +5,7 @@
 //!
 //! A orquestração de negócio (pedido, PIX, custódia) é feita via HTTP contra [`apicash_core::create_router`] (`apicash-core`).
 
+pub mod conversation_store;
 pub mod core_api;
 pub mod handlers;
 pub mod models;

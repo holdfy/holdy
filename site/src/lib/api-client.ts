@@ -112,6 +112,7 @@ export interface OrdersListResponse {
 }
 
 export interface ImportedProductDraft {
+  listing_id: string | null;
   title: string;
   description: string | null;
   price_suggested: string | null;
@@ -119,6 +120,12 @@ export interface ImportedProductDraft {
   source_url: string;
   source_platform: string;
   extractor_used: string;
+  guarantee: string | null;
+  condition: string | null;
+  location: string | null;
+  seller_name: string | null;
+  seller_rating: string | null;
+  raw_attributes: Record<string, string>;
 }
 
 export interface ShippingQuoteRequest {
@@ -150,6 +157,7 @@ export interface TrackingInfo {
     occurred_at: string;
   }>;
   estimated_delivery: string | null;
+  provider_used: string;
 }
 
 export interface ReputationSeal {

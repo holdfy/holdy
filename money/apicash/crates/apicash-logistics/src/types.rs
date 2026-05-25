@@ -117,4 +117,6 @@ pub struct TrackingInfo {
     pub current_status: TrackingStatus,
     pub events: Vec<TrackingEvent>,
     pub estimated_delivery: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub provider_used: String,
 }

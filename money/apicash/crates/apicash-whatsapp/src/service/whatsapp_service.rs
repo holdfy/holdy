@@ -12,7 +12,11 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 use whatsapp_cloud_api::models::webhooks::{NotificationMessageType, NotificationPayload};
 
+use apicash_importer::ImporterService;
+use apicash_logistics::LogisticsService;
+
 use super::multidevice;
+use crate::conversation_store::ConversationStore;
 use crate::core_api::CoreApiClient;
 use crate::handlers::message_handler::MessageHandler;
 use crate::models::WhatsAppEvent;
@@ -306,11 +310,17 @@ pub async fn spawn_agent(
     let core = CoreApiClient::new(cfg.core_url);
     let sessions = Arc::new(crate::session::SessionManager::new());
     let payment_registry = Arc::new(crate::payment_notify::PaymentNotifyRegistry::new());
+    let importer = Arc::new(ImporterService::new());
+    let conv_store = ConversationStore::from_env().await;
+    let logistics = Arc::new(build_logistics_service());
     let handler = Arc::new(MessageHandler::new(
         core,
         outbound,
         sessions,
         payment_registry,
+        importer,
+        conv_store,
+        logistics,
     ));
     let handler_health = handler.clone();
 
@@ -348,4 +358,18 @@ pub async fn spawn_agent(
     }
 
     Ok(tx)
+}
+
+fn build_logistics_service() -> LogisticsService {
+    match LogisticsService::from_env() {
+        Ok(svc) => {
+            tracing::info!("whatsapp: logistics configurado (MELHOR_ENVIO_TOKEN presente)");
+            svc
+        }
+        Err(_) => {
+            tracing::warn!("whatsapp: MELHOR_ENVIO_TOKEN ausente — rastreio via Correios/LinkTrack se configurados");
+            let token = "MISSING_TOKEN".to_string();
+            LogisticsService::new(apicash_logistics::MelhorEnvioClient::new(token, true))
+        }
+    }
 }
