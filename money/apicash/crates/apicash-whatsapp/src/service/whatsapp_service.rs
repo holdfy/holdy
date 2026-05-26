@@ -13,7 +13,9 @@ use uuid::Uuid;
 use whatsapp_cloud_api::models::webhooks::{NotificationMessageType, NotificationPayload};
 
 use apicash_importer::ImporterService;
-use apicash_logistics::LogisticsService;
+use apicash_logistics::{CascadingTracker, LogisticsService, MelhorEnvioClient};
+
+use crate::tracking_monitor::TrackingMonitor;
 
 use super::multidevice;
 use crate::conversation_store::ConversationStore;
@@ -289,7 +291,7 @@ pub async fn spawn_agent(
 ) -> Result<mpsc::Sender<WhatsAppEvent>, Box<dyn std::error::Error + Send + Sync>> {
     let (tx, mut rx) = mpsc::channel::<WhatsAppEvent>(256);
 
-    let outbound = match cfg.transport {
+    let outbound = Arc::new(match cfg.transport {
         WaTransport::Cloud => Outbound::from_env(),
         WaTransport::Rust | WaTransport::Both => {
             let client = multidevice::start_multidevice_bridge(
@@ -305,23 +307,25 @@ pub async fn spawn_agent(
                 sqlite_uri: Some(cfg.sqlite_uri.clone()),
             }
         }
-    };
+    });
 
     let core = CoreApiClient::new(cfg.core_url);
     let sessions = Arc::new(crate::session::SessionManager::new());
     let payment_registry = Arc::new(crate::payment_notify::PaymentNotifyRegistry::new());
-    let importer = Arc::new(ImporterService::new());
+    let importer = Arc::new(ImporterService::new_with_redis().await);
     let conv_store = ConversationStore::from_env().await;
     let logistics = Arc::new(build_logistics_service());
     let handler = Arc::new(MessageHandler::new(
         core,
-        outbound,
+        outbound.clone(),
         sessions,
         payment_registry,
         importer,
         conv_store,
         logistics,
     ));
+
+    maybe_spawn_tracking_monitor(outbound.clone()).await;
     let handler_health = handler.clone();
 
     tokio::spawn(async move {
@@ -369,7 +373,35 @@ fn build_logistics_service() -> LogisticsService {
         Err(_) => {
             tracing::warn!("whatsapp: MELHOR_ENVIO_TOKEN ausente — rastreio via Correios/LinkTrack se configurados");
             let token = "MISSING_TOKEN".to_string();
-            LogisticsService::new(apicash_logistics::MelhorEnvioClient::new(token, true))
+            LogisticsService::new(MelhorEnvioClient::new(token, true))
+        }
+    }
+}
+
+fn build_cascading_tracker() -> CascadingTracker {
+    let sandbox = std::env::var("MELHOR_ENVIO_SANDBOX").map(|v| v == "1").unwrap_or(true);
+    let token = std::env::var("MELHOR_ENVIO_TOKEN").unwrap_or_else(|_| "MISSING_TOKEN".to_string());
+    CascadingTracker::from_env(MelhorEnvioClient::new(token, sandbox))
+}
+
+async fn maybe_spawn_tracking_monitor(outbound: Arc<Outbound>) {
+    let db_url = match std::env::var("DATABASE_URL").ok().filter(|s| !s.trim().is_empty()) {
+        Some(u) => u,
+        None => return,
+    };
+    match sqlx::postgres::PgPoolOptions::new()
+        .max_connections(3)
+        .connect(db_url.trim())
+        .await
+    {
+        Ok(pool) => {
+            let tracker = build_cascading_tracker();
+            let monitor = TrackingMonitor::new(pool, tracker, outbound);
+            monitor.spawn();
+            tracing::info!("tracking_monitor: iniciado (DATABASE_URL configurado)");
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "tracking_monitor: falha ao conectar ao Postgres, monitor desativado");
         }
     }
 }

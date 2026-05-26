@@ -1,8 +1,9 @@
 //! Persistência de anúncios importados no PostgreSQL.
 
+use chrono::{DateTime, Utc};
 use apicash_importer::ProductDraft;
 use rust_decimal::prelude::ToPrimitive;
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 pub struct ListingRepository {
@@ -56,5 +57,101 @@ impl ListingRepository {
         .await?;
 
         Ok(row.0)
+    }
+}
+
+// ─── ImportJob ────────────────────────────────────────────────────────────────
+
+#[derive(Debug)]
+pub struct ImportJob {
+    pub id: Uuid,
+    pub url: String,
+    pub user_id: Option<Uuid>,
+    pub status: String,
+    pub listing_id: Option<Uuid>,
+    pub error_msg: Option<String>,
+    pub queued_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+impl ListingRepository {
+    /// Cria um job com status `queued` e retorna o UUID gerado.
+    pub async fn create_import_job(
+        &self,
+        url: &str,
+        user_id: Option<Uuid>,
+    ) -> Result<Uuid, sqlx::Error> {
+        let row: (Uuid,) = sqlx::query_as(
+            "INSERT INTO import_jobs (url, user_id) VALUES ($1, $2) RETURNING id",
+        )
+        .bind(url)
+        .bind(user_id)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row.0)
+    }
+
+    /// Marca job como `done` após scraping bem-sucedido.
+    pub async fn complete_import_job(
+        &self,
+        job_id: Uuid,
+        listing_id: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            UPDATE import_jobs
+            SET status = 'done', listing_id = $1, completed_at = NOW()
+            WHERE id = $2
+            "#,
+        )
+        .bind(listing_id)
+        .bind(job_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Marca job como `error` com mensagem.
+    pub async fn fail_import_job(
+        &self,
+        job_id: Uuid,
+        error_msg: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            UPDATE import_jobs
+            SET status = 'error', error_msg = $1, completed_at = NOW()
+            WHERE id = $2
+            "#,
+        )
+        .bind(error_msg)
+        .bind(job_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Lê status do job por UUID.
+    pub async fn get_import_job(&self, job_id: Uuid) -> Result<Option<ImportJob>, sqlx::Error> {
+        let row = sqlx::query(
+            r#"
+            SELECT id, url, user_id, status, listing_id, error_msg, queued_at, completed_at
+            FROM import_jobs WHERE id = $1
+            "#,
+        )
+        .bind(job_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| ImportJob {
+            id: r.try_get("id").unwrap(),
+            url: r.try_get("url").unwrap(),
+            user_id: r.try_get("user_id").unwrap_or(None),
+            status: r.try_get("status").unwrap(),
+            listing_id: r.try_get("listing_id").unwrap_or(None),
+            error_msg: r.try_get("error_msg").unwrap_or(None),
+            queued_at: r.try_get("queued_at").unwrap(),
+            completed_at: r.try_get("completed_at").unwrap_or(None),
+        }))
     }
 }

@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use apicash_anchor::{AnchorService, StellarConfig, StellarNetwork};
+use apicash_events::{config::PulsarConfig, EventProducer, PulsarClient};
 use apicash_antifraude::{
     AntiFraudeService, CachedDocumentValidator, DocumentCache, DocumentValidator,
     HttpDocumentValidator, InMemoryDocumentCache, InMemoryScoreRepository, LocalDocumentValidator,
@@ -64,6 +65,8 @@ pub struct AppState {
     pub importer: Arc<ImporterService>,
     pub logistics: Arc<LogisticsService>,
     pub listing_repo: Option<Arc<ListingRepository>>,
+    /// Producer Pulsar para fila de importação async (None se Pulsar não configurado).
+    pub event_producer: Option<Arc<tokio::sync::Mutex<EventProducer>>>,
 }
 
 impl AppState {
@@ -127,13 +130,41 @@ impl AppState {
             );
             Arc::new(InMemoryScoreRepository::new())
         };
-        let state = Self::with_auth_config_repos(
+        let mut state = Self::with_auth_config_repos(
             AuthConfig::from_env(),
             custody_repo,
             orders,
             score_repo,
             pool,
         );
+        state.importer = Arc::new(ImporterService::new_with_redis().await);
+
+        // Pulsar producer + consumer de importação async (opcional)
+        if let Ok(pulsar_url) = std::env::var("APICASH_PULSAR__SERVICE_URL") {
+            if !pulsar_url.trim().is_empty() {
+                let cfg = PulsarConfig::from_env();
+                match PulsarClient::connect(cfg.clone()).await {
+                    Ok(client) => {
+                        let topic = client.main_topic();
+                        match EventProducer::new(&client, &topic).await {
+                            Ok(producer) => {
+                                state.event_producer = Some(Arc::new(tokio::sync::Mutex::new(producer)));
+                                tracing::info!("importer async: Pulsar producer pronto ({topic})");
+                            }
+                            Err(e) => tracing::warn!(error = %e, "importer async: falha ao criar producer"),
+                        }
+                        // Consumer em background
+                        let importer = state.importer.clone();
+                        let repo = state.listing_repo.clone();
+                        tokio::spawn(async move {
+                            crate::importer_worker::maybe_spawn_importer_consumer(importer, repo).await;
+                        });
+                    }
+                    Err(e) => tracing::warn!(error = %e, "importer async: falha ao conectar Pulsar"),
+                }
+            }
+        }
+
         Ok(state)
     }
 
@@ -224,6 +255,7 @@ impl AppState {
             importer,
             logistics,
             listing_repo,
+            event_producer: None,
         }
     }
 }

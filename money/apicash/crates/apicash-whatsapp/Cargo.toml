@@ -45,6 +45,7 @@ thiserror = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
 qrcode = "0.14"
 rusqlite = { version = "0.32", default-features = false, features = ["bundled"] }
+sqlx = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

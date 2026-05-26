@@ -11,3 +11,6 @@ pub const SUB_ANTIFRAUDE: &str = "antifraude-service";
 
 /// Subscription do processamento de liberação final.
 pub const SUB_RELEASE: &str = "release-service";
+
+/// Subscription do worker de importação assíncrona de anúncios.
+pub const SUB_IMPORTER: &str = "importer-service";

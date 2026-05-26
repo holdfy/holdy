@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, QrCode, Loader2 } from "lucide-react";
+import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, QrCode, Loader2, Truck, ChevronDown, ChevronUp } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import {
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
-import type { ApiError } from "@/lib/api-client";
+import type { ApiError, ShippingQuote } from "@/lib/api-client";
 
 interface PaymentRouteState {
   pixBrCode?: string;
@@ -42,6 +42,36 @@ export default function AppPayment() {
   // Formulário de aceite de proposta
   const [proposalId, setProposalId] = useState(state.proposalId ?? "");
   const [cpf, setCpf] = useState("");
+
+  // Cotação de frete
+  const [freightOpen, setFreightOpen] = useState(false);
+  const [cepDestino, setCepDestino] = useState("");
+  const [freightQuotes, setFreightQuotes] = useState<ShippingQuote[]>([]);
+  const [freightLoading, setFreightLoading] = useState(false);
+
+  const handleFreightQuote = async () => {
+    const cep = cepDestino.replace(/\D/g, "");
+    if (cep.length !== 8) {
+      toast.error("CEP inválido — informe 8 dígitos");
+      return;
+    }
+    setFreightLoading(true);
+    try {
+      const res = await api.quoteShipping({
+        from_postal_code: "01001000",
+        to_postal_code: cep,
+        weight_kg: "0.5",
+        width_cm: 20,
+        height_cm: 10,
+        length_cm: 15,
+      });
+      setFreightQuotes(res.quotes);
+    } catch {
+      toast.error("Erro ao calcular frete — tente novamente");
+    } finally {
+      setFreightLoading(false);
+    }
+  };
 
   const acceptMutation = useMutation({
     mutationFn: () => api.acceptProposal(proposalId.trim(), cpf.trim() || undefined),
@@ -116,6 +146,64 @@ export default function AppPayment() {
               inputMode="numeric"
             />
           </div>
+          {/* Cotação de frete — opcional, não bloqueia o fluxo */}
+          <div className="border border-border rounded-xl overflow-hidden">
+            <button
+              type="button"
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition"
+              onClick={() => setFreightOpen((v) => !v)}
+            >
+              <span className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-muted-foreground" />
+                Estimar frete (opcional)
+              </span>
+              {freightOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {freightOpen && (
+              <div className="px-4 pb-4 space-y-3 border-t border-border">
+                <div className="space-y-1 pt-3">
+                  <Label htmlFor="cep-destino" className="text-xs">CEP de destino</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="cep-destino"
+                      placeholder="00000-000"
+                      value={cepDestino}
+                      onChange={(e) => setCepDestino(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                      inputMode="numeric"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 px-3 shrink-0"
+                      onClick={handleFreightQuote}
+                      disabled={freightLoading || cepDestino.replace(/\D/g, "").length !== 8}
+                    >
+                      {freightLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Calcular"}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Estimativa para pacote padrão (~0,5 kg)</p>
+                </div>
+
+                {freightQuotes.length > 0 && (
+                  <div className="space-y-1.5">
+                    {freightQuotes.map((q, i) => (
+                      <div key={i} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2 text-sm">
+                        <span className="text-muted-foreground font-medium">{q.carrier_label}</span>
+                        <div className="text-right">
+                          <span className="font-semibold">R$ {parseFloat(q.price_brl).toFixed(2)}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{q.estimated_days}d úteis</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <Button
             className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
             onClick={() => acceptMutation.mutate()}

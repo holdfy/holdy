@@ -26,6 +26,10 @@ pub enum ApicashEvent {
     YieldDistributedOnChain(YieldDistributedOnChainEvent),
     /// Liberação concluída on-chain.
     FundsReleasedOnChain(FundsReleasedOnChainEvent),
+    /// Solicitação de importação assíncrona de anúncio (URL → ProductDraft).
+    ImportRequested(ImportRequestedEvent),
+    /// Resultado da importação (sucesso ou falha).
+    ImportCompleted(ImportCompletedEvent),
     /// Payload JSON inválido (fallback do deserializador Pulsar).
     #[serde(rename = "invalid_payload")]
     InvalidPayload(InvalidPayloadEvent),
@@ -144,6 +148,24 @@ pub struct FundsReleasedOnChainEvent {
     pub custody_id: Uuid,
     pub release_tx_hash: Option<String>,
     pub recorded_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportRequestedEvent {
+    /// UUID pré-gerado — identifica o job no banco antes do scraping.
+    pub job_id: Uuid,
+    pub url: String,
+    pub user_id: Option<Uuid>,
+    pub requested_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportCompletedEvent {
+    pub job_id: Uuid,
+    pub listing_id: Option<Uuid>,
+    pub success: bool,
+    pub error_msg: Option<String>,
+    pub completed_at: DateTime<Utc>,
 }
 
 impl PaymentReceivedEvent {

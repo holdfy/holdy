@@ -29,6 +29,7 @@ apicash-anchor = { workspace = true }
 apicash-antifraude = { workspace = true }
 apicash-importer = { workspace = true }
 apicash-logistics = { workspace = true }
+apicash-events = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }

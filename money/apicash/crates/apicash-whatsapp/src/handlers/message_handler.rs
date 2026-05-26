@@ -30,7 +30,7 @@ use crate::utils::qr_code;
 
 pub struct MessageHandler {
     core: CoreApiClient,
-    outbound: Outbound,
+    outbound: Arc<Outbound>,
     sessions: Arc<SessionManager>,
     payment_registry: Arc<PaymentNotifyRegistry>,
     jwt: AuthService,
@@ -42,7 +42,7 @@ pub struct MessageHandler {
 impl MessageHandler {
     pub fn new(
         core: CoreApiClient,
-        outbound: Outbound,
+        outbound: Arc<Outbound>,
         sessions: Arc<SessionManager>,
         payment_registry: Arc<PaymentNotifyRegistry>,
         importer: Arc<ImporterService>,
@@ -198,7 +198,7 @@ impl MessageHandler {
 
     /// PN confirmado pelo WhatsApp (evita divergência 554198… vs 554188… do cartão).
     async fn canonical_buyer_peer_for_whatsapp(&self, raw: &str) -> String {
-        if let Outbound::Rust { client, .. } = &self.outbound {
+        if let Outbound::Rust { client, .. } = &*self.outbound {
             if let Some(d) = canonical_whatsapp_peer_digits(client.as_ref(), raw).await {
                 return d;
             }

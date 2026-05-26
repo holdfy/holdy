@@ -10,6 +10,7 @@ pub mod config;
 pub mod dto;
 pub mod error;
 pub mod handlers;
+pub mod importer_worker;
 pub mod middleware;
 pub mod repository;
 pub mod router;

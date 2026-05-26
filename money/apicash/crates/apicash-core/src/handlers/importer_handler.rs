@@ -1,9 +1,10 @@
-//! Handler for `POST /v1/listings/import`.
+//! Handler for `POST /v1/listings/import` (sync) and `POST /v1/listings/import/async`.
 
 use std::sync::Arc;
 
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::Json;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -57,6 +58,95 @@ impl From<ProductDraft> for ImportResponse {
             raw_attributes: d.raw_attributes,
         }
     }
+}
+
+// ─── Async import ─────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct AsyncImportResponse {
+    pub job_id: String,
+    pub status: &'static str,
+    pub poll_url: String,
+}
+
+#[derive(Serialize)]
+pub struct ImportJobResponse {
+    pub job_id: String,
+    pub status: String,
+    pub listing_id: Option<String>,
+    pub error_msg: Option<String>,
+    pub queued_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+/// `POST /v1/listings/import/async` — enfileira importação no Pulsar e retorna imediatamente.
+pub async fn import_listing_async(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<ImportRequest>,
+) -> Result<Json<AsyncImportResponse>, ApiError> {
+    if req.url.trim().is_empty() {
+        return Err(ApiError::bad_request("url não pode ser vazio"));
+    }
+
+    let Some(producer) = &state.event_producer else {
+        return Err(ApiError::bad_request(
+            "fila assíncrona não configurada (APICASH_PULSAR__SERVICE_URL ausente); use POST /v1/listings/import",
+        ));
+    };
+
+    let Some(repo) = &state.listing_repo else {
+        return Err(ApiError::bad_request(
+            "banco de dados não configurado (DATABASE_URL ausente); use POST /v1/listings/import",
+        ));
+    };
+
+    let job_id = repo
+        .create_import_job(&req.url, req.user_id)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+
+    {
+        let mut p = producer.lock().await;
+        p.publish_import_requested(apicash_events::ImportRequestedEvent {
+            job_id,
+            url: req.url.clone(),
+            user_id: req.user_id,
+            requested_at: chrono::Utc::now(),
+        })
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    }
+
+    Ok(Json(AsyncImportResponse {
+        job_id: job_id.to_string(),
+        status: "queued",
+        poll_url: format!("/v1/listings/jobs/{job_id}"),
+    }))
+}
+
+/// `GET /v1/listings/jobs/:id` — consulta status de um job de importação.
+pub async fn get_import_job(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ImportJobResponse>, ApiError> {
+    let Some(repo) = &state.listing_repo else {
+        return Err(ApiError::bad_request("banco de dados não configurado"));
+    };
+
+    let job = repo
+        .get_import_job(id)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?
+        .ok_or_else(|| ApiError::not_found("job não encontrado"))?;
+
+    Ok(Json(ImportJobResponse {
+        job_id: job.id.to_string(),
+        status: job.status,
+        listing_id: job.listing_id.map(|u| u.to_string()),
+        error_msg: job.error_msg,
+        queued_at: job.queued_at,
+        completed_at: job.completed_at,
+    }))
 }
 
 /// `POST /v1/listings/import` — faz scraping da URL e persiste no Postgres.

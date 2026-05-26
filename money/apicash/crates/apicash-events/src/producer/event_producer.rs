@@ -6,9 +6,10 @@ use pulsar::TokioExecutor;
 use crate::error::EventError;
 use crate::models::{
     ApicashEvent, DeliveryConfirmedEvent, DisputeOpenedEvent, FundsLockedEvent,
-    FundsLockedOnChainEvent, FundsReleasedEvent, FundsReleasedOnChainEvent, OrderCreatedEvent,
-    PaymentReceivedEvent, ReleaseRequestedEvent, ScoreCalculatedEvent, TransactionRecordedEvent,
-    YieldCalculatedEvent, YieldDistributedOnChainEvent,
+    FundsLockedOnChainEvent, FundsReleasedEvent, FundsReleasedOnChainEvent, ImportCompletedEvent,
+    ImportRequestedEvent, OrderCreatedEvent, PaymentReceivedEvent, ReleaseRequestedEvent,
+    ScoreCalculatedEvent, TransactionRecordedEvent, YieldCalculatedEvent,
+    YieldDistributedOnChainEvent,
 };
 
 /// Producer APICash com métodos por tipo de evento.
@@ -139,5 +140,21 @@ impl EventProducer {
     ) -> Result<(), EventError> {
         tracing::info!(order_id = %event.order_id, "publish FundsReleasedOnChain");
         self.send(ApicashEvent::FundsReleasedOnChain(event)).await
+    }
+
+    pub async fn publish_import_requested(
+        &mut self,
+        event: ImportRequestedEvent,
+    ) -> Result<(), EventError> {
+        tracing::info!(job_id = %event.job_id, url = %event.url, "publish ImportRequested");
+        self.send(ApicashEvent::ImportRequested(event)).await
+    }
+
+    pub async fn publish_import_completed(
+        &mut self,
+        event: ImportCompletedEvent,
+    ) -> Result<(), EventError> {
+        tracing::info!(job_id = %event.job_id, success = event.success, "publish ImportCompleted");
+        self.send(ApicashEvent::ImportCompleted(event)).await
     }
 }
