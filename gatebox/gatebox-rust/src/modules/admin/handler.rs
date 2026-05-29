@@ -333,6 +333,7 @@ async fn customers_create_account(
         account_status_id: 4,
         deleted_at: None,
         authentication_id: customer.authentication_id,
+        type_person_id: None,
         full_count: None,
     };
     let acc_id = state.accounts_svc.create(&account).await.map_err(|_| AppError::Internal)?;

@@ -50,6 +50,8 @@ pub struct StoredOrder {
     pub soroban_lock_tx_hash: Option<String>,
     /// `"mock"` ou `"soroban"` conforme env / bridge.
     pub soroban_mode: String,
+    /// Nome completo do comprador (obtido via NFS-e na criação do pedido).
+    pub buyer_name: Option<String>,
 }
 
 /// Application state injected into Axum handlers.

@@ -554,6 +554,14 @@ impl MessageHandler {
             );
         }
 
+        // Consulta nome do comprador via NFS-e (não bloqueia se falhar).
+        let buyer_name = crate::nfse_client::lookup_name(document).await;
+        if let Some(ref name) = buyer_name {
+            let msg = format!("*Comprador identificado:* {name}");
+            self.outbound.send_text(buyer_peer_key, &msg).await;
+            self.outbound.send_text(seller_peer_key, &msg).await;
+        }
+
         let order = match self
             .core
             .create_order(
@@ -563,6 +571,7 @@ impl MessageHandler {
                 document,
                 social_empty,
                 Some(description.as_str()),
+                buyer_name.as_deref(),
                 Some(&seller_bearer),
             )
             .await

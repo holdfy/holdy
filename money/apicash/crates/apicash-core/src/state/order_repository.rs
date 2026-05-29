@@ -132,6 +132,7 @@ impl PostgresOrderRepository {
         soroban_escrow_contract_id: Option<String>,
         soroban_lock_tx_hash: Option<String>,
         soroban_mode: String,
+        buyer_name: Option<String>,
     ) -> Result<StoredOrder, String> {
         if risk_score < 0 {
             return Err(format!("negative risk_score for order {id}"));
@@ -161,6 +162,7 @@ impl PostgresOrderRepository {
             soroban_escrow_contract_id,
             soroban_lock_tx_hash,
             soroban_mode,
+            buyer_name,
         })
     }
 }
@@ -178,9 +180,9 @@ impl OrderRepository for PostgresOrderRepository {
                 custody_id, anchor_tx_hash, fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
                 risk_score, risk_decision, description,
                 off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
-                soroban_lock_tx_hash, soroban_mode
+                soroban_lock_tx_hash, soroban_mode, buyer_name
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
             "#,
         )
         .bind(o.id)
@@ -205,6 +207,7 @@ impl OrderRepository for PostgresOrderRepository {
         .bind(stored.soroban_escrow_contract_id.as_deref())
         .bind(stored.soroban_lock_tx_hash.as_deref())
         .bind(&stored.soroban_mode)
+        .bind(stored.buyer_name.as_deref())
         .execute(&self.pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -218,7 +221,7 @@ impl OrderRepository for PostgresOrderRepository {
                    custody_id, anchor_tx_hash, risk_score, risk_decision, description,
                    fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
                    off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
-                   soroban_lock_tx_hash, soroban_mode
+                   soroban_lock_tx_hash, soroban_mode, buyer_name
             FROM orders
             WHERE id = $1
             "#,
@@ -262,7 +265,8 @@ impl OrderRepository for PostgresOrderRepository {
                 brlx_escrow_transfer_tx_hash = $19,
                 soroban_escrow_contract_id = $20,
                 soroban_lock_tx_hash = $21,
-                soroban_mode = $22
+                soroban_mode = $22,
+                buyer_name = $23
             WHERE id = $1
             "#,
         )
@@ -288,6 +292,7 @@ impl OrderRepository for PostgresOrderRepository {
         .bind(stored.soroban_escrow_contract_id.as_deref())
         .bind(stored.soroban_lock_tx_hash.as_deref())
         .bind(&stored.soroban_mode)
+        .bind(stored.buyer_name.as_deref())
         .execute(&self.pool)
         .await
         .map_err(|e| e.to_string())?
@@ -306,7 +311,7 @@ impl OrderRepository for PostgresOrderRepository {
                    custody_id, anchor_tx_hash, fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
                    risk_score, risk_decision, description,
                    off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
-                   soroban_lock_tx_hash, soroban_mode
+                   soroban_lock_tx_hash, soroban_mode, buyer_name
             FROM orders
             ORDER BY created_at DESC
             "#,
@@ -329,7 +334,7 @@ impl OrderRepository for PostgresOrderRepository {
                    custody_id, anchor_tx_hash, fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
                    risk_score, risk_decision, description,
                    off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
-                   soroban_lock_tx_hash, soroban_mode
+                   soroban_lock_tx_hash, soroban_mode, buyer_name
             FROM orders WHERE buyer_id = $1 ORDER BY created_at DESC
             "#,
         )
@@ -347,7 +352,7 @@ impl OrderRepository for PostgresOrderRepository {
                    custody_id, anchor_tx_hash, fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
                    risk_score, risk_decision, description,
                    off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
-                   soroban_lock_tx_hash, soroban_mode
+                   soroban_lock_tx_hash, soroban_mode, buyer_name
             FROM orders WHERE seller_id = $1 ORDER BY created_at DESC
             "#,
         )
@@ -365,7 +370,7 @@ impl OrderRepository for PostgresOrderRepository {
                    custody_id, anchor_tx_hash, fiat_rail, gateway_in_tx_id, funding_reference, pix_br_code, funding_instruction,
                    risk_score, risk_decision, description,
                    off_ramp_tx_hash, brlx_escrow_transfer_tx_hash, soroban_escrow_contract_id,
-                   soroban_lock_tx_hash, soroban_mode
+                   soroban_lock_tx_hash, soroban_mode, buyer_name
             FROM orders
             WHERE gateway_in_tx_id = $1
             LIMIT 1
@@ -408,6 +413,7 @@ fn row_to_stored_order(r: &sqlx::postgres::PgRow) -> Result<StoredOrder, String>
         r.try_get("soroban_lock_tx_hash")
             .map_err(|e| e.to_string())?,
         r.try_get("soroban_mode").map_err(|e| e.to_string())?,
+        r.try_get("buyer_name").map_err(|e| e.to_string())?,
     )
 }
 

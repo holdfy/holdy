@@ -34,7 +34,7 @@ axum = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-reqwest = { workspace = true, features = ["multipart"] }
+reqwest = { workspace = true, features = ["multipart", "cookies"] }
 rust_decimal = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }

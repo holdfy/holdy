@@ -306,6 +306,7 @@ pub async fn create_order(
         soroban_escrow_contract_id: None,
         soroban_lock_tx_hash: None,
         soroban_mode,
+        buyer_name: req.buyer_name.clone(),
     };
 
     state.orders.save(stored).await.map_err(|e| {
@@ -361,6 +362,7 @@ pub async fn create_order(
         soroban_escrow_contract_id: None,
         soroban_lock_tx_hash: None,
         soroban_mode: Some("pending".to_string()),
+        buyer_name: req.buyer_name.clone(),
     };
 
     Ok((StatusCode::CREATED, Json(body)))
@@ -402,6 +404,7 @@ pub async fn get_order(
         soroban_escrow_contract_id: s.soroban_escrow_contract_id.clone(),
         soroban_lock_tx_hash: s.soroban_lock_tx_hash.clone(),
         soroban_mode: Some(s.soroban_mode.clone()),
+        buyer_name: s.buyer_name.clone(),
     }))
 }
 
@@ -897,6 +900,7 @@ pub(crate) async fn create_escrow_order_core(
         soroban_escrow_contract_id: None,
         soroban_lock_tx_hash: None,
         soroban_mode,
+        buyer_name: None,
     };
 
     state.orders.save(stored).await.map_err(|e| {
@@ -927,6 +931,7 @@ pub(crate) async fn create_escrow_order_core(
         soroban_escrow_contract_id: None,
         soroban_lock_tx_hash: None,
         soroban_mode: Some("pending".to_string()),
+        buyer_name: None,
     })
 }
 

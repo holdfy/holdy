@@ -411,3 +411,48 @@ Todo novo frontend do projeto (área admin, área cliente, backoffice) deve part
 - Multi-tenant
 - Biometria
 - Selo complexo
+
+---
+
+## API NFS-e — Consulta CPF/CNPJ (nfse.gov.br)
+
+Referência de curl para consultar dados de pessoa física (CPF) e jurídica (CNPJ) via portal NFS-e.
+Usado pelo site para validar e auto-preencher dados no cadastro e pagamento.
+
+```bash
+COOKIE_FILE="cookies.txt"
+LOGIN_URL="https://www.nfse.gov.br/EmissorNacional/Login"
+
+rm -f "$COOKIE_FILE"
+
+HTML=$(curl -fsS -c "$COOKIE_FILE" "$LOGIN_URL")
+TOKEN=$(echo "$HTML" | sed -n 's/.*name="__RequestVerificationToken"[^>]*value="\([^"]*\)".*/\1/p' | head -n 1)
+
+curl -fsS -b "$COOKIE_FILE" -c "$COOKIE_FILE" \
+  -X POST "$LOGIN_URL" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Referer: $LOGIN_URL" \
+  --data-urlencode "__RequestVerificationToken=$TOKEN" \
+  --data-urlencode "Inscricao=28.805.791/0001-46" \
+  --data-urlencode "Senha=Senha1234*" \
+  -o /dev/null -w "HTTP: %{http_code}\n"
+
+# Consulta CPF (pessoa física)
+curl -fsS -b cookies.txt \
+  "https://www.nfse.gov.br/emissornacional/api/EmissaoDPS/RecuperarInfoInscricao/{CPF}?data=$(date +%Y-%m-%d)" \
+  -H "Accept: application/json" \
+  -H "Referer: https://www.nfse.gov.br/EmissorNacional/"
+
+# Consulta CNPJ (pessoa jurídica)
+curl -fsS -b cookies.txt \
+  "https://www.nfse.gov.br/emissornacional/api/EmissaoDPS/RecuperarInfoPessoaJuridicaTomador/{CNPJ}?data=$(date +%Y-%m-%d)" \
+  -H "Accept: application/json" \
+  -H "Referer: https://www.nfse.gov.br/EmissorNacional/"
+```
+
+Endpoints:
+- CPF:  `GET /emissornacional/api/EmissaoDPS/RecuperarInfoInscricao/{cpf}?data=YYYY-MM-DD`
+- CNPJ: `GET /emissornacional/api/EmissaoDPS/RecuperarInfoPessoaJuridicaTomador/{cnpj}?data=YYYY-MM-DD`
+
+Auth: sessão por cookie obtida via POST login com `__RequestVerificationToken` (CSRF).
+Variáveis de ambiente: `NFSE_INSCRICAO` (CNPJ do emissor), `NFSE_SENHA`.

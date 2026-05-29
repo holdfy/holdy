@@ -184,6 +184,7 @@ impl CoreApiClient {
         cpf: &str,
         social_links: &[String],
         description: Option<&str>,
+        buyer_name: Option<&str>,
         bearer: Option<&str>,
     ) -> Result<CreateOrderResponse, CoreApiError> {
         let body = serde_json::json!({
@@ -193,6 +194,7 @@ impl CoreApiClient {
             "cpf": cpf,
             "social_links": social_links,
             "description": description,
+            "buyer_name": buyer_name,
         });
         tracing::info!(%buyer_id, %seller_id, %amount, "core_api: POST /orders (pedido protegido + antifraude)");
         self.post_json("/orders", &body, bearer).await

@@ -33,3 +33,15 @@ cargo test -p apicash-antifraude --features mock
 ## Dependencies
 
 Uses [`apicash-shared`](../apicash-shared) for shared constants (e.g. `USER_SCORE_MAX`). Replace [`InMemoryScoreRepository`](src/repository/score_repository.rs) with a SQLx-backed implementation when persistence is required.
+
+## NFS-e Document Provider
+
+CPF/CNPJ lookup via the Brazilian government NFS-e portal (`nfse.gov.br`).
+Requires cookie-based session auth (CSRF token on login).
+
+Endpoints:
+- **CPF**: `GET /emissornacional/api/EmissaoDPS/RecuperarInfoInscricao/{cpf}?data=YYYY-MM-DD`
+- **CNPJ**: `GET /emissornacional/api/EmissaoDPS/RecuperarInfoPessoaJuridicaTomador/{cnpj}?data=YYYY-MM-DD`
+
+Config env vars: `NFSE_INSCRICAO` (login CNPJ), `NFSE_SENHA`.
+See full curl reference in `docs/ideia.txt` or `PLANO_EXECUCAO.md`.

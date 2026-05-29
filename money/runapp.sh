@@ -67,6 +67,8 @@ mkdir -p "${GB_LOG}"
 RUNAPP_AUTO_GATEBOX="${RUNAPP_AUTO_GATEBOX:-1}"
 # Se 1 (defeito), `./runapp.sh start all` sobe também o site Vite em holdy/site (npm run dev).
 RUNAPP_AUTO_SITE="${RUNAPP_AUTO_SITE:-1}"
+# Modo de rede: testnet | mainnet | "" (vazio = usa o .env sem alteração)
+RUNAPP_NETWORK_MODE="${RUNAPP_NETWORK_MODE:-}"
 
 resolve_site_dir() {
   if [ -n "${SITE_DIR:-}" ] && [ -d "${SITE_DIR}" ]; then
@@ -84,6 +86,16 @@ SITE_ROOT="$(resolve_site_dir)"
 SITE_PORT="${SITE_PORT:-5173}"
 SITE_LOG="${MONEY}/.runapp/site"
 mkdir -p "${SITE_LOG}"
+
+HOLDFY_ADMIN_ROOT="${HOLDFY_ADMIN_ROOT:-${MONEY}/../holdfy-admin}"
+HOLDFY_ADMIN_PORT="${HOLDFY_ADMIN_PORT:-3020}"
+HOLDFY_ADMIN_LOG="${MONEY}/.runapp/holdfy-admin"
+mkdir -p "${HOLDFY_ADMIN_LOG}"
+
+FRONT_GATEBOX_ROOT="${FRONT_GATEBOX_ROOT:-${MONEY}/../gatebox/front-gatebox}"
+FRONT_GATEBOX_PORT="${FRONT_GATEBOX_PORT:-3030}"
+FRONT_GATEBOX_LOG="${MONEY}/.runapp/front-gatebox"
+mkdir -p "${FRONT_GATEBOX_LOG}"
 
 # WhatsApp pareamento: pasta do PNG + pair.html para o browser. Sobrescrever com WA_QR_DIR no .env
 WA_QR_DIR_DEFAULT="${WA_QR_DIR_DEFAULT:-$(dirname "${MONEY}")/whatsapp_qrcode}"
@@ -371,8 +383,34 @@ ac_validate_testnet_policy() {
   fi
 }
 
+# Aplica overrides de rede por cima do .env. Chamado após ac_load_env para ter precedência.
+apply_network_mode() {
+  local mode="${1:-}"
+  [ -n "${mode}" ] || return 0
+  case "${mode}" in
+  testnet)
+    export APICASH_REQUIRE_TESTNET=1
+    export APICASH_SOROBAN_ENABLED=1
+    export APICASH_SOROBAN_STRICT=1
+    export APICASH_STELLAR_NETWORK=testnet
+    log "rede: testnet (SOROBAN_ENABLED=1, REQUIRE_TESTNET=1, STELLAR_NETWORK=testnet)"
+    ;;
+  mainnet)
+    export APICASH_REQUIRE_TESTNET=
+    export APICASH_SOROBAN_ENABLED=1
+    export APICASH_SOROBAN_STRICT=1
+    export APICASH_STELLAR_NETWORK=mainnet
+    log "rede: mainnet (SOROBAN_ENABLED=1, STELLAR_NETWORK=mainnet)"
+    ;;
+  *)
+    warn "RUNAPP_NETWORK_MODE desconhecido: ${mode} (use testnet ou mainnet)"
+    ;;
+  esac
+}
+
 ac_prepare_runtime_env() {
   ac_load_env
+  apply_network_mode "${RUNAPP_NETWORK_MODE:-}"
 
   export APICASH_ORDERS_PG="${APICASH_ORDERS_PG:-1}"
   export APICASH_CUSTODY_PG="${APICASH_CUSTODY_PG:-1}"
@@ -408,7 +446,13 @@ ac_build_all() {
   fi
 
   cargo build "${core_args[@]}"
-  cargo build -p apicash-admin-backend
+
+  local admin_args=(-p apicash-admin-backend)
+  if truthy "${APICASH_SOROBAN_ENABLED:-}" || truthy "${APICASH_REQUIRE_TESTNET:-}"; then
+    admin_args+=(--features soroban)
+  fi
+  cargo build "${admin_args[@]}"
+
   cargo build -p apicash-frontend --no-default-features --features ssr
   cargo build -p apicash-whatsapp
 }
@@ -588,6 +632,15 @@ runapp_open_startup_browsers() {
 
   log "abrindo QR WhatsApp + site no browser (2 abas)"
   runapp_open_two_browser_tabs "${qr_url}" "${site_url}"
+
+  if holdfy_admin_present; then
+    local admin_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
+    runapp_open_in_browser "holdfy-admin" "${admin_url}" || true
+  fi
+  if front_gatebox_present; then
+    local fg_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${FRONT_GATEBOX_PORT}/"
+    runapp_open_in_browser "front-gatebox" "${fg_url}" || true
+  fi
 
   if [ -n "${qr_url}" ]; then
     local browser_png="${WA_QR_DIR}/whatsapp-pairing-qr.png"
@@ -1138,6 +1191,135 @@ site_logs_all() {
   tail -n 80 -F "${SITE_LOG}/vite.log" 2>/dev/null || true
 }
 
+# -----------------------------------------------------------------------------
+# holdfy-admin — Vite + React (painel APICash, porta HOLDFY_ADMIN_PORT)
+# -----------------------------------------------------------------------------
+
+holdfy_admin_present() {
+  [ -f "${HOLDFY_ADMIN_ROOT}/package.json" ]
+}
+
+holdfy_admin_ensure_deps() {
+  holdfy_admin_present || return 1
+  [ -d "${HOLDFY_ADMIN_ROOT}/node_modules" ] && return 0
+  local pm_bin
+  pm_bin="$(site_resolve_pm)" || { warn "holdfy-admin: instale bun ou npm"; return 1; }
+  log "holdfy-admin: $(basename "${pm_bin}") install"
+  (cd "${HOLDFY_ADMIN_ROOT}" && "${pm_bin}" install)
+}
+
+holdfy_admin_stop() {
+  log "stopping holdfy-admin"
+  local pf="${HOLDFY_ADMIN_LOG}/holdfy-admin.pid"
+  if [ -f "${pf}" ]; then
+    local pid
+    pid="$(tr -d '[:space:]' <"${pf}" 2>/dev/null || true)"
+    if [ -n "${pid:-}" ]; then
+      kill -TERM "${pid}" >/dev/null 2>&1 || true
+      local _; for _ in $(seq 1 40); do kill -0 "${pid}" >/dev/null 2>&1 || break; sleep 0.25; done
+      kill -KILL "${pid}" >/dev/null 2>&1 || true
+    fi
+    rm -f "${pf}"
+  fi
+  gb_kill_by_port "${HOLDFY_ADMIN_PORT}"
+}
+
+holdfy_admin_start() {
+  holdfy_admin_present || { warn "holdfy-admin não encontrado em ${HOLDFY_ADMIN_ROOT}"; return 1; }
+  holdfy_admin_ensure_deps || return 1
+  holdfy_admin_stop
+  local pm_bin pm
+  pm_bin="$(site_resolve_pm)" || return 1
+  pm="$(basename "${pm_bin}")"
+  log "starting holdfy-admin (${pm}, port ${HOLDFY_ADMIN_PORT}, logs ${HOLDFY_ADMIN_LOG}/holdfy-admin.log)"
+  (
+    cd "${HOLDFY_ADMIN_ROOT}"
+    if [ "${pm}" = bun ]; then
+      exec "${pm_bin}" run dev --host 127.0.0.1 --port "${HOLDFY_ADMIN_PORT}"
+    else
+      exec "${pm_bin}" run dev -- --host 127.0.0.1 --port "${HOLDFY_ADMIN_PORT}"
+    fi
+  ) >>"${HOLDFY_ADMIN_LOG}/holdfy-admin.log" 2>&1 &
+  printf '%s\n' $! >"${HOLDFY_ADMIN_LOG}/holdfy-admin.pid"
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
+  gb_wait_http_ok "holdfy-admin" "${url}" 60 || warn "holdfy-admin não respondeu — ver ${HOLDFY_ADMIN_LOG}/holdfy-admin.log"
+}
+
+holdfy_admin_print_status() {
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
+  printf '\n== holdfy-admin (APICash admin — Vite) ==\n'
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 1 "${url}" 2>/dev/null || true)"
+    printf '  http=%s  url=%s  log=%s/holdfy-admin.log\n' "${code:-000}" "${url}" "${HOLDFY_ADMIN_LOG}"
+  else
+    printf '  url=%s  log=%s/holdfy-admin.log\n' "${url}" "${HOLDFY_ADMIN_LOG}"
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# front-gatebox — CRA + React (painel PIX Gatebox, porta FRONT_GATEBOX_PORT)
+# -----------------------------------------------------------------------------
+
+front_gatebox_present() {
+  [ -f "${FRONT_GATEBOX_ROOT}/package.json" ]
+}
+
+front_gatebox_ensure_deps() {
+  front_gatebox_present || return 1
+  [ -d "${FRONT_GATEBOX_ROOT}/node_modules" ] && return 0
+  local pm_bin
+  pm_bin="$(site_resolve_pm)" || { warn "front-gatebox: instale bun ou npm"; return 1; }
+  log "front-gatebox: $(basename "${pm_bin}") install"
+  (cd "${FRONT_GATEBOX_ROOT}" && "${pm_bin}" install)
+}
+
+front_gatebox_stop() {
+  log "stopping front-gatebox"
+  local pf="${FRONT_GATEBOX_LOG}/front-gatebox.pid"
+  if [ -f "${pf}" ]; then
+    local pid
+    pid="$(tr -d '[:space:]' <"${pf}" 2>/dev/null || true)"
+    if [ -n "${pid:-}" ]; then
+      kill -TERM "${pid}" >/dev/null 2>&1 || true
+      local _; for _ in $(seq 1 40); do kill -0 "${pid}" >/dev/null 2>&1 || break; sleep 0.25; done
+      kill -KILL "${pid}" >/dev/null 2>&1 || true
+    fi
+    rm -f "${pf}"
+  fi
+  gb_kill_by_port "${FRONT_GATEBOX_PORT}"
+}
+
+front_gatebox_start() {
+  front_gatebox_present || { warn "front-gatebox não encontrado em ${FRONT_GATEBOX_ROOT}"; return 1; }
+  front_gatebox_ensure_deps || return 1
+  front_gatebox_stop
+  local pm_bin
+  pm_bin="$(site_resolve_pm)" || { warn "front-gatebox: instale bun ou npm"; return 1; }
+  log "starting front-gatebox (CRA via $(basename "${pm_bin}"), port ${FRONT_GATEBOX_PORT}, logs ${FRONT_GATEBOX_LOG}/front-gatebox.log)"
+  (
+    cd "${FRONT_GATEBOX_ROOT}"
+    export PORT="${FRONT_GATEBOX_PORT}"
+    export BROWSER=none
+    exec "${pm_bin}" run start
+  ) >>"${FRONT_GATEBOX_LOG}/front-gatebox.log" 2>&1 &
+  printf '%s\n' $! >"${FRONT_GATEBOX_LOG}/front-gatebox.pid"
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${FRONT_GATEBOX_PORT}/"
+  gb_wait_http_ok "front-gatebox" "${url}" 120 || warn "front-gatebox não respondeu — ver ${FRONT_GATEBOX_LOG}/front-gatebox.log"
+}
+
+front_gatebox_print_status() {
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${FRONT_GATEBOX_PORT}/"
+  printf '\n== front-gatebox (Gatebox admin — CRA) ==\n'
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 1 "${url}" 2>/dev/null || true)"
+    printf '  http=%s  url=%s  log=%s/front-gatebox.log\n' "${code:-000}" "${url}" "${FRONT_GATEBOX_LOG}"
+  else
+    printf '  url=%s  log=%s/front-gatebox.log\n' "${url}" "${FRONT_GATEBOX_LOG}"
+  fi
+}
+
 print_infra_hint() {
   if command -v docker >/dev/null 2>&1; then
     printf '\n== Docker (money/docker-compose.yml) ==\n'
@@ -1158,6 +1340,10 @@ Commands:
   logs [scope]       tail -F dos logs
   whatsapp-pair      Apaga sessão WhatsApp, recria pasta do QR e abre pair.html no browser
   open-browsers      Abre QR WhatsApp + site (2 abas) — útil para testar sem restart completo
+  testnet            Para tudo, compila com --features soroban e sobe em modo Stellar testnet
+                       (SOROBAN_ENABLED=1, REQUIRE_TESTNET=1, STELLAR_NETWORK=testnet)
+  mainnet            Para tudo, compila com --features soroban e sobe em modo Stellar mainnet
+                       (SOROBAN_ENABLED=1, STELLAR_NETWORK=mainnet)
 
 Scope (opcional):
   all       build APICash; se gatebox/gatebox-rust existir (ou GATEBOX_RUST_DIR), opcionalmente sobe Gatebox + APICash
@@ -1189,8 +1375,21 @@ Fluxo típico:
 USAGE
 }
 
-CMD="${1:-restart}"
+CMD="${1:-}"
 SCOPE="${2:-all}"
+
+if [ -z "${CMD}" ]; then
+  printf '\nEscolha o modo de rede:\n  1) testnet\n  2) mainnet\n\n> '
+  read -r _choice
+  case "${_choice}" in
+  1 | testnet) CMD="testnet" ;;
+  2 | mainnet) CMD="mainnet" ;;
+  *)
+    warn "opção inválida: ${_choice}"
+    exit 2
+    ;;
+  esac
+fi
 
 if [ "${CMD}" != "whatsapp-pair" ] && [ "${CMD}" != "open-browsers" ]; then
   case "${SCOPE}" in
@@ -1207,6 +1406,8 @@ run_stop() {
   case "${SCOPE}" in
   all)
     bb_stop_all
+    front_gatebox_stop
+    holdfy_admin_stop
     site_stop_all
     gb_stop_all
     ac_stop_all
@@ -1250,6 +1451,12 @@ run_start() {
     if truthy "${RUNAPP_AUTO_SITE:-1}" && site_present; then
       site_start_all || warn "site (holdy/site) não subiu — ver ${SITE_LOG}/vite.log"
     fi
+    if holdfy_admin_present; then
+      holdfy_admin_start || warn "holdfy-admin não subiu — ver ${HOLDFY_ADMIN_LOG}/holdfy-admin.log"
+    fi
+    if front_gatebox_present; then
+      front_gatebox_start || warn "front-gatebox não subiu — ver ${FRONT_GATEBOX_LOG}/front-gatebox.log"
+    fi
     if [ -d "${BANCO_BE}" ]; then
       bb_start_all || warn "backend_banco não subiu — app Flutter (:8091) falha com connection refused"
     fi
@@ -1287,6 +1494,8 @@ run_status() {
   esac
   case "${SCOPE}" in
   all)
+    holdfy_admin_print_status
+    front_gatebox_print_status
     print_infra_hint
     ;;
   esac
@@ -1306,6 +1515,14 @@ run_logs() {
 }
 
 case "${CMD}" in
+testnet | mainnet)
+  RUNAPP_NETWORK_MODE="${CMD}"
+  ac_setup_whatsapp_qr_dir || true
+  log "modo ${CMD}: stop + build com soroban + start ${SCOPE}"
+  run_stop
+  run_start
+  run_status
+  ;;
 open-browsers)
   ac_setup_whatsapp_qr_dir || true
   runapp_open_startup_browsers || true

@@ -10,6 +10,10 @@ rust-version.workspace = true
 name = "apicash-admin-backend"
 path = "src/main.rs"
 
+[features]
+default = []
+soroban = ["apicash-custody/soroban", "apicash-core/soroban"]
+
 [dependencies]
 apicash-auth = { workspace = true }
 apicash-shared = { workspace = true }

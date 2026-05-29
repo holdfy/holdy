@@ -252,8 +252,13 @@ pub fn extract_tracking_code(body: &str) -> Option<String> {
     {
         return Some(t);
     }
-    // Also accept longer codes (Jadlog, etc.) that are 13-20 alphanumeric chars
-    if t.len() >= 10 && t.len() <= 20 && t.chars().all(|c| c.is_ascii_alphanumeric()) {
+    // Also accept longer codes (Jadlog, etc.) that are 10-20 alphanumeric chars.
+    // Require at least one letter: pure-digit strings of this length are phone numbers, not tracking codes.
+    if t.len() >= 10
+        && t.len() <= 20
+        && t.chars().all(|c| c.is_ascii_alphanumeric())
+        && t.chars().any(|c| c.is_ascii_alphabetic())
+    {
         return Some(t);
     }
     None
