@@ -569,6 +569,37 @@ impl MessageHandler {
         }
     }
 
+    /// Consulta NFS-e com cache em banco. Evita chamar o portal da Receita para o mesmo CPF/CNPJ.
+    async fn lookup_person_cached(
+        &self,
+        document: &str,
+    ) -> (Option<crate::nfse_client::PersonLookup>, crate::nfse_client::LookupStatus) {
+        let digits: String = document.chars().filter(|c| c.is_ascii_digit()).collect();
+
+        if let Some(pool) = &self.pg_pool {
+            if let Some(cached) = crate::wa_contact_store::get_nfse_cache(pool, &digits).await {
+                tracing::info!(doc_len = digits.len(), name = cached.name.as_deref().unwrap_or("?"), "nfse_cache: hit — Receita não consultada");
+                return (Some(cached), crate::nfse_client::LookupStatus::Ok);
+            }
+        }
+
+        let (person, status) = crate::nfse_client::lookup_person(document).await;
+
+        if let (Some(ref p), crate::nfse_client::LookupStatus::Ok) = (&person, &status) {
+            if p.name.is_some() {
+                if let Some(pool) = &self.pg_pool {
+                    let pool = pool.clone();
+                    let p = p.clone();
+                    tokio::spawn(async move {
+                        crate::wa_contact_store::save_nfse_cache(&pool, &p).await;
+                    });
+                }
+            }
+        }
+
+        (person, status)
+    }
+
     /// Nome da Receita Federal — sobrescreve push_name (fonte autoritativa).
     async fn save_peer_contact(&self, peer: &str, document: &str, name: Option<String>, situation: Option<String>) {
         self.save_peer_contact_inner(peer, document, name, situation, true).await;
@@ -670,7 +701,7 @@ impl MessageHandler {
     ) -> Result<(), CoreApiError> {
         draft.seller_document = Some(document.to_string());
         let (seller_person, seller_lookup_status) =
-            crate::nfse_client::lookup_person(document).await;
+            self.lookup_person_cached(document).await;
         let seller_name = seller_person.as_ref().and_then(|p| p.name.clone());
         let seller_situation = seller_person.as_ref().and_then(|p| p.situation.clone());
 
@@ -797,7 +828,7 @@ impl MessageHandler {
         }
 
         let (buyer_person, buyer_lookup_status) =
-            crate::nfse_client::lookup_person(buyer_document).await;
+            self.lookup_person_cached(buyer_document).await;
         let buyer_name: Option<String> = buyer_person.as_ref().and_then(|p| p.name.clone());
         let buyer_situation = buyer_person.as_ref().and_then(|p| p.situation.clone());
 

@@ -302,12 +302,13 @@ impl ScoreRepository for PostgresScoreRepository {
     }
 
     async fn transaction_count(&self, user_id: Uuid, window_hours: u32) -> Result<u32, AntiFraudeError> {
+        // Conta apenas ordens onde dinheiro de facto moveu (não pending_funding = aceito mas não pago).
         let row = sqlx::query(
             r#"
             SELECT COUNT(*)::BIGINT AS n FROM orders
             WHERE buyer_id = $1
               AND created_at > NOW() - ($2::BIGINT * INTERVAL '1 hour')
-              AND status NOT IN ('cancelled', 'failed')
+              AND status IN ('funded', 'in_custody', 'completed')
             "#,
         )
         .bind(user_id)
@@ -320,12 +321,13 @@ impl ScoreRepository for PostgresScoreRepository {
     }
 
     async fn transaction_volume(&self, user_id: Uuid, window_hours: u32) -> Result<Decimal, AntiFraudeError> {
+        // Volume apenas de ordens pagas — pending_funding não representa dinheiro real.
         let row = sqlx::query(
             r#"
             SELECT COALESCE(SUM(amount), 0)::NUMERIC AS total FROM orders
             WHERE buyer_id = $1
               AND created_at > NOW() - ($2::BIGINT * INTERVAL '1 hour')
-              AND status NOT IN ('cancelled', 'failed')
+              AND status IN ('funded', 'in_custody', 'completed')
             "#,
         )
         .bind(user_id)
@@ -340,8 +342,10 @@ impl ScoreRepository for PostgresScoreRepository {
     }
 
     async fn total_transaction_count(&self, user_id: Uuid) -> Result<u32, AntiFraudeError> {
+        // Histórico de transações concluídas — pedidos não pagos não contam.
         let row = sqlx::query(
-            "SELECT COUNT(*)::BIGINT AS n FROM orders WHERE buyer_id = $1",
+            "SELECT COUNT(*)::BIGINT AS n FROM orders
+             WHERE buyer_id = $1 AND status IN ('funded', 'in_custody', 'completed')",
         )
         .bind(user_id)
         .fetch_one(&self.pool)
@@ -354,7 +358,7 @@ impl ScoreRepository for PostgresScoreRepository {
     async fn average_transaction_value(&self, user_id: Uuid) -> Result<Option<Decimal>, AntiFraudeError> {
         let row = sqlx::query(
             "SELECT AVG(amount)::NUMERIC AS avg FROM orders
-             WHERE buyer_id = $1 AND status NOT IN ('cancelled', 'failed')",
+             WHERE buyer_id = $1 AND status IN ('funded', 'in_custody', 'completed')",
         )
         .bind(user_id)
         .fetch_one(&self.pool)
@@ -367,11 +371,11 @@ impl ScoreRepository for PostgresScoreRepository {
     }
 
     async fn account_age_days(&self, user_id: Uuid) -> Result<u32, AntiFraudeError> {
-        // Proxy: days since first order (no separate users table required).
+        // Maturidade baseada na primeira ordem paga — não em criações sem pagamento.
         let row = sqlx::query(
             r#"
             SELECT EXTRACT(DAY FROM NOW() - MIN(created_at))::BIGINT AS age
-            FROM orders WHERE buyer_id = $1
+            FROM orders WHERE buyer_id = $1 AND status IN ('funded', 'in_custody', 'completed')
             "#,
         )
         .bind(user_id)

@@ -276,6 +276,29 @@
       </tbody>
     </table>
 
+    <h2>Comandos de manutenção do banco (APICash)</h2>
+    <table>
+      <thead><tr><th>Descrição</th><th>Comando</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Mover pedido para fora da janela de 24h (antifraude)<br><small>Substitua o UUID pelo <code>id</code> do pedido</small></td>
+          <td><code>docker exec -i $(docker ps --format '{{.Names}}' | grep -i postgres | grep -v gatebox | head -1) psql -U apicash -d apicash -c "UPDATE orders SET created_at = NOW() - INTERVAL '48 hours' WHERE id = '&lt;ORDER_UUID&gt;';"</code></td>
+        </tr>
+        <tr>
+          <td>⚠️ Mover <strong>todos</strong> os pedidos para fora da janela de antifraude (dev/reset)<br><small>Útil para zerar o histórico de volume/velocidade sem apagar dados</small></td>
+          <td><code>docker exec -i $(docker ps --format '{{.Names}}' | grep -i postgres | grep -v gatebox | head -1) psql -U apicash -d apicash -c "UPDATE orders SET created_at = created_at - INTERVAL '48 hours';"</code></td>
+        </tr>
+        <tr>
+          <td>Marcar pedidos pendentes de um comprador como concluídos<br><small>Substitua o UUID pelo <code>buyer_id</code></small></td>
+          <td><code>docker exec -i $(docker ps --format '{{.Names}}' | grep -i postgres | grep -v gatebox | head -1) psql -U apicash -d apicash -c "UPDATE orders SET status = 'completed' WHERE buyer_id = '&lt;BUYER_UUID&gt;' AND status = 'pending_funding';"</code></td>
+        </tr>
+        <tr>
+          <td>Listar pedidos de um comprador</td>
+          <td><code>docker exec -i $(docker ps --format '{{.Names}}' | grep -i postgres | grep -v gatebox | head -1) psql -U apicash -d apicash -c "SELECT id, amount, status, created_at FROM orders WHERE buyer_id = '&lt;BUYER_UUID&gt;' ORDER BY created_at;"</code></td>
+        </tr>
+      </tbody>
+    </table>
+
     <h2>Segredos globais (money/.env)</h2>
     <table>
       <thead><tr><th>Variável</th><th>Valor exemplo (dev)</th></tr></thead>

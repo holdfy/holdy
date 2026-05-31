@@ -1,7 +1,58 @@
-//! Persistência de contatos WhatsApp (peer_key → nome + CPF/CNPJ).
+//! Persistência de contatos WhatsApp (peer_key → nome + CPF/CNPJ)
+//! e cache de consultas NFS-e (document → nome + situação).
 
 use sqlx::PgPool;
 use uuid::Uuid;
+
+// ─── Cache NFS-e (Receita Federal) ───────────────────────────────────────────
+
+/// Retorna dados cacheados da Receita Federal para um CPF/CNPJ (só dígitos).
+/// Retorna `None` se não houver cache ou se o cache não tiver nome.
+pub async fn get_nfse_cache(
+    pool: &PgPool,
+    document_digits: &str,
+) -> Option<crate::nfse_client::PersonLookup> {
+    use sqlx::Row;
+    let row = sqlx::query(
+        "SELECT document, document_type, name, situation
+         FROM nfse_document_cache WHERE document = $1 AND name IS NOT NULL",
+    )
+    .bind(document_digits)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()?;
+
+    let doc_label: &'static str = if document_digits.len() == 11 { "CPF" } else { "CNPJ" };
+    Some(crate::nfse_client::PersonLookup {
+        document_digits: document_digits.to_string(),
+        document_label: doc_label,
+        name: row.try_get::<Option<String>, _>("name").ok().flatten(),
+        situation: row.try_get::<Option<String>, _>("situation").ok().flatten(),
+    })
+}
+
+/// Grava resultado de consulta NFS-e no cache. Só persiste quando há nome.
+pub async fn save_nfse_cache(pool: &PgPool, person: &crate::nfse_client::PersonLookup) {
+    if person.name.is_none() {
+        return;
+    }
+    let doc_type = if person.document_digits.len() == 11 { "cpf" } else { "cnpj" };
+    let _ = sqlx::query(
+        "INSERT INTO nfse_document_cache (document, document_type, name, situation)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (document) DO UPDATE SET
+             name      = EXCLUDED.name,
+             situation = COALESCE(EXCLUDED.situation, nfse_document_cache.situation),
+             cached_at = NOW()",
+    )
+    .bind(&person.document_digits)
+    .bind(doc_type)
+    .bind(&person.name)
+    .bind(&person.situation)
+    .execute(pool)
+    .await;
+}
 
 #[derive(Debug, Clone)]
 pub struct WaContact {
