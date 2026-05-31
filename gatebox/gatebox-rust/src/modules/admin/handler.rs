@@ -20,7 +20,7 @@ use crate::core::pix_principal::{PixPrincipalService, SendPixRequest};
 use crate::customer::CustomerService;
 use crate::customer_status_types::CustomerStatusTypesService;
 use crate::model::{Customer, Partners, WebhookManager};
-use crate::modules::shared::auth::{create_token, create_refresh_token, rotate_refresh_token, AdminAuth};
+use crate::modules::shared::auth::{create_token, create_refresh_token, rotate_refresh_token, verify_password, AdminAuth};
 use crate::partners::PartnersService;
 use crate::transaction::TransactionService;
 use crate::webhook_manager::WebhookManagerService;
@@ -710,22 +710,6 @@ impl IntoResponse for AppError {
             AppError::Partners(e) => e.into_response(),
             AppError::WebhookManager(e) => e.into_response(),
             AppError::Transaction(e) => e.into_response(),
-        }
-    }
-}
-
-/// Verifies a password against a stored hash (bcrypt) or falls back to plaintext comparison
-/// for accounts not yet migrated. Logs a warning for plaintext matches to track migration progress.
-fn verify_password(provided: &str, stored: &str) -> bool {
-    if stored.starts_with("$2b$") || stored.starts_with("$2a$") {
-        bcrypt::verify(provided, stored).unwrap_or(false)
-    } else {
-        // Legacy plaintext — accept but warn; rehash on next password change
-        if stored == provided {
-            tracing::warn!("login: plaintext password matched — account should be migrated to bcrypt");
-            true
-        } else {
-            false
         }
     }
 }

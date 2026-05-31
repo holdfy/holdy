@@ -8,10 +8,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_banco/src/app.dart';
+import 'package:app_banco/src/app_branding.dart';
 
 void main() {
-  testWidgets('renderiza Developer Bank', (WidgetTester tester) async {
+  testWidgets('renderiza titulo do app', (WidgetTester tester) async {
     await tester.pumpWidget(const BancoSaczuckApp());
-    expect(find.text('Developer Bank'), findsOneWidget);
+    expect(find.text(appBarTitle), findsOneWidget);
   });
 }

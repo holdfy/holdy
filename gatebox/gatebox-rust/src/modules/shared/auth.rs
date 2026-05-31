@@ -42,6 +42,26 @@ fn jwt_secret() -> Vec<u8> {
     env::var("JWT_SECRET").unwrap_or_else(|_| "default-secret-change-in-production".to_string()).into_bytes()
 }
 
+/// Verifica senha contra hash bcrypt ($2a$/$2b$/$2y$) ou texto legado (dev).
+pub fn verify_password(provided: &str, stored: &str) -> bool {
+    if stored.starts_with("$2b$") || stored.starts_with("$2a$") || stored.starts_with("$2y$") {
+        if bcrypt::verify(provided, stored).unwrap_or(false) {
+            return true;
+        }
+        // Seed antigo: placeholders tipo $2a$10$hash123 — aceitar se o utilizador colar o valor guardado
+        if stored.contains("$hash") && provided == stored {
+            tracing::warn!("login: senha placeholder legada do seed — execute db/patch-dev-auth-passwords.sql");
+            return true;
+        }
+        return false;
+    }
+    if stored == provided {
+        tracing::warn!("login: senha em texto legado — migrar para bcrypt");
+        return true;
+    }
+    false
+}
+
 /// Builds a short-lived (24h) access JWT.
 pub fn create_token(user_id: i32, username: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
     let now = now_unix();

@@ -626,20 +626,25 @@ runapp_open_startup_browsers() {
 
   qr_url="$(ac_whatsapp_qr_file_url 2>/dev/null)" || qr_url=""
 
-  if [ -z "${qr_url}" ] && [ -z "${site_url}" ]; then
-    return 0
+  if [ -n "${qr_url}" ] || [ -n "${site_url}" ]; then
+    log "abrindo QR WhatsApp + site no browser (2 abas)"
+    runapp_open_two_browser_tabs "${qr_url}" "${site_url}"
   fi
-
-  log "abrindo QR WhatsApp + site no browser (2 abas)"
-  runapp_open_two_browser_tabs "${qr_url}" "${site_url}"
 
   if holdfy_admin_present; then
     local admin_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
     runapp_open_in_browser "holdfy-admin" "${admin_url}" || true
   fi
   if front_gatebox_present; then
-    local fg_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${FRONT_GATEBOX_PORT}/"
-    runapp_open_in_browser "front-gatebox" "${fg_url}" || true
+    local fg_base="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${FRONT_GATEBOX_PORT}"
+    log "abrindo GateBox portal"
+    runapp_open_in_browser "GateBox" "${fg_base}/" || true
+  fi
+
+  local dev_dash="${MONEY}/../dev-dashboard.html"
+  if [ -f "${dev_dash}" ]; then
+    dev_dash="$(cd "$(dirname "${dev_dash}")" && pwd)/$(basename "${dev_dash}")"
+    runapp_open_in_browser "referência dev Holdfy" "file://${dev_dash}" || true
   fi
 
   if [ -n "${qr_url}" ]; then
@@ -857,6 +862,9 @@ gb_start_all() {
   }
   command -v curl >/dev/null 2>&1 && curl_ok=1
 
+  # Sobe o simulador Sulcred antes do Gatebox (Gatebox precisa dele para gerar QR PIX)
+  sulcred_start || true
+
   gb_stop_all || true
 
   bin="${root}/target/release/gatebox-rust"
@@ -939,6 +947,110 @@ gb_logs_all() {
   mkdir -p "${GB_LOG}"
   log "following Gatebox Rust log; Ctrl+C to stop"
   tail -n 80 -F "${GB_LOG}/gatebox-rust.log" 2>/dev/null || touch "${GB_LOG}/gatebox-rust.log"
+}
+
+# -----------------------------------------------------------------------------
+# Sulcred — simulador do gateway PIX (porta 7020)
+# Necessário para que o Gatebox gere QR Codes PIX reais no rail `simulated`.
+# -----------------------------------------------------------------------------
+
+SIM_LOG="${MONEY}/.runapp/sulcred"
+SIM_PID="${SIM_LOG}/sulcred.pid"
+mkdir -p "${SIM_LOG}"
+
+sulcred_dir() {
+  local candidates=(
+    "${MONEY}/../gatebox/simulador_rust/sulcred"
+    "${MONEY}/gatebox/simulador_rust/sulcred"
+    "/home/devel/git/pos-nearx/gatebox/simulador_rust/sulcred"
+  )
+  local d
+  for d in "${candidates[@]}"; do
+    if [ -f "${d}/Cargo.toml" ]; then
+      (cd "${d}" && pwd)
+      return 0
+    fi
+  done
+  return 1
+}
+
+sulcred_stop() {
+  log "stopping sulcred simulator"
+  if [ -f "${SIM_PID}" ]; then
+    local pid
+    pid="$(tr -d '[:space:]' <"${SIM_PID}" 2>/dev/null || true)"
+    if [ -n "${pid:-}" ] && kill -0 "${pid}" 2>/dev/null; then
+      kill "${pid}" 2>/dev/null || true
+      sleep 0.5
+    fi
+    rm -f "${SIM_PID}"
+  fi
+  pkill -f "target/release/sulcred" 2>/dev/null || true
+  pkill -f "target/debug/sulcred"   2>/dev/null || true
+}
+
+sulcred_start() {
+  local root ws_root
+  root="$(sulcred_dir 2>/dev/null)" || {
+    warn "Sulcred simulator não encontrado — Gatebox não conseguirá gerar QR PIX (rail simulated)"
+    return 0
+  }
+  # simulador_rust é um workspace; o binário vai para workspace/target, não para crate/target
+  ws_root="$(dirname "${root}")"
+
+  command -v cargo >/dev/null 2>&1 || {
+    warn "cargo ausente — não é possível iniciar Sulcred"
+    return 1
+  }
+
+  sulcred_stop || true
+
+  local bin="${ws_root}/target/release/sulcred"
+  if [[ "${SKIP_BUILD:-0}" != "1" ]] || [[ ! -x "${bin}" ]]; then
+    log "building sulcred simulator (cargo release)"
+    (cd "${root}" && cargo build --release -p sulcred) || {
+      warn "cargo build sulcred falhou"
+      return 1
+    }
+  fi
+
+  [[ -x "${bin}" ]] || {
+    warn "binário sulcred não encontrado após build: ${bin}"
+    return 1
+  }
+
+  log "starting sulcred simulator (PORT=7020, logs ${SIM_LOG}/sulcred.log)"
+  (
+    set -a
+    [ -f "${MONEY}/.env" ] && . "${MONEY}/.env"
+    set +a
+    export PORT=7020
+    exec "${bin}"
+  ) >>"${SIM_LOG}/sulcred.log" 2>&1 &
+
+  printf '%s\n' $! >"${SIM_PID}"
+  sleep 0.5
+  if kill -0 "$(cat "${SIM_PID}" 2>/dev/null)" 2>/dev/null; then
+    log "Sulcred simulator OK (porta 7020)"
+  else
+    warn "Sulcred simulator falhou ao iniciar — ver ${SIM_LOG}/sulcred.log"
+  fi
+}
+
+sulcred_print_status() {
+  local port=7020
+  printf '\n== Sulcred Simulator (gateway PIX mock) — PORT=%s ==\n' "${port}"
+  if ! sulcred_dir >/dev/null 2>&1; then
+    printf '  (diretório sulcred não encontrado)\n'
+    return 0
+  fi
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 1 "http://127.0.0.1:${port}/health" 2>/dev/null || true)"
+    printf '  http health=%s  pid=%s  log=%s/sulcred.log\n' "${code:-000}" "${SIM_PID}" "${SIM_LOG}"
+  else
+    printf '  pid=%s  (curl ausente para health-check)\n' "${SIM_PID}"
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -1299,8 +1411,10 @@ front_gatebox_start() {
   log "starting front-gatebox (CRA via $(basename "${pm_bin}"), port ${FRONT_GATEBOX_PORT}, logs ${FRONT_GATEBOX_LOG}/front-gatebox.log)"
   (
     cd "${FRONT_GATEBOX_ROOT}"
+    ac_load_env 2>/dev/null || true
     export PORT="${FRONT_GATEBOX_PORT}"
     export BROWSER=none
+    export REACT_APP_API_BASE_URL="${REACT_APP_API_BASE_URL:-http://${RUNAPP_LOOPBACK:-127.0.0.1}:${GB_API_PORT:-8081}/api/v1}"
     exec "${pm_bin}" run start
   ) >>"${FRONT_GATEBOX_LOG}/front-gatebox.log" 2>&1 &
   printf '%s\n' $! >"${FRONT_GATEBOX_LOG}/front-gatebox.pid"
@@ -1393,7 +1507,7 @@ fi
 
 if [ "${CMD}" != "whatsapp-pair" ] && [ "${CMD}" != "open-browsers" ]; then
   case "${SCOPE}" in
-  all | apicash | gatebox | banco | site) ;;
+  all | apicash | gatebox | banco | site | sulcred) ;;
   *)
     warn "scope inválido: ${SCOPE}"
     usage
@@ -1410,10 +1524,12 @@ run_stop() {
     holdfy_admin_stop
     site_stop_all
     gb_stop_all
+    sulcred_stop
     ac_stop_all
     ;;
   apicash) ac_stop_all ;;
-  gatebox) gb_stop_all ;;
+  gatebox) gb_stop_all; sulcred_stop ;;
+  sulcred) sulcred_stop ;;
   banco) bb_stop_all ;;
   site) site_stop_all ;;
   esac
@@ -1468,7 +1584,11 @@ run_start() {
     ac_start_all
     ;;
   gatebox)
+    sulcred_start || true
     gb_start_all || return 1
+    ;;
+  sulcred)
+    sulcred_start || return 1
     ;;
   banco)
     bb_start_all || return 1
@@ -1482,6 +1602,9 @@ run_start() {
 run_status() {
   case "${SCOPE}" in
   all | apicash) ac_print_status ;;
+  esac
+  case "${SCOPE}" in
+  all | gatebox | sulcred) sulcred_print_status ;;
   esac
   case "${SCOPE}" in
   all | gatebox) gb_print_status ;;

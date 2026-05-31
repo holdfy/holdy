@@ -123,11 +123,12 @@ INSERT INTO type_external_types (id, code, description) VALUES (1, 'IN', 'Incomi
 INSERT INTO type_external_types (id, code, description) VALUES (2, 'OUT', 'Outgoing');
 
 -- AUTHENTICATION (Usuários e Credenciais)
+-- Senhas dev (bcrypt): admin_gateway/admin_company → admin · customer1 → customer1 · customer2 → customer2
 INSERT INTO authentication (id, name, username, password, type_auth_id, active, force_reset) VALUES
-  (1, 'Admin Gateway', 'admin_gateway', '$2a$10$hash123', 2, true, false),
-  (2, 'Admin Company', 'admin_company', '$2a$10$hash456', 2, true, false),
-  (3, 'Customer Test 1', 'customer1', '$2a$10$hash789', 1, true, false),
-  (4, 'Customer Test 2', 'customer2', '$2a$10$hash999', 1, true, false)
+  (1, 'Admin Gateway', 'admin_gateway', '$2y$10$ZZGs12LC0gZ.TulY3ZS7AeTjFc/rfQhXYvWkA/sbHdMUW0XnC/qTC', 2, true, false),
+  (2, 'Admin Company', 'admin_company', '$2y$10$ZZGs12LC0gZ.TulY3ZS7AeTjFc/rfQhXYvWkA/sbHdMUW0XnC/qTC', 2, true, false),
+  (3, 'Customer Test 1', 'customer1', '$2y$10$bxhdVlwL8.eCzhq1KV7cc.IU9AYbo/uvf.VwVi7kvucFero.0eo0S', 1, true, false),
+  (4, 'Customer Test 2', 'customer2', '$2y$10$cdvgcjsRliRoKOgWdeEeIuh3h52Bj7//tInDkSLMMlqB8iH35Ab7.', 1, true, false)
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('authentication_id_seq', (SELECT MAX(id) FROM authentication), true);

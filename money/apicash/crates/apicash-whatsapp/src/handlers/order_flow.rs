@@ -157,14 +157,41 @@ pub fn parse_cpf(s: &str) -> Option<String> {
     }
 }
 
-/// Aceita CPF (11 dígitos) ou CNPJ (14 dígitos). Retorna os dígitos extraídos.
+/// Aceita CPF (11 dígitos) ou CNPJ (14 dígitos).
+/// Normaliza: remove máscara (pontos, traços, barras, espaços).
+/// Se o texto tiver outros números (telefone, valor), tenta isolar
+/// o bloco de dígitos com separadores `. - /` que totalize 11 ou 14 dígitos.
 pub fn parse_document(s: &str) -> Option<String> {
-    let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
-    if digits.len() == 11 || digits.len() == 14 {
-        Some(digits)
-    } else {
-        None
+    // Fast path: strip all non-digits — cobre "123.456.789-09", "cpf: 123...", etc.
+    let all_digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
+    if all_digits.len() == 11 || all_digits.len() == 14 {
+        return Some(all_digits);
     }
+
+    // Slow path: texto misto com outros números (ex.: telefone + cpf na mesma frase).
+    // Varre blocos contíguos de dígitos e separadores típicos de doc fiscal (. - /).
+    let chars: Vec<char> = s.chars().collect();
+    let n = chars.len();
+    let mut i = 0;
+    while i < n {
+        if !chars[i].is_ascii_digit() {
+            i += 1;
+            continue;
+        }
+        let mut buf = String::new();
+        let mut j = i;
+        while j < n && (chars[j].is_ascii_digit() || matches!(chars[j], '.' | '-' | '/')) {
+            if chars[j].is_ascii_digit() {
+                buf.push(chars[j]);
+            }
+            j += 1;
+        }
+        if buf.len() == 11 || buf.len() == 14 {
+            return Some(buf);
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Retorna `true` se o texto parece uma PF (CPF = 11 dígitos).

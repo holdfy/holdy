@@ -1068,16 +1068,46 @@ impl MessageHandler {
                     )
                     .await?;
                 } else {
-                    session.state = OrderFlowState::AwaitingBuyerDocument {
-                        seller_peer_key,
-                        amount,
-                        description,
-                    };
-                    session.touch();
-                    self.sessions.update(&peer, session).await;
-                    self.outbound
-                        .send_text(&peer, message_templates::invalid_document())
-                        .await;
+                    const MAX_DOC_ATTEMPTS: u32 = 5;
+                    let attempt = session.bump_invalid();
+                    session.last_activity_at = Utc::now();
+
+                    if attempt >= MAX_DOC_ATTEMPTS {
+                        let spk = seller_peer_key.clone();
+                        session.reset_flow();
+                        self.sessions.update(&peer, session).await;
+                        // Libera também o vendedor se ainda estiver em WaitingBuyerAccept
+                        let mut seller_s = self.sessions.session_for(&spk).await;
+                        if matches!(
+                            seller_s.state,
+                            OrderFlowState::CreatingOrder {
+                                step: CreatingOrderStep::WaitingBuyerAccept,
+                                ..
+                            }
+                        ) {
+                            seller_s.reset_flow();
+                            self.sessions.update(&spk, seller_s).await;
+                            self.outbound
+                                .send_text(&spk, "Comprador não conseguiu enviar o CPF/CNPJ. Pedido cancelado.")
+                                .await;
+                        }
+                        self.outbound
+                            .send_text(&peer, message_templates::invalid_document_too_many_attempts())
+                            .await;
+                    } else {
+                        session.state = OrderFlowState::AwaitingBuyerDocument {
+                            seller_peer_key,
+                            amount,
+                            description,
+                        };
+                        self.sessions.update(&peer, session).await;
+                        self.outbound
+                            .send_text(
+                                &peer,
+                                &message_templates::invalid_document_retry(attempt, MAX_DOC_ATTEMPTS),
+                            )
+                            .await;
+                    }
                 }
             }
             OrderFlowState::AwaitingPayment {

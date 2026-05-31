@@ -1,4 +1,5 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
+use std::collections::HashMap;
 
 use axum::{
     extract::State,
@@ -15,11 +16,16 @@ use tracing::{info, warn};
 use crate::bank_bridge::whatsapp_notify;
 use crate::transaction::TransactionRepository;
 
+/// Cache compartilhado: emv_stub_charge_id → order reference original ("order:{uuid}").
+/// Populado pelo handler de geração de QR (Sulcred); consumido pelo notify_status.
+pub type QrRefCache = Arc<RwLock<HashMap<String, String>>>;
+
 /// Bearer esperado pelo banco (`GATEBOX_API_KEY` no `backend_banco`). Sobrescrever com `GATEBOX_BANK_BRIDGE_API_KEY`.
 #[derive(Clone)]
 pub struct BankBridgeState {
     pub api_key: String,
     pub tx_repo: Arc<dyn TransactionRepository>,
+    pub qr_cache: QrRefCache,
 }
 
 #[derive(Debug, Deserialize)]
@@ -302,7 +308,18 @@ async fn notify_status(
             }
         }
 
-        if let Some(reference) = whatsapp_notify::payment_reference_for_notify(&body.charge_id) {
+        // Resolve a referência original (order:uuid) a partir do emv_hash via cache.
+        let effective_ref = if body.charge_id.starts_with("sandbox-emv-") {
+            state
+                .qr_cache
+                .read()
+                .ok()
+                .and_then(|c| c.get(&body.charge_id).cloned())
+                .unwrap_or_else(|| body.charge_id.clone())
+        } else {
+            body.charge_id.clone()
+        };
+        if let Some(reference) = whatsapp_notify::payment_reference_for_notify(&effective_ref) {
             whatsapp_notify::spawn_whatsapp_payment_notify(reference);
         }
     }

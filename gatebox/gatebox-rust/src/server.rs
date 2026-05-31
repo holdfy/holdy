@@ -684,9 +684,13 @@ impl App {
             app_log_repo: Some(app_log_repo.clone()),
             login_limiter: admin::LoginRateLimiter::new(),
         };
+        let qr_cache_early: gatebox_rust::bank_bridge::QrRefCache =
+            Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+
         let pix_principal_state = gatebox_rust::core::pix_principal::PixPrincipalState {
             service: pix_principal_svc.clone(),
             webhook_service: Some(webhook_svc.clone()),
+            qr_cache: qr_cache_early.clone(),
         };
         let p2p_svc: Arc<dyn gatebox_rust::p2p::P2PService> = Arc::new(
             gatebox_rust::p2p::P2PServiceImpl::new(
@@ -709,6 +713,7 @@ impl App {
                 .or_else(|_| std::env::var("GATEBOX_API_KEY"))
                 .unwrap_or_else(|_| "sandbox-key".into()),
             tx_repo: transaction_repo.clone(),
+            qr_cache: qr_cache_early.clone(),
         };
 
         let api = Router::new()

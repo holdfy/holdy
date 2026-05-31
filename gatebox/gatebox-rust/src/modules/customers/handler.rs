@@ -9,7 +9,7 @@ use crate::authentication::AuthenticationService;
 use crate::core::pix_principal::{
     GenerateQrCodeRequest, PixPrincipalService, PixWebhookService, SendPixRequest, SendReversalRequest,
 };
-use crate::modules::shared::auth::create_token;
+use crate::modules::shared::auth::{create_token, verify_password};
 use crate::modules::shared::CustomerAuth;
 
 use crate::p2p::P2PService;
@@ -97,17 +97,7 @@ async fn auth_login(
     if !auth.active {
         return Err((axum::http::StatusCode::UNAUTHORIZED, "account inactive".to_string()));
     }
-    let password_ok = if auth.password.starts_with("$2b$") || auth.password.starts_with("$2a$") {
-        bcrypt::verify(&password, &auth.password).unwrap_or(false)
-    } else {
-        if auth.password == password {
-            tracing::warn!("customer login: plaintext password matched — account should be migrated to bcrypt");
-            true
-        } else {
-            false
-        }
-    };
-    if !password_ok {
+    if !verify_password(&password, &auth.password) {
         return Err((axum::http::StatusCode::UNAUTHORIZED, "invalid credentials".to_string()));
     }
     let token = create_token(auth.id as i32, &auth.username, "customer")

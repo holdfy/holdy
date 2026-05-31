@@ -20,6 +20,7 @@ import {
 import { AuthProvider, useAuth } from "context/AuthContext";
 import { SnackbarProvider } from "context/SnackbarContext";
 import ProtectedRoute from "components/ProtectedRoute";
+import PortalIndex from "layouts/portal/PortalIndex";
 import brandWhite from "assets/images/logo-ct.png";
 import brandDark from "assets/images/logo-ct-dark.png";
 import {
@@ -45,7 +46,7 @@ function AppContent() {
   const { pathname } = useLocation();
   const { profile, isAuthenticated } = useAuth();
 
-  const isPublicRoute = pathname === "/customer/login" || pathname === "/admin/login" || pathname === "/backoffice/login" || pathname === "/verify";
+  const isPublicRoute = pathname === "/" || pathname === "/customer/login" || pathname === "/admin/login" || pathname === "/backoffice/login" || pathname === "/verify";
   const showSidenav = isAuthenticated() && !isPublicRoute;
   const sidenavRoutes = getSidenavRoutes(profile);
 
@@ -69,6 +70,27 @@ function AppContent() {
     document.documentElement.scrollTop = 0;
     document.scrollingElement.scrollTop = 0;
   }, [pathname]);
+
+  useEffect(() => {
+    const loginPaths = {
+      "/": "GateBox — Acesso",
+      "/customer/login": "GateBox — Login Cliente",
+      "/admin/login": "GateBox — Login Admin",
+      "/backoffice/login": "GateBox — Login Backoffice",
+      "/verify": "GateBox — Verificação",
+    };
+    if (loginPaths[pathname]) {
+      document.title = loginPaths[pathname];
+    } else if (profile === "admin") {
+      document.title = "GateBox — Admin";
+    } else if (profile === "backoffice") {
+      document.title = "GateBox — Backoffice";
+    } else if (profile === "customer") {
+      document.title = "GateBox — Cliente";
+    } else {
+      document.title = "GateBox";
+    }
+  }, [pathname, profile]);
 
   const configsButton = showSidenav ? (
     <MDBox
@@ -146,8 +168,8 @@ function AppContent() {
             }
           />
         ))}
-        <Route path="/" element={<Navigate to="/customer/login" replace />} />
-        <Route path="*" element={<Navigate to="/customer/login" replace />} />
+        <Route path="/" element={<PortalIndex />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ThemeProvider>
   );

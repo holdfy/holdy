@@ -80,7 +80,11 @@ pub const THRESHOLD_LOW_MIN: u32 = 750;
 pub const THRESHOLD_MEDIUM_MIN: u32 = 500;
 pub const THRESHOLD_HIGH_MIN: u32 = 250;
 pub const DECISION_APPROVE_MIN: u32 = 650;
-pub const DECISION_REVIEW_MIN: u32 = POINTS_CPF_REGULAR as u32;
+/// Review threshold fixo (300): CPF válido com 1 penalidade menor ainda passa para Review.
+/// Anterior era POINTS_CPF_REGULAR (350), o que bloqueava qualquer penalidade em usuário novo.
+pub const DECISION_REVIEW_MIN: u32 = 300;
+/// ValueAnomaly só aplica com histórico mínimo de 5 transações — evita falso positivo em usuários novos.
+pub const VALUE_ANOMALY_MIN_TX: u32 = 5;
 
 pub struct ScoreCalculator;
 
@@ -237,19 +241,21 @@ impl ScoreCalculator {
                 });
             }
 
-            // Value anomaly: current amount ≥ 3× historical average
-            if let Some(ref avg) = ctx.avg_tx_value {
-                if !avg.is_zero() {
-                    // ratio_pct: e.g. current=350, avg=100 → ratio_pct=350 (350%)
-                    let ratio_pct = (amt / avg * Decimal::from(100u32))
-                        .to_u64_saturating() as u32;
-                    // VALUE_ANOMALY_RATIO = 300 means "3× average = 300%"
-                    if ratio_pct >= VALUE_ANOMALY_RATIO {
-                        raw += PENALTY_VALUE_ANOMALY;
-                        factors.push(RiskFactor::ValueAnomaly {
-                            ratio_pct,
-                            weight: PENALTY_VALUE_ANOMALY,
-                        });
+            // Value anomaly: current amount ≥ 3× historical average.
+            // Requer ao menos VALUE_ANOMALY_MIN_TX transações históricas — evita falso
+            // positivo em usuário novo cujo 2º pedido seja maior que o 1º.
+            if ctx.tx_count_total >= VALUE_ANOMALY_MIN_TX {
+                if let Some(ref avg) = ctx.avg_tx_value {
+                    if !avg.is_zero() {
+                        let ratio_pct = (amt / avg * Decimal::from(100u32))
+                            .to_u64_saturating() as u32;
+                        if ratio_pct >= VALUE_ANOMALY_RATIO {
+                            raw += PENALTY_VALUE_ANOMALY;
+                            factors.push(RiskFactor::ValueAnomaly {
+                                ratio_pct,
+                                weight: PENALTY_VALUE_ANOMALY,
+                            });
+                        }
                     }
                 }
             }

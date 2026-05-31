@@ -11,11 +11,13 @@ use crate::core::pix_principal::webhook_service::{
     PixWebhookService, ReceivePixInRequest, ReceivePixInResponse, ReceivePixOutRequest,
     ReceivePixOutResponse,
 };
+use crate::bank_bridge::QrRefCache;
 
 #[derive(Clone)]
 pub struct PixPrincipalState {
     pub service: std::sync::Arc<dyn PixPrincipalService>,
     pub webhook_service: Option<std::sync::Arc<dyn PixWebhookService>>,
+    pub qr_cache: QrRefCache,
 }
 
 pub fn register(state: PixPrincipalState) -> Router {
@@ -57,21 +59,39 @@ async fn generate_qrcode(
     State(state): State<PixPrincipalState>,
     Json(body): Json<QrCodeBody>,
 ) -> Result<Json<GenerateQrCodeResponse>, (axum::http::StatusCode, String)> {
+    let reference = body.reference.clone().unwrap_or_default();
     let req = GenerateQrCodeRequest {
         amount: body.amount,
         payer_name: body.payer_name.unwrap_or_default(),
         payer_document: body.payer_document.unwrap_or_default(),
         description: body.description.unwrap_or_default(),
         expiration_seconds: body.expiration_seconds.unwrap_or(1800),
-        reference: body.reference.unwrap_or_default(),
+        reference: reference.clone(),
         pix_key: body.pix_key,
     };
-    state
+    let resp = state
         .service
         .generate_qr_code(req)
         .await
-        .map(Json)
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Se o QR retornado é um BR Code EMV real (Sulcred), armazena emv_hash → reference
+    // para que notify_status possa resolver o order:uuid original.
+    if !reference.is_empty() && resp.qr_code.starts_with("000201") {
+        let emv_hash = emv_stub_charge_id(&resp.qr_code);
+        if let Ok(mut cache) = state.qr_cache.write() {
+            cache.insert(emv_hash, reference);
+        }
+    }
+
+    Ok(Json(resp))
+}
+
+fn emv_stub_charge_id(reference: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(reference.as_bytes());
+    format!("sandbox-emv-{}", hex::encode(&h.finalize()[..10]))
 }
 
 async fn receive_pix_in(

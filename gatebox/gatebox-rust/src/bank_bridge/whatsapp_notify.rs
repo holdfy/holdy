@@ -2,7 +2,11 @@
 
 use tracing::{info, warn};
 
-/// `charge_id` no formato `order_{uuid}` ou referência completa `GATEBOXRUST:QR|…`.
+/// Extrai referência de pagamento para notificar o WhatsApp.
+/// Aceita:
+///   - `GATEBOXRUST:QR|…` — formato sintético direto
+///   - `order_{uuid}`     — referência com underscore (stub)
+///   - `order:{uuid}`     — referência com dois-pontos (memo do APICash via Sulcred)
 pub fn payment_reference_for_notify(charge_id: &str) -> Option<String> {
     let cid = charge_id.trim();
     if cid.is_empty() {
@@ -13,6 +17,10 @@ pub fn payment_reference_for_notify(charge_id: &str) -> Option<String> {
     }
     if cid.starts_with("order_") {
         return Some(format!("GATEBOXRUST:QR|{cid}|0"));
+    }
+    // memo do APICash: "order:{uuid}" — normaliza para o formato esperado pelo WhatsApp service
+    if let Some(uuid) = cid.strip_prefix("order:") {
+        return Some(format!("GATEBOXRUST:QR|order_{uuid}|0"));
     }
     None
 }

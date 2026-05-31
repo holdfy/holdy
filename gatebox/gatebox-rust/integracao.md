@@ -11,7 +11,7 @@ Opção A (recomendada): rotas “Customers” com JWT
 Login (gera token Bearer)
 POST /api/v1/customers/auth/login
 Request JSON:
-{ "username": "customer1", "password": "$2a$10$hash789" }
+{ "username": "customer1", "password": "customer1" }
 Response JSON:
 
 { "accessToken": "<jwt>", "tokenType": "Bearer" }
@@ -120,7 +120,7 @@ Exemplos de chamadas (para você usar em testes manuais)
 Login
 curl -sS -X POST "http://localhost:8080/api/v1/customers/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"customer1","password":"$2a$10$hash789"}'
+  -d '{"username":"customer1","password":"customer1"}'
 QR Code (com token)
 curl -sS -X POST "http://localhost:8080/api/v1/customers/pix/qrcode" \
   -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" \

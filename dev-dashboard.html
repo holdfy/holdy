@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Holdfy — referência dev</title>
+  <style>
+    :root {
+      --paper: #f6f3ec;
+      --ink: #1a1814;
+      --muted: #5c564c;
+      --line: #d4cfc4;
+      --accent: #9a3412;
+      --accent-soft: #fef3e8;
+      --code-bg: #ebe6dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.55 "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.75rem 4rem; }
+    header {
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      margin: 0 0 0.35rem;
+      font: 600 1.85rem/1.2 Georgia, "Times New Roman", serif;
+      letter-spacing: -0.02em;
+    }
+    .meta { color: var(--muted); font-size: 0.9rem; }
+    h2 {
+      margin: 2.25rem 0 0.75rem;
+      font: 600 1.15rem/1.3 Georgia, serif;
+      color: var(--accent);
+      padding-left: 0.65rem;
+      border-left: 4px solid var(--accent);
+    }
+    h3 {
+      margin: 1.25rem 0 0.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    p.lead { margin: 0 0 1rem; color: var(--muted); max-width: 72ch; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 1rem;
+      font-size: 0.92rem;
+      background: #fffefb;
+      box-shadow: 0 1px 0 var(--line);
+    }
+    th, td {
+      text-align: left;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th {
+      background: var(--accent-soft);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+    }
+    tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
+    code {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.88em;
+      background: var(--code-bg);
+      padding: 0.1em 0.35em;
+      border-radius: 2px;
+      word-break: break-all;
+    }
+    .ips {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    .ip-card {
+      background: #fffefb;
+      border: 1px solid var(--line);
+      padding: 0.85rem 1rem;
+    }
+    .ip-card strong {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .ip-card span {
+      font-family: ui-monospace, monospace;
+      font-size: 1.05rem;
+    }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Holdfy — referência de desenvolvimento</h1>
+      <p class="meta">Sandbox · valores de <code>money/.env.example</code> e seeds Gatebox · ajuste <code>MONEY_LAN_HOST</code> no <code>money/.env</code> se o IP for outro</p>
+    </header>
+
+    <h2>Endereços (IPs)</h2>
+    <div class="ips">
+      <div class="ip-card"><strong>MONEY_LAN_HOST</strong><span>192.168.86.237</span></div>
+      <div class="ip-card"><strong>RUNAPP_LOOPBACK</strong><span>127.0.0.1</span></div>
+      <div class="ip-card"><strong>Flutter Banco (LAN)</strong><span>192.168.86.237</span></div>
+    </div>
+
+    <h2>Credenciais por aplicação</h2>
+
+    <h3>Site HoldFy — <code>http://127.0.0.1:5173/login</code></h3>
+    <p class="lead">Login via <code>apicash-core</code> (proxy Vite → :3000). Na tela escolha <strong>Comprador</strong> ou <strong>Vendedor</strong>; use o utilizador do papel correspondente.</p>
+    <table>
+      <thead><tr><th>Utilizador</th><th>Senha</th><th>Papel na UI</th><th>API</th></tr></thead>
+      <tbody>
+        <tr><td><code>buyer</code></td><td><code>buyer</code></td><td>Comprador</td><td><code>POST /auth/login</code> → :3000</td></tr>
+        <tr><td><code>seller</code></td><td><code>seller</code></td><td>Vendedor</td><td><code>POST /auth/login</code> → :3000</td></tr>
+        <tr><td><code>admin</code></td><td><code>admin</code></td><td>— (uso API/admin)</td><td>mesmo <code>APICASH_AUTH_USERS</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>holdfy-admin — <code>http://127.0.0.1:3020/</code></h3>
+    <p class="lead">Painel React; autenticação por <strong>API Key</strong> (não é user/senha).</p>
+    <table>
+      <thead><tr><th>Campo no login</th><th>Valor (dev)</th><th>Backend</th></tr></thead>
+      <tbody>
+        <tr><td>API Key</td><td><code>change-me-admin-key</code></td><td><code>apicash-admin-backend</code> :3001 · header <code>x-api-key</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>apicash-frontend (Leptos) — <code>http://127.0.0.1:3002/</code></h3>
+    <table>
+      <thead><tr><th>Tipo</th><th>Valor</th><th>Notas</th></tr></thead>
+      <tbody>
+        <tr><td>Admin API Key</td><td><code>change-me-admin-key</code></td><td>Variável <code>APICASH_ADMIN_API_KEY</code> · chama admin :3001</td></tr>
+      </tbody>
+    </table>
+
+    <h3>apicash-core / API pública — <code>http://127.0.0.1:3000</code></h3>
+    <table>
+      <thead><tr><th>Tipo</th><th>Utilizador / chave</th><th>Senha / header</th><th>Notas</th></tr></thead>
+      <tbody>
+        <tr><td>JWT login</td><td><code>admin</code></td><td><code>admin</code></td><td>papel admin · <code>POST /auth/login</code></td></tr>
+        <tr><td>JWT login</td><td><code>seller</code></td><td><code>seller</code></td><td>papel seller</td></tr>
+        <tr><td>JWT login</td><td><code>buyer</code></td><td><code>buyer</code></td><td>papel buyer</td></tr>
+        <tr><td>Service API</td><td>—</td><td><code>change-me-service-key</code></td><td><code>APICASH_API_KEY</code> · rotas internas/serviço</td></tr>
+        <tr><td>Auth desligado</td><td>—</td><td>—</td><td><code>APICASH_AUTH_DISABLED=1</code> só dev pontual</td></tr>
+      </tbody>
+    </table>
+
+    <h3>apicash-admin-backend — <code>http://127.0.0.1:3001</code></h3>
+    <table>
+      <thead><tr><th>Header</th><th>Valor</th><th>Notas</th></tr></thead>
+      <tbody>
+        <tr><td><code>x-api-key</code></td><td><code>change-me-admin-key</code></td><td><code>APICASH_ADMIN_API_KEY</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>front-gatebox — <code>http://127.0.0.1:3030/</code> (HashRouter)</h3>
+    <p class="lead">UI CRA → API Gatebox <code>http://127.0.0.1:8081/api/v1</code>. O <code>runapp.sh</code> abre duas abas: <code>#/customer/login</code> e <code>#/admin/login</code>. Utilizadores do seed <code>gatebox-rust/db/insert.sql</code>.</p>
+    <table>
+      <thead><tr><th>Perfil UI</th><th>Utilizador</th><th>Senha</th><th>Rota API</th></tr></thead>
+      <tbody>
+        <tr><td>Admin</td><td><code>admin_gateway</code></td><td><code>admin</code></td><td><code>POST /api/v1/admin/auth/login</code></td></tr>
+        <tr><td>Admin (alt.)</td><td><code>admin_company</code></td><td><code>admin</code></td><td>idem</td></tr>
+        <tr><td>Cliente</td><td><code>customer1</code></td><td><code>customer1</code></td><td><code>POST /api/v1/customers/auth/login</code></td></tr>
+        <tr><td>Cliente (alt.)</td><td><code>customer2</code></td><td><code>customer2</code></td><td>idem</td></tr>
+        <tr><td>Backoffice</td><td>qualquer user</td><td>qualquer senha</td><td>stub dev (sem validação DB)</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Conta PIX (seed)</th><th>Número</th><th>Titular seed</th></tr></thead>
+      <tbody>
+        <tr><td>customer1</td><td><code>2000001</code></td><td>Customer Test 1</td></tr>
+        <tr><td>customer2</td><td><code>2000002</code></td><td>Customer Test 2</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Gatebox Rust (API) — <code>http://127.0.0.1:8081</code></h3>
+    <table>
+      <thead><tr><th>Recurso</th><th>URL</th><th>Credenciais</th></tr></thead>
+      <tbody>
+        <tr><td>Health</td><td><code>/health</code></td><td>—</td></tr>
+        <tr><td>Swagger UI</td><td><code>http://127.0.0.1:8081/swagger/</code></td><td>Basic Auth · user <code>endpoint</code> · senha <code>segredo</code></td></tr>
+        <tr><td>PIX QR (APICash / âncora)</td><td><code>POST /api/v1/pix/qrcode</code></td><td><code>GATEBOX_API_KEY</code> = <code>sandbox-key</code> (opcional Bearer)</td></tr>
+        <tr><td>Sulcred simulador</td><td><code>http://192.168.86.237:7020</code></td><td><code>sandbox-client</code> / <code>sandbox-secret</code></td></tr>
+        <tr><td>Métricas</td><td><code>http://127.0.0.1:2112/metrics</code></td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p class="lead">LAN: <code>GATEBOX_BASE_URL=http://192.168.86.237:8081</code> · CPF sandbox PIX: <code>12345678909</code> · chave: <code>test@simulator.com</code></p>
+
+    <h3>Banco sandbox (Go + Flutter)</h3>
+    <table>
+      <thead><tr><th>Componente</th><th>URL</th><th>Credenciais</th></tr></thead>
+      <tbody>
+        <tr><td>backend_banco</td><td><code>http://127.0.0.1:8091</code></td><td><code>POST /auth/login</code> com email/senha da conta criada em <code>POST /accounts</code> (sem user fixo no seed)</td></tr>
+        <tr><td>JWT secret</td><td>—</td><td><code>change-me-banco-jwt</code> (<code>BANCO_JWT_SECRET</code>)</td></tr>
+        <tr><td>Gatebox (server-side)</td><td>—</td><td><code>GATEBOX_API_KEY</code> = <code>sandbox-key</code></td></tr>
+        <tr><td>App Flutter</td><td>LAN <code>http://192.168.86.237:8091</code></td><td>Holdfy Bank Simulator · IP no Setup do app</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Infraestrutura Docker</h2>
+    <p class="lead"><code>cd money && ./runinfra.sh start</code></p>
+    <table>
+      <thead><tr><th>Serviço</th><th>URL / conexão</th><th>Utilizador / senha</th></tr></thead>
+      <tbody>
+        <tr><td>Postgres APICash</td><td><code>192.168.86.237:5432</code> · db <code>apicash</code></td><td>apicash / apicash</td></tr>
+        <tr><td>Postgres Gatebox</td><td><code>192.168.86.237:5433</code> · db <code>dubai-cash</code></td><td>postgres / root</td></tr>
+        <tr><td>Postgres banco Go</td><td>db <code>banco_saczuck</code> no mesmo :5432</td><td>apicash / apicash</td></tr>
+        <tr><td>Redis</td><td><code>192.168.86.237:6379</code></td><td>—</td></tr>
+        <tr><td>Pulsar</td><td><code>pulsar://192.168.86.237:6650</code></td><td>admin HTTP :8080</td></tr>
+        <tr><td>MongoDB</td><td><code>127.0.0.1:27017</code></td><td>db <code>apicash_wa</code></td></tr>
+        <tr><td>MinIO API / console</td><td><code>:9000</code> / <code>:9001</code></td><td>holdfy / holdfy123</td></tr>
+        <tr><td>pgAdmin</td><td><code>http://127.0.0.1:5050</code></td><td>admin@apicash.local / admin (profile <code>tools</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Portas dos serviços (runapp)</h2>
+    <table>
+      <thead><tr><th>Porta</th><th>Serviço</th></tr></thead>
+      <tbody>
+        <tr><td>3000</td><td>apicash-core</td></tr>
+        <tr><td>3001</td><td>apicash-admin-backend</td></tr>
+        <tr><td>3002</td><td>apicash-frontend (Leptos)</td></tr>
+        <tr><td>3010</td><td>apicash-whatsapp</td></tr>
+        <tr><td>3020</td><td>holdfy-admin</td></tr>
+        <tr><td>3030</td><td>front-gatebox</td></tr>
+        <tr><td>5173</td><td>site Vite</td></tr>
+        <tr><td>5432 / 5433</td><td>Postgres APICash / Gatebox</td></tr>
+        <tr><td>6379</td><td>Redis</td></tr>
+        <tr><td>6650 / 8080</td><td>Pulsar broker / admin</td></tr>
+        <tr><td>7010 / 7020 / 7070</td><td>SevenTrust / Sulcred / client sim (opcional)</td></tr>
+        <tr><td>8081 / 2112</td><td>gatebox-rust API / métricas</td></tr>
+        <tr><td>8091</td><td>backend_banco Go</td></tr>
+        <tr><td>9000 / 9001</td><td>MinIO API / console</td></tr>
+      </tbody>
+    </table>
+
+    <h2>WhatsApp</h2>
+    <table>
+      <thead><tr><th>Recurso</th><th>Caminho</th></tr></thead>
+      <tbody>
+        <tr><td>QR PNG</td><td><code>whatsapp_qrcode/whatsapp-pairing-qr.png</code></td></tr>
+        <tr><td>pair.html</td><td><code>whatsapp_qrcode/pair.html</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Segredos globais (money/.env)</h2>
+    <table>
+      <thead><tr><th>Variável</th><th>Valor exemplo (dev)</th></tr></thead>
+      <tbody>
+        <tr><td><code>JWT_SECRET</code> / <code>APICASH_JWT_SECRET</code></td><td>change-me-use-long-random-string-in-production</td></tr>
+        <tr><td><code>APICASH_API_KEY</code></td><td>change-me-service-key</td></tr>
+        <tr><td><code>APICASH_ADMIN_API_KEY</code></td><td>change-me-admin-key</td></tr>
+        <tr><td><code>GATEBOX_API_KEY</code></td><td>sandbox-key</td></tr>
+        <tr><td><code>BANCO_JWT_SECRET</code></td><td>change-me-banco-jwt</td></tr>
+      </tbody>
+    </table>
+
+    <footer>
+      Edite este ficheiro quando alterar credenciais de sandbox em <code>money/.env.example</code> ou seeds Gatebox.
+    </footer>
+  </div>
+</body>
+</html>

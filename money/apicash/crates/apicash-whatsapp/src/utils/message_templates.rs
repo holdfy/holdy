@@ -179,7 +179,19 @@ pub fn ask_buyer_document() -> &'static str {
 }
 
 pub fn invalid_document() -> &'static str {
-    "Documento inválido. Envie um *CPF* (11 dígitos) ou *CNPJ* (14 dígitos) somente com números.\n\nEx: `52998224725`"
+    "Documento inválido. Envie um *CPF* (11 dígitos) ou *CNPJ* (14 dígitos).\nMáscaras são aceitas (ex.: `123.456.789-09`).\n\nEx: `52998224725`"
+}
+
+pub fn invalid_document_retry(attempt: u32, max: u32) -> String {
+    format!(
+        "Documento não reconhecido (tentativa {attempt}/{max}).\n\
+         Envie *CPF* (11 dígitos) ou *CNPJ* (14 dígitos) — máscaras são aceitas.\n\n\
+         Ex: `123.456.789-09` ou `52998224725`"
+    )
+}
+
+pub fn invalid_document_too_many_attempts() -> &'static str {
+    "Muitas tentativas inválidas. Fluxo cancelado.\nDigite *holdfy* para recomeçar."
 }
 
 pub fn importing_product() -> &'static str {

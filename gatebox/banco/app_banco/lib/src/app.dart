@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_banco/src/app_branding.dart';
 import 'package:app_banco/src/core/banco_api_client.dart';
 import 'package:app_banco/src/data/local_accounts_store.dart';
 import 'package:app_banco/src/data/local_credit_cards_store.dart';
@@ -31,11 +32,11 @@ class _BancoSaczuckAppState extends State<BancoSaczuckApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Developer Bank',
+      title: appLauncherLabel,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
       home: Scaffold(
-        appBar: AppBar(title: const Text('Developer Bank')),
+        appBar: AppBar(title: const Text(appBarTitle)),
         body: IndexedStack(
           index: currentIndex,
           children: [
