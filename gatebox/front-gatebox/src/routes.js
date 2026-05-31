@@ -44,7 +44,6 @@ import NewUser from "layouts/pages/users/new-user";
 import Settings from "layouts/pages/account/settings";
 import Billing from "layouts/pages/account/billing";
 import Invoice from "layouts/pages/account/invoice";
-import AuditoriaBlockchain from "layouts/pages/account/auditoria-blockchain";
 import Timeline from "layouts/pages/projects/timeline";
 import PricingPage from "layouts/pages/pricing-page";
 import Widgets from "layouts/pages/widgets";
@@ -192,12 +191,6 @@ const routes = [
         key: "invoice",
         route: "/pages/account/invoice",
         component: <Invoice />,
-      },
-      {
-        name: "Auditoria blockchain",
-        key: "auditoria-blockchain",
-        route: "/pages/account/auditoria-blockchain",
-        component: <AuditoriaBlockchain />,
       },
     ],
   },

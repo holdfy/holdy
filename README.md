@@ -174,6 +174,18 @@ APIs x402 (quando activo):
 
 ## Stellar testnet
 
+### Documentação em PDF (papel da Stellar no Holdfy)
+
+Relatório com resumo do monorepo, **diagrama de sequência** (PIX → BRLx → escrow → release) e **diagrama de arquitetura** (APICash vs Gatebox). Saída: `docs/stellar-papel-no-projeto-holdfy.pdf`.
+
+Requer Python 3 e `reportlab` (`pip install reportlab`). Gerar ou atualizar:
+
+```bash
+python3 /home/holdfy/git/holdy/docs/generate_stellar_pdf.py
+```
+
+(Equivalente, na raiz do repositório: `python3 docs/generate_stellar_pdf.py`.)
+
 A **Stellar testnet** é a rede pública da Stellar Development Foundation — **não** é `127.0.0.1`. Os endpoints oficiais:
 
 | Serviço | URL pública |

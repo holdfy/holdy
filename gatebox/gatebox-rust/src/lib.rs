@@ -5,7 +5,6 @@ pub mod account_types;
 pub mod accounts;
 pub mod address;
 pub mod address_types;
-pub mod anchor;
 pub mod bank_bridge;
 pub mod authentication;
 pub mod company;

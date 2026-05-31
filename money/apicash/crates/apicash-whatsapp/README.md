@@ -29,9 +29,9 @@ Definidos em [`session/session_manager.rs`](src/session/session_manager.rs) (`Or
 Ordem típica:
 
 1. **`Idle`** — A envia “novo pedido” (ou equivalente).
-2. **`CreatingOrder` (A)** — `AskCounterparty` (telefone/cartão de B) → `AskAmount` (valor decimal). A descrição para a API é gerada internamente (texto curto com contacto comprador mascarado), **sem** perguntas de CPF/links no chat.
+2. **`CreatingOrder` (A)** — `AskCounterparty` (telefone/cartão de B) → `AskAmount` (valor) → `AskSellerDocument` (CPF/CNPJ do vendedor, consulta Receita via NFS-e) → proposta a B.
 3. **`WaitingBuyerAccept` (A)** / **`BuyerPendingSellerProposal` (B)** — após o valor: B recebe texto de aceite (**ACEITO** / **SIM** / **gera pix** / … — ver `is_accept_proposal`). A recebe mensagem de “à espera de B”.
-4. **`POST /orders` + PIX** — só quando B aceita (`finalize_order_after_buyer_accepted`): risco opcional (`/internal/risk/score`), criação com CPF pré-definido de sandbox só para satisfazer API (ver [`message_handler.rs`](src/handlers/message_handler.rs) `WA_ESCROW_PLACEHOLDER_CPF`), PIX para B, confirmação a A.
+4. **`POST /orders` + PIX** — quando B aceita e informa **seu** CPF/CNPJ (`AwaitingBuyerDocument`): antifraude para **vendedor e comprador**, consulta Receita (nome/situação) para ambos quando `NFSE_INSCRICAO` + `NFSE_SENHA` estão no `.env`, criação do pedido com documento do comprador, PIX para B.
 5. **`AwaitingPayment` (B)** — “já paguei” → `settle_order_internal` até custódia.
 6. **`AwaitingConfirmation` (B)** — `confirmar recebimento` final → `release_custody`.
 7. **`DisputeHint`** — disputa com `order_id` (após existir pedido).

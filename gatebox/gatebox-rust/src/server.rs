@@ -35,8 +35,6 @@ use gatebox_rust::address;
 use gatebox_rust::address::{AddressRepositoryImpl, AddressServiceImpl};
 use gatebox_rust::address_types;
 use gatebox_rust::address_types::{AddressTypesRepositoryImpl, AddressTypesServiceImpl};
-use gatebox_rust::anchor;
-use gatebox_rust::anchor::{AnchorRepositoryImpl, AnchorServiceImpl};
 use gatebox_rust::authentication;
 use gatebox_rust::authentication::{AuthenticationRepositoryImpl, AuthenticationServiceImpl};
 use gatebox_rust::company;
@@ -362,11 +360,6 @@ impl App {
         let with_list_accounts_svc: Arc<dyn with_list_accounts::WithListAccountsService> =
             Arc::new(WithListAccountsServiceImpl::new(with_list_accounts_repo.clone()));
 
-        let anchor_repo: Arc<dyn anchor::AnchorRepository> =
-            Arc::new(AnchorRepositoryImpl::new(read_pool.clone()));
-        let anchor_svc: Arc<dyn anchor::AnchorService> =
-            Arc::new(AnchorServiceImpl::new(anchor_repo));
-
         let dispute_repo: Arc<dyn gatebox_rust::disputes::DisputeRepository> =
             Arc::new(gatebox_rust::disputes::DisputeRepositoryImpl::new(read_pool.clone(), write_pool.clone()));
         let dispute_state = gatebox_rust::disputes::DisputeState { repo: dispute_repo };
@@ -415,22 +408,6 @@ impl App {
             ))
         } else {
             None
-        };
-
-        // Anchor publisher: PulsarAnchorPublisher quando ANCHOR_PUBLISH_ENABLED=true e PULSAR_URL set, senão NoopPublisher
-        let anchor_publisher: Arc<dyn gatebox_rust::internal::anchor::AnchorPublisher> = {
-            let cfg = gatebox_rust::internal::anchor::AnchorConfig::from_env();
-            if cfg.publish_enabled && !cfg.pulsar_url.is_empty() {
-                match gatebox_rust::internal::anchor::PulsarAnchorPublisher::new(cfg).await {
-                    Ok(p) => Arc::new(p),
-                    Err(e) => {
-                        tracing::warn!("PulsarAnchorPublisher init failed: {}; using NoopPublisher", e);
-                        Arc::new(gatebox_rust::internal::anchor::NoopPublisher)
-                    }
-                }
-            } else {
-                Arc::new(gatebox_rust::internal::anchor::NoopPublisher)
-            }
         };
 
         let (pix_principal_svc, rabbitmq_worker, pulsar_cancel_tx): (
@@ -496,7 +473,6 @@ impl App {
                         csec,
                         gw_name.clone(),
                     )
-                    .with_anchor_publisher(anchor_publisher.clone())
                     .with_gateway_recorder(gateway_recorder.clone())
                     .with_gateway_selector(gateway_selector.clone());
                     if has_seventrust && has_sulcred {
@@ -575,7 +551,6 @@ impl App {
                             csec,
                             gw_name.clone(),
                         )
-                        .with_anchor_publisher(anchor_publisher.clone())
                         .with_gateway_recorder(gateway_recorder.clone())
                         .with_gateway_selector(gateway_selector.clone());
                         if has_seventrust && has_sulcred {
@@ -724,7 +699,6 @@ impl App {
             .nest("/v1/backoffice", backoffice::routes(backoffice_state))
             .nest("/v1/pix", gatebox_rust::core::pix_principal::register(pix_principal_state))
             .nest("/v1/customers", gatebox_rust::modules::customers::routes(customers_state))
-            .nest("/v1/anchor", anchor::routes(anchor_svc))
             .nest("/v1/account_rules", account_rules::routes(account_rules_svc))
             .nest("/v1/accounts", accounts::routes(accounts_svc))
             .nest("/v1/account_types", account_types::routes(account_types_svc))

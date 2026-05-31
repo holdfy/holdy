@@ -53,18 +53,15 @@ import AdminAccount from "layouts/admin/Account";
 import AdminChangePassword from "layouts/admin/ChangePassword";
 import AdminDisputes from "layouts/admin/Disputes";
 import AdminSettings from "layouts/admin/Settings";
-import AuditoriaBlockchain from "layouts/pages/account/auditoria-blockchain";
 import BackofficeLogs from "layouts/backoffice/Logs";
 import BackofficeAccounts from "layouts/backoffice/Accounts";
 import LogoutRedirect from "components/LogoutRedirect";
-import VerifyTransaction from "layouts/pages/blockchain/VerifyTransaction";
 
 // Rotas públicas (sem auth)
 export const publicRoutes = [
   { path: "/customer/login", element: <LoginCustomer /> },
   { path: "/admin/login", element: <LoginAdmin /> },
   { path: "/backoffice/login", element: <LoginBackoffice /> },
-  { path: "/verify", element: <VerifyTransaction /> },
 ];
 
 // Rotas Customer (requer profile=customer)
@@ -119,7 +116,6 @@ export const adminRoutes = [
   { path: "/admin/reports/fee-reconciliation", element: <ReportFeeReconciliation /> },
   { path: "/admin/change-password", element: <AdminChangePassword /> },
   { path: "/admin/settings", element: <AdminSettings /> },
-  { path: "/admin/blockchain", element: <AuditoriaBlockchain /> },
   { path: "/admin/logout", element: <LogoutRedirect loginPath="/admin/login" /> },
 ];
 
@@ -193,7 +189,6 @@ export const adminSidenav = [
       { name: "Conciliação Taxas", key: "report-fee-recon", route: "/admin/reports/fee-reconciliation", component: <ReportFeeReconciliation /> },
       { name: "Configurações", key: "settings", route: "/admin/settings", component: <AdminSettings /> },
       { name: "Trocar senha", key: "change-password", route: "/admin/change-password", component: <AdminChangePassword /> },
-      { name: "Blockchain", key: "blockchain", route: "/admin/blockchain", component: <AuditoriaBlockchain /> },
       { name: "Sair", key: "logout", route: "/admin/logout", component: <LogoutRedirect loginPath="/admin/login" /> },
     ],
   },

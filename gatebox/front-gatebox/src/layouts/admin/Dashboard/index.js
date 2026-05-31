@@ -15,7 +15,7 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 import { useAuth } from "context/AuthContext";
-import { adminApi, entityApi, anchorApi } from "services/api";
+import { adminApi, entityApi } from "services/api";
 
 function formatCurrency(v) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
@@ -30,7 +30,6 @@ export default function AdminDashboard() {
     activeAccounts: 0,
     transactionsToday: 0,
     medTotal: 0,
-    auditCount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,12 +39,11 @@ export default function AdminDashboard() {
     (async () => {
       try {
         const today = new Date().toISOString().slice(0, 10);
-        const [custRes, accRes, txRes, medRes, auditRes] = await Promise.allSettled([
+        const [custRes, accRes, txRes, medRes] = await Promise.allSettled([
           adminApi.customers.list(),
           entityApi.accounts.list({ limit: 500, offset: 0 }),
           adminApi.pix.transactions({ limit: 500, page: 1 }),
           entityApi.secMed.list({ limit: 500, offset: 0 }),
-          anchorApi.audit({ limit: 10 }),
         ]);
         if (!cancelled) {
           const customers = custRes.status === "fulfilled"
@@ -69,7 +67,6 @@ export default function AdminDashboard() {
             activeAccounts: active || accounts.length,
             transactionsToday: txToday.length,
             medTotal,
-            auditCount: auditRes.status === "fulfilled" ? (auditRes.value?.items?.length ?? 0) : 0,
           });
         }
       } catch (e) {
@@ -129,14 +126,6 @@ export default function AdminDashboard() {
                   </MDBox>
                 </Card>
               </Grid>
-              <Grid item xs={12} sm={6} md={4} lg={2}>
-                <Card sx={{ cursor: "pointer" }} onClick={() => navigate("/admin/blockchain")}>
-                  <MDBox p={2}>
-                    <MDTypography variant="caption" color="text">Ancoragens</MDTypography>
-                    <MDTypography variant="h4" color="dark">{metrics.auditCount}</MDTypography>
-                  </MDBox>
-                </Card>
-              </Grid>
             </Grid>
 
             <MDTypography variant="button" color="text" mb={2}>Atalhos</MDTypography>
@@ -154,11 +143,6 @@ export default function AdminDashboard() {
               <Grid item xs={12} sm={6} md={3}>
                 <MDButton variant="outlined" color="dark" fullWidth onClick={() => navigate("/admin/partners")}>
                   <Icon sx={{ mr: 1 }}>handshake</Icon> Parceiros
-                </MDButton>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <MDButton variant="outlined" color="dark" fullWidth onClick={() => navigate("/admin/blockchain")}>
-                  <Icon sx={{ mr: 1 }}>link</Icon> Blockchain
                 </MDButton>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>

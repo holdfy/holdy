@@ -7,6 +7,7 @@
 
 pub mod conversation_store;
 pub mod nfse_client;
+pub mod wa_contact_store;
 pub mod tracking_monitor;
 pub mod core_api;
 pub mod handlers;

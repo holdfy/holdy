@@ -1,0 +1,117 @@
+Papel da Stellar no projeto
+A Stellar é a camada de valor tokenizado e custódia programável do APICash: o real entra/sai por PIX (via anchor), e o valor “travado” no meio da transação vira BRLx na rede, com opção de escrow em contrato Soroban.
+
+Em uma frase: PIX é o trilho fiat; Stellar/Soroban é o trilho de custódia + liquidação tokenizada do escrow.
+
+Onde entra e onde não entra
+Área	Usa Stellar?	Função
+APICash (apicash-anchor, apicash-custody, soroban-contracts)
+Sim
+BRLx, on/off-ramp, escrow, yield on-chain
+Gatebox (PIX gateway)
+Não
+PIX em Postgres; sem ledger Stellar
+Banco simulador (Flutter + Go)
+Não
+Integra só API externa do Gatebox
+WhatsApp HoldFy
+Indireto
+Chama apicash-core (POST /orders, custódia, PIX)
+x402 (micropagamentos)
+Não
+Base Sepolia (Ethereum), protocolo à parte
+Fluxo de negócio (visão completa)
+
+
+Paga PIX (on-ramp)
+Funding confirmado
+Emite/transfere BRLx
+lock_funds (opcional, se Soroban ativo)
+Confirma recebimento (custody/release)
+confirm_release (se on-chain)
+Principal + yield (regra 70/10/20)
+Off-ramp BRLx → PIX ao vendedor
+Pedido InCustody — valor protegido
+Comprador (PIX)
+Gatebox / Anchor fiat
+APICash (core)
+Stellar testnet/mainnet
+Contrato Soroban escrow
+Passos alinhados ao código:
+
+Criar pedido — antifraude → anchor gera PIX (deposit_pix) → status pending_funding.
+PIX pago — settle confirma funding → transfere BRLx para o escrow → lock_funds (DB + opcional Soroban).
+Comprador confirma entrega — release na custódia → contrato libera → off-ramp PIX ao vendedor.
+Peças Rust e o que cada uma faz
+1. apicash-anchor — ponte fiat ↔ Stellar
+On-ramp: PIX → BRLx (token na Stellar; código do ativo em APICASH_STELLAR_ASSET_CODE, padrão BRLx).
+Off-ramp: BRLx → PIX ao vendedor.
+Horizon (APICASH_STELLAR_HORIZON_URL) — consultar transações/hashes.
+Modo dev: APICASH_FIAT_RAIL=simulated (sem rede real).
+2. apicash-custody — escrow e yield
+Regras de negócio: trava principal, rendimento, liberação.
+Split do yield: 70% vendedor / 10% comprador / 20% plataforma (espelhado no contrato Soroban).
+Com APICASH_SOROBAN_ENABLED=1 + feature soroban, chama o contrato via CLI stellar (lock / release).
+Sem isso: modo mock (hashes mock_*) — comum em dev local.
+3. soroban-contracts — smart contract na Stellar
+Contratos Soroban com lock_funds, confirm_release, mark_disputed e distribuição de yield. Wasm deployado com scripts tipo soroban-testnet-deploy.sh.
+
+4. apicash-core — orquestra tudo
+Persiste por pedido, entre outros:
+
+anchor_tx_hash, brlx_escrow_transfer_tx_hash
+soroban_escrow_contract_id, soroban_lock_tx_hash, soroban_mode (mock | soroban | pending_funding)
+Rede e configuração
+Por padrão é Stellar testnet pública (não é nó local):
+
+Horizon: https://horizon-testnet.stellar.org
+Soroban RPC: https://soroban-testnet.stellar.org
+Variáveis em money/.env.example: APICASH_SOROBAN_*, APICASH_STELLAR_*, emissor BRLx, contrato de escrow, etc.
+
+Com APICASH_REQUIRE_TESTNET=1, a API rejeita hashes mock e exige transações reais na testnet.
+
+Por que Stellar (e não só Postgres)?
+No desenho do produto:
+
+Custódia auditável — escrow com hash on-chain, não só linha em banco.
+Ativo programável (BRLx) — SEP-41 / SAC na Soroban.
+Yield on-chain — rendimento na custódia com split automático no contrato.
+Anchor SEP-24-style — padrão Stellar para ramp fiat ↔ crypto.
+O Gatebox continua sendo o PIX operacional do ecossistema; a Stellar é a camada de settlement tokenizado do APICash por cima disso (ou simulada em dev).
+
+Estado prático hoje (PLANO_EXECUCAO)
+Escrow/PIX/yield no APICash: ~85% funcional.
+Soroban muitas vezes em mock até Postgres + deploy testnet + APICASH_SOROBAN_ENABLED=1.
+Gatebox e banco simulador não dependem de Stellar para funcionar.
+Resumo
+Pergunta	Resposta
+Stellar é obrigatória para o PIX do Gatebox?
+Não
+Stellar é o quê no HoldFy?
+Ledger + escrow tokenizado (BRLx) do APICash
+Soroban faz o quê?
+Contrato de lock/release e split de yield
+WhatsApp usa Stellar direto?
+Não — usa API APICash, que pode acionar anchor/custódia Stellar
+Blockchain do admin Gatebox?
+Polygon (âncora de auditoria), outro propósito
+Se quiser, no próximo passo dá para mapear só o que está mock vs testnet real no seu .env atual.
+
+
+sequenceDiagram
+    participant B as Comprador (PIX)
+    participant GB as Gatebox / Anchor fiat
+    participant AC as APICash (core)
+    participant ST as Stellar testnet/mainnet
+    participant SB as Contrato Soroban escrow
+
+  B->>GB: Paga PIX (on-ramp)
+  GB->>AC: Funding confirmado
+  AC->>ST: Emite/transfere BRLx
+  AC->>SB: lock_funds (opcional, se Soroban ativo)
+  Note over AC,SB: Pedido InCustody — valor protegido
+
+  B->>AC: Confirma recebimento (custody/release)
+  AC->>SB: confirm_release (se on-chain)
+  AC->>ST: Principal + yield (regra 70/10/20)
+  AC->>GB: Off-ramp BRLx → PIX ao vendedor

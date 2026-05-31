@@ -1,5 +1,5 @@
 /**
- * Admin - Detalhe da transação PIX (com BlockchainProof)
+ * Admin - Detalhe da transação PIX
  */
 
 import { useState, useEffect } from "react";
@@ -14,7 +14,6 @@ import Chip from "@mui/material/Chip";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
-import BlockchainProof from "components/BlockchainProof";
 import { adminApi } from "services/api";
 import { useSnackbar } from "context/SnackbarContext";
 
@@ -110,11 +109,6 @@ export default function AdminPixTransactionDetail() {
                 <MDTypography variant="button" color="text">End-to-end</MDTypography>
                 <MDTypography variant="caption" sx={{ wordBreak: "break-all" }}>{tx.endtoend_id || "-"}</MDTypography>
               </MDBox>
-            </MDBox>
-
-            <MDBox mt={3} p={2} bgcolor="grey.100" borderRadius={1}>
-              <MDTypography variant="button" fontWeight="medium" mb={1}>Prova blockchain</MDTypography>
-              <BlockchainProof entityType="pix_tx" entityId={String(tx.id)} />
             </MDBox>
 
             {canCancel && (

@@ -6,8 +6,6 @@ use async_trait::async_trait;
 use crate::core::gateway_failover::{GatewayRecorder, GatewaySelector};
 use crate::core::gateways::interfaces::sulcred::SulcredSendPixPayment;
 use crate::core::gateways::services::GatewayHttpService;
-use crate::internal::anchor::payload_hash_pix_tx;
-use crate::internal::anchor::{EntityType, PublishRequest};
 use crate::transaction::TransactionRepository;
 
 use super::interfaces::MessageHandler;
@@ -55,7 +53,6 @@ pub struct PaymentMessageHandler {
     gateways: Vec<GatewayConfig>,
     default_gateway_name: String,
     gateway_selector: Option<Arc<dyn GatewaySelector>>,
-    anchor_publisher: Option<Arc<dyn crate::internal::anchor::AnchorPublisher>>,
     gateway_recorder: Option<Arc<dyn GatewayRecorder>>,
 }
 
@@ -77,7 +74,6 @@ impl PaymentMessageHandler {
             }],
             default_gateway_name: gateway_name,
             gateway_selector: None,
-            anchor_publisher: None,
             gateway_recorder: None,
         }
     }
@@ -101,11 +97,6 @@ impl PaymentMessageHandler {
 
     pub fn with_gateway_selector(mut self, selector: Arc<dyn GatewaySelector>) -> Self {
         self.gateway_selector = Some(selector);
-        self
-    }
-
-    pub fn with_anchor_publisher(mut self, publisher: Arc<dyn crate::internal::anchor::AnchorPublisher>) -> Self {
-        self.anchor_publisher = Some(publisher);
         self
     }
 
@@ -199,45 +190,6 @@ impl MessageHandler for PaymentMessageHandler {
                 }
                 if let Some(ref gr) = self.gateway_recorder {
                     gr.record_success(gateway_name).await;
-                }
-                // Ancoragem blockchain (fire-and-forget)
-                if let Some(ref publisher) = self.anchor_publisher {
-                    let account_id = tx.account_id;
-                    let endtoend = gw_resp.end_to_end_id.clone();
-                    let publisher = Arc::clone(publisher);
-                    let occurred_at = chrono::Utc::now();
-                    let entity_id = msg.payment_id.to_string();
-                    let payload_hash = payload_hash_pix_tx(
-                        &entity_id,
-                        amount_f,
-                        &endtoend,
-                        &occurred_at.to_rfc3339(),
-                        account_id,
-                        "COMPLETED",
-                    );
-                    let req = PublishRequest {
-                        idempotency_key: format!("pix_tx_{}", msg.payment_id),
-                        entity_type: EntityType::PixTx,
-                        entity_id: entity_id.clone(),
-                        payload_hash,
-                        occurred_at,
-                        correlation_id: String::new(),
-                        account_id,
-                        customer_id: None,
-                        company_id: None,
-                        actor_document: String::new(),
-                        actor_name: String::new(),
-                        actor_type: String::new(),
-                        client_ip: String::new(),
-                        user_agent: String::new(),
-                        metadata: None,
-                    };
-                    let entity_id_log = entity_id.clone();
-                    tokio::task::spawn_blocking(move || {
-                        if let Err(e) = publisher.publish_anchor_request(&req) {
-                            tracing::error!("Anchor publish failed for transaction {}: {}", entity_id_log, e);
-                        }
-                    });
                 }
             }
             Err(e) => {

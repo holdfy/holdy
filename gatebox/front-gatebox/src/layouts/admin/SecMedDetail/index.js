@@ -14,7 +14,6 @@ import Chip from "@mui/material/Chip";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
-import BlockchainProof from "components/BlockchainProof";
 import { entityApi } from "services/api";
 
 function formatCurrency(v) {
@@ -95,10 +94,6 @@ export default function AdminSecMedDetail() {
               </MDBox>
             </MDBox>
 
-            <MDBox mt={3} p={2} bgcolor="grey.100" borderRadius={1}>
-              <MDTypography variant="button" fontWeight="medium" mb={1}>Prova blockchain</MDTypography>
-              <BlockchainProof entityType="med" entityId={String(med.id)} />
-            </MDBox>
           </MDBox>
         </Card>
       </MDBox>

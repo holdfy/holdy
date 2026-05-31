@@ -109,8 +109,6 @@ export default function LoginCustomer() {
                 <Link to="/admin/login" style={{ color: "inherit" }}>Admin</Link>
                 {" · "}
                 <Link to="/backoffice/login" style={{ color: "inherit" }}>Backoffice</Link>
-                {" · "}
-                <Link to="/verify" style={{ color: "inherit" }}>Verificar transação</Link>
               </MDTypography>
             </MDBox>
           </MDBox>

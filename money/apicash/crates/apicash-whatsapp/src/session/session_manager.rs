@@ -26,9 +26,10 @@ pub enum OrderFlowState {
         amount: String,
         description: String,
     },
-    /// Comprador (B) aceitou; aguardamos CPF/CNPJ para criar o pedido.
+    /// Comprador (B) aceitou; aguardamos CPF/CNPJ do comprador (vendedor já informou o dele).
     AwaitingBuyerDocument {
         seller_peer_key: String,
+        seller_document: String,
         amount: String,
         description: String,
     },
@@ -57,6 +58,8 @@ pub enum CreatingOrderStep {
     /// Comprador (parte B): número digitado ou cartão de contacto.
     AskCounterparty,
     AskAmount,
+    /// Vendedor (A): CPF/CNPJ antes de enviar proposta ao comprador.
+    AskSellerDocument,
     /// Proposta enviada a B; aguardamos *ACEITO* antes do `POST /orders`.
     WaitingBuyerAccept,
 }
@@ -68,6 +71,8 @@ pub struct OrderDraft {
     pub counterparty_peer_key: Option<String>,
     pub amount: Option<String>,
     pub description: Option<String>,
+    /// CPF/CNPJ do vendedor (quem iniciou o HoldFy).
+    pub seller_document: Option<String>,
 }
 
 /// `Uuid` estável por peer WhatsApp (igual ao da sessão desse número).
@@ -94,6 +99,12 @@ pub struct UserSession {
     pub last_activity_at: DateTime<Utc>,
     /// Tentativas de input inválido no estado atual (ex.: valor mal formatado).
     pub invalid_input_streak: u32,
+    /// Nome obtido da Receita Federal após consulta de CPF/CNPJ.
+    pub contact_name: Option<String>,
+    /// CPF ou CNPJ fornecido durante o fluxo (armazenado em wa_contacts).
+    pub document: Option<String>,
+    /// Indica se já tentámos carregar o contato do banco nesta sessão.
+    pub contact_loaded: bool,
 }
 
 impl UserSession {
@@ -107,6 +118,9 @@ impl UserSession {
             state: OrderFlowState::Idle,
             last_activity_at: Utc::now(),
             invalid_input_streak: 0,
+            contact_name: None,
+            document: None,
+            contact_loaded: false,
         }
     }
 

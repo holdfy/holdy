@@ -256,10 +256,23 @@
 
     <h2>WhatsApp</h2>
     <table>
-      <thead><tr><th>Recurso</th><th>Caminho</th></tr></thead>
+      <thead><tr><th>Recurso</th><th>Caminho / notas</th></tr></thead>
       <tbody>
         <tr><td>QR PNG</td><td><code>whatsapp_qrcode/whatsapp-pairing-qr.png</code></td></tr>
         <tr><td>pair.html</td><td><code>whatsapp_qrcode/pair.html</code></td></tr>
+        <tr><td>Consulta Receita (CPF/CNPJ)</td><td><code>NFSE_INSCRICAO</code> + <code>NFSE_SENHA</code> em <code>money/.env</code> (login portal nfse.gov.br). Sem isso o bot confirma o documento mas não traz o nome.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Stellar / APICash — documentação PDF</h2>
+    <p class="lead">Papel da Stellar no monorepo (só <code>money/apicash</code>; Gatebox e banco simulador não usam Stellar). Inclui diagramas de sequência e arquitetura.</p>
+    <table>
+      <thead><tr><th>Item</th><th>Valor</th></tr></thead>
+      <tbody>
+        <tr><td>PDF gerado</td><td><code>docs/stellar-papel-no-projeto-holdfy.pdf</code></td></tr>
+        <tr><td>Script</td><td><code>docs/generate_stellar_pdf.py</code></td></tr>
+        <tr><td>Dependência</td><td><code>pip install reportlab</code></td></tr>
+        <tr><td>Gerar / atualizar</td><td><code>python3 /home/holdfy/git/holdy/docs/generate_stellar_pdf.py</code></td></tr>
       </tbody>
     </table>
 

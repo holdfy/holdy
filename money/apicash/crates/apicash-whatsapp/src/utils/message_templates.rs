@@ -1,7 +1,46 @@
 //! Textos padrão em português (BR), curtos para WhatsApp.
 
+/// Formata CPF (`123.456.789-01`) ou CNPJ (`12.345.678/0001-95`) para exibição.
+pub fn format_document(doc: &str) -> String {
+    let d: String = doc.chars().filter(|c| c.is_ascii_digit()).collect();
+    match d.len() {
+        11 => format!("{}.{}.{}-{}", &d[..3], &d[3..6], &d[6..9], &d[9..]),
+        14 => format!("{}.{}.{}/{}-{}", &d[..2], &d[2..5], &d[5..8], &d[8..12], &d[12..]),
+        _ => doc.to_string(),
+    }
+}
+
+/// Confirmação enviada a quem forneceu CPF/CNPJ após consulta na Receita Federal.
+/// `nfse_name` = nome da RF (autoritativo); `fallback_name` = nome do perfil WhatsApp.
+pub fn document_confirmed(
+    document: &str,
+    nfse_name: Option<&str>,
+    situation: Option<&str>,
+    fallback_name: Option<&str>,
+) -> String {
+    let doc_fmt = format_document(document);
+    let mut lines = vec![format!("✅ *Documento confirmado*\n🪪 {doc_fmt}")];
+    if let Some(name) = nfse_name {
+        lines.push(format!("👤 Nome (Receita Federal): *{name}*"));
+        if let Some(sit) = situation {
+            lines.push(format!("📋 Situação cadastral: *{sit}*"));
+        }
+    } else if let Some(name) = fallback_name {
+        lines.push(format!("👤 Nome (WhatsApp): *{name}*"));
+        lines.push("_⚠️ Nome da Receita Federal não disponível — configure NFSE\\_INSCRICAO e NFSE\\_SENHA_".into());
+    } else {
+        lines.push("_⚠️ Nome da Receita Federal não disponível — configure NFSE\\_INSCRICAO e NFSE\\_SENHA_".into());
+    }
+    lines.join("\n")
+}
+
 pub fn welcome() -> &'static str {
     "Olá, eu sou o *HoldFy*. Protejo seu pagamento com segurança."
+}
+
+/// Saudação personalizada quando o nome do contacto já é conhecido.
+pub fn welcome_known(first_name: &str) -> String {
+    format!("Olá, *{first_name}*! Sou o *HoldFy*. Protejo seu pagamento com segurança.")
 }
 
 pub fn menu_hint() -> &'static str {
@@ -60,15 +99,24 @@ pub fn counterparty_same_as_sender() -> &'static str {
 }
 
 /// Proposta ao comprador (B) antes de existir pedido na API.
+/// Inclui nome completo e CPF/CNPJ do vendedor (obrigatório).
 pub fn buyer_proposal_before_accept(
     seller_phone_masked: &str,
     amount: &str,
     description: &str,
+    seller_name: Option<&str>,
+    seller_document: &str,
 ) -> String {
+    let seller_doc_fmt = format_document(seller_document);
+    let seller_line = match seller_name {
+        Some(name) => format!("👤 Vendedor: *{name}* — `{seller_doc_fmt}`"),
+        None => format!("👤 Vendedor: *{seller_phone_masked}* — `{seller_doc_fmt}`"),
+    };
     format!(
-        "*Proposta* (vendedor *{seller_phone_masked}*)\n\
-         • *R$ {amount}*\n\
-         • *{description}*\n\n\
+        "*Proposta HoldFy*\n\
+         {seller_line}\n\
+         💰 Valor: *R$ {amount}*\n\
+         📋 Descrição: *{description}*\n\n\
          *ACEITO* = gerar *PIX*. *RECUSO* / *não* / *recuso* = encerrar."
     )
 }
@@ -104,17 +152,24 @@ pub fn order_control_number_only(order_id: &uuid::Uuid) -> String {
     order_id.to_string()
 }
 
-/// Vendedor (A): resumo logo após criar pedido; controlo e PIX EMV seguem isolados nas próximas mensagens.
+/// Vendedor (A): resumo logo após criar pedido, com nome completo e CPF do comprador.
 pub fn seller_order_created_notice(
     amount: &str,
     description: &str,
     buyer_phone_masked: &str,
+    buyer_name: Option<&str>,
+    buyer_document: &str,
 ) -> String {
+    let buyer_doc_fmt = format_document(buyer_document);
+    let buyer_line = match buyer_name {
+        Some(name) => format!("👤 Comprador: *{name}* — `{buyer_doc_fmt}`"),
+        None => format!("👤 Comprador: ~*{buyer_phone_masked}* — `{buyer_doc_fmt}`"),
+    };
     format!(
         "*Pedido criado*\n\
-         • B: ~*{buyer_phone_masked}*\n\
-         • *R$ {amount}*\n\
-         • *{description}*\n\n\
+         {buyer_line}\n\
+         💰 *R$ {amount}*\n\
+         📋 *{description}*\n\n\
          A seguir só o código do pedido, depois só o código PIX."
     )
 }
@@ -174,8 +229,20 @@ pub fn release_unauthorized() -> &'static str {
     "Somente quem pagou pode confirmar o recebimento."
 }
 
+pub fn ask_seller_document() -> &'static str {
+    "Antes de enviar a proposta ao comprador, informe *seu* CPF (11 dígitos) ou CNPJ (14 dígitos).\n\
+     Consultaremos na Receita Federal para validar os dados.\n\n\
+     Ex: `12345678901` ou `12345678000195`"
+}
+
 pub fn ask_buyer_document() -> &'static str {
-    "Para gerar o PIX, informe seu *CPF* (pessoa física, 11 dígitos) ou *CNPJ* (empresa, 14 dígitos).\n\nEx: `12345678901` ou `12345678000195`"
+    "Para gerar o PIX, informe *seu* CPF (pessoa física, 11 dígitos) ou *CNPJ* (empresa, 14 dígitos).\n\
+     Consultaremos na Receita Federal.\n\n\
+     Ex: `12345678901` ou `12345678000195`"
+}
+
+pub fn seller_document_pending_before_buyer() -> &'static str {
+    "Aguarde: o vendedor ainda precisa informar o CPF/CNPJ dele. Você receberá a proposta em seguida."
 }
 
 pub fn invalid_document() -> &'static str {

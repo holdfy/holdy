@@ -46,7 +46,7 @@ function AppContent() {
   const { pathname } = useLocation();
   const { profile, isAuthenticated } = useAuth();
 
-  const isPublicRoute = pathname === "/" || pathname === "/customer/login" || pathname === "/admin/login" || pathname === "/backoffice/login" || pathname === "/verify";
+  const isPublicRoute = pathname === "/" || pathname === "/customer/login" || pathname === "/admin/login" || pathname === "/backoffice/login";
   const showSidenav = isAuthenticated() && !isPublicRoute;
   const sidenavRoutes = getSidenavRoutes(profile);
 
@@ -77,7 +77,6 @@ function AppContent() {
       "/customer/login": "GateBox — Login Cliente",
       "/admin/login": "GateBox — Login Admin",
       "/backoffice/login": "GateBox — Login Backoffice",
-      "/verify": "GateBox — Verificação",
     };
     if (loginPaths[pathname]) {
       document.title = loginPaths[pathname];

@@ -288,18 +288,6 @@ export const backofficeApi = {
   },
 };
 
-// --- Anchor (auditoria blockchain) ---
-export const anchorApi = {
-  audit: (params) =>
-    request(`${API_BASE}/anchor/audit?${new URLSearchParams(params || {}).toString()}`),
-  proof: async (entityType, entityId) => {
-    const res = await request(
-      `${API_BASE}/anchor/audit?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}&limit=1`
-    );
-    return res.items?.[0] || null;
-  },
-};
-
 // --- Entidades ---
 export const entityApi = {
   transaction: {

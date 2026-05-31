@@ -315,7 +315,7 @@ pub async fn spawn_agent(
     let importer = Arc::new(ImporterService::new_with_redis().await);
     let conv_store = ConversationStore::from_env().await;
     let logistics = Arc::new(build_logistics_service());
-    let handler = Arc::new(MessageHandler::new(
+    let mut handler_builder = MessageHandler::new(
         core,
         outbound.clone(),
         sessions,
@@ -323,7 +323,11 @@ pub async fn spawn_agent(
         importer,
         conv_store,
         logistics,
-    ));
+    );
+    if let Some(pool) = build_wa_contacts_pool().await {
+        handler_builder = handler_builder.with_pg_pool(pool);
+    }
+    let handler = Arc::new(handler_builder);
 
     maybe_spawn_tracking_monitor(outbound.clone()).await;
     let handler_health = handler.clone();
@@ -402,6 +406,25 @@ async fn maybe_spawn_tracking_monitor(outbound: Arc<Outbound>) {
         }
         Err(e) => {
             tracing::warn!(error = %e, "tracking_monitor: falha ao conectar ao Postgres, monitor desativado");
+        }
+    }
+}
+
+/// Pool dedicado para wa_contacts (reutiliza DATABASE_URL se disponível).
+async fn build_wa_contacts_pool() -> Option<sqlx::PgPool> {
+    let db_url = std::env::var("DATABASE_URL").ok().filter(|s| !s.trim().is_empty())?;
+    match sqlx::postgres::PgPoolOptions::new()
+        .max_connections(3)
+        .connect(db_url.trim())
+        .await
+    {
+        Ok(pool) => {
+            tracing::info!("wa_contacts: pool Postgres iniciado");
+            Some(pool)
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "wa_contacts: falha ao conectar Postgres, contatos não serão persistidos");
+            None
         }
     }
 }

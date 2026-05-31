@@ -180,7 +180,11 @@ pub async fn start_multidevice_bridge(
                             Some(sqlite_for_resolve.as_str()),
                         );
                         let mid = info.id.clone();
-                        let ev = match parse_incoming_message(&msg) {
+                        let push_name = {
+                            let n = info.push_name.trim().to_string();
+                            if n.is_empty() { None } else { Some(n) }
+                        };
+                        let mut ev = match parse_incoming_message(&msg) {
                             Some(IncomingBody::Text(text)) => WhatsAppEvent::new(peer, mid, text),
                             Some(IncomingBody::ContactPhoneDigits(digits)) => {
                                 WhatsAppEvent::with_contact_phone(peer, mid, digits)
@@ -190,6 +194,7 @@ pub async fn start_multidevice_bridge(
                             }
                             None => return,
                         };
+                        ev.push_name = push_name;
                         if tx.send(ev).await.is_err() {
                             tracing::warn!("whatsapp-rust: fila fechada, evento descartado");
                         }

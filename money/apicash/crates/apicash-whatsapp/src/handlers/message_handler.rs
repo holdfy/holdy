@@ -37,6 +37,7 @@ pub struct MessageHandler {
     importer: Arc<ImporterService>,
     conv_store: Arc<ConversationStore>,
     logistics: Arc<LogisticsService>,
+    pg_pool: Option<Arc<sqlx::PgPool>>,
 }
 
 impl MessageHandler {
@@ -58,7 +59,13 @@ impl MessageHandler {
             importer,
             conv_store,
             logistics,
+            pg_pool: None,
         }
+    }
+
+    pub fn with_pg_pool(mut self, pool: sqlx::PgPool) -> Self {
+        self.pg_pool = Some(Arc::new(pool));
+        self
     }
 
     /// Persiste uma mensagem no MongoDB (fire-and-forget).
@@ -302,12 +309,31 @@ impl MessageHandler {
             format!("HoldFy (contato comprador ~{})", mask_whatsapp_peer(&buyer_peer_key))
         });
 
+        if draft.seller_document.is_none() {
+            session.state = OrderFlowState::CreatingOrder {
+                step: CreatingOrderStep::AskSellerDocument,
+                draft: OrderDraft {
+                    counterparty_peer_key: Some(buyer_peer_key.clone()),
+                    amount: Some(amt.clone()),
+                    description: Some(description.clone()),
+                    seller_document: None,
+                },
+            };
+            session.touch();
+            self.sessions.update(seller_peer, session.clone()).await;
+            self.outbound
+                .send_text(seller_peer, message_templates::ask_seller_document())
+                .await;
+            return Ok(true);
+        }
+
         session.state = OrderFlowState::CreatingOrder {
             step: CreatingOrderStep::WaitingBuyerAccept,
             draft: OrderDraft {
                 counterparty_peer_key: Some(buyer_peer_key.clone()),
                 amount: Some(amt.clone()),
                 description: Some(description.clone()),
+                seller_document: draft.seller_document.clone(),
             },
         };
         session.touch();
@@ -323,11 +349,15 @@ impl MessageHandler {
 
         let masked_seller = mask_whatsapp_peer(seller_peer);
         let masked_buyer = mask_whatsapp_peer(&buyer_peer_key);
+        let seller_doc = draft.seller_document.as_deref().unwrap_or("");
+        let seller_name = session.contact_name.as_deref();
         let buyer_ok = self
             .outbound
             .send_text(
                 &buyer_peer_key,
-                message_templates::buyer_proposal_before_accept(&masked_seller, &amt, &description),
+                message_templates::buyer_proposal_before_accept(
+                    &masked_seller, &amt, &description, seller_name, seller_doc,
+                ),
             )
             .await;
 
@@ -501,6 +531,206 @@ impl MessageHandler {
         Ok(())
     }
 
+    /// Salva contato no banco (fire-and-forget) e atualiza sessão em memória.
+    /// `authoritative`: se true (NFS-e / Receita Federal), sobrescreve sempre o nome existente.
+    /// Se false (push_name do WhatsApp), só escreve se ainda não houver nome.
+    async fn save_peer_contact_inner(&self, peer: &str, document: &str, name: Option<String>, situation: Option<String>, authoritative: bool) {
+        let user_id = crate::session::user_id_for_peer_key(peer);
+
+        let mut session = self.sessions.session_for(peer).await;
+        if authoritative {
+            if name.is_some() {
+                session.contact_name = name.clone();
+            }
+        } else if session.contact_name.is_none() {
+            session.contact_name = name.clone();
+        }
+        if session.document.is_none() && !document.is_empty() {
+            session.document = Some(document.to_string());
+        }
+        session.contact_loaded = true;
+        self.sessions.update(peer, session).await;
+
+        // Persiste no Postgres em background
+        if let Some(pool) = &self.pg_pool {
+            let doc = if document.is_empty() { None } else { Some(document.to_string()) };
+            let contact = crate::wa_contact_store::WaContact {
+                peer_key: peer.to_string(),
+                user_id,
+                name,
+                document: doc,
+                document_type: None,
+                situation,
+            };
+            let pool = pool.clone();
+            tokio::spawn(async move {
+                crate::wa_contact_store::save_contact(&pool, &contact).await;
+            });
+        }
+    }
+
+    /// Nome da Receita Federal — sobrescreve push_name (fonte autoritativa).
+    async fn save_peer_contact(&self, peer: &str, document: &str, name: Option<String>, situation: Option<String>) {
+        self.save_peer_contact_inner(peer, document, name, situation, true).await;
+    }
+
+    /// Nome do perfil WhatsApp — só salva se não houver nome ainda.
+    async fn save_peer_push_name(&self, peer: &str, name: String) {
+        self.save_peer_contact_inner(peer, "", Some(name), None, false).await;
+    }
+
+    /// Carrega contato do banco na primeira mensagem da sessão (lazy).
+    async fn maybe_load_contact(&self, session: &mut UserSession) {
+        if session.contact_loaded {
+            return;
+        }
+        session.contact_loaded = true;
+        if let Some(pool) = &self.pg_pool {
+            if let Some(c) = crate::wa_contact_store::load_contact(pool, &session.peer_id).await {
+                session.contact_name = c.name;
+                session.document = c.document;
+            }
+        }
+    }
+
+    /// Primeiro nome do contacto, para saudações curtas.
+    fn first_name(full_name: &str) -> &str {
+        full_name.split_whitespace().next().unwrap_or(full_name)
+    }
+
+    async fn seller_document_from_draft(&self, seller_peer_key: &str) -> Option<String> {
+        let seller_sess = self.sessions.session_for(seller_peer_key).await;
+        match &seller_sess.state {
+            OrderFlowState::CreatingOrder { draft, .. } => draft.seller_document.clone(),
+            _ => None,
+        }
+    }
+
+    /// Comprador aceitou: pede CPF/CNPJ dele se o vendedor já tiver informado o dele.
+    async fn begin_buyer_document_collection(
+        &self,
+        session: &mut UserSession,
+        buyer_peer: &str,
+        seller_peer_key: String,
+        amount: String,
+        description: String,
+    ) -> Result<(), CoreApiError> {
+        let Some(seller_document) = self.seller_document_from_draft(&seller_peer_key).await else {
+            session.touch();
+            self.sessions.update(buyer_peer, session.clone()).await;
+            self.outbound
+                .send_text(
+                    buyer_peer,
+                    message_templates::seller_document_pending_before_buyer(),
+                )
+                .await;
+            let mut seller_sess = self.sessions.session_for(&seller_peer_key).await;
+            if let OrderFlowState::CreatingOrder { draft, .. } = &seller_sess.state {
+                if draft.seller_document.is_none() {
+                    seller_sess.state = OrderFlowState::CreatingOrder {
+                        step: CreatingOrderStep::AskSellerDocument,
+                        draft: draft.clone(),
+                    };
+                    seller_sess.touch();
+                    self.sessions
+                        .update(&seller_peer_key, seller_sess)
+                        .await;
+                    self.outbound
+                        .send_text(
+                            &seller_peer_key,
+                            message_templates::ask_seller_document(),
+                        )
+                        .await;
+                }
+            }
+            return Ok(());
+        };
+
+        session.state = OrderFlowState::AwaitingBuyerDocument {
+            seller_peer_key,
+            seller_document,
+            amount,
+            description,
+        };
+        session.touch();
+        self.sessions.update(buyer_peer, session.clone()).await;
+        self.outbound
+            .send_text(buyer_peer, message_templates::ask_buyer_document())
+            .await;
+        Ok(())
+    }
+
+    /// Vendedor informou CPF/CNPJ; consulta Receita e envia proposta ao comprador.
+    async fn accept_seller_document_and_propose(
+        &self,
+        session: &mut UserSession,
+        seller_peer: &str,
+        mut draft: OrderDraft,
+        document: &str,
+    ) -> Result<(), CoreApiError> {
+        draft.seller_document = Some(document.to_string());
+        let (seller_person, seller_lookup_status) =
+            crate::nfse_client::lookup_person(document).await;
+        let seller_name = seller_person.as_ref().and_then(|p| p.name.clone());
+        let seller_situation = seller_person.as_ref().and_then(|p| p.situation.clone());
+
+        // NFS-e como fonte primária; push_name da sessão como fallback
+        let display_name = seller_name.as_deref().or(session.contact_name.as_deref());
+        if display_name.is_none() {
+            tracing::warn!(
+                peer = %mask_whatsapp_peer(seller_peer),
+                status = ?seller_lookup_status,
+                "nfse: nome não obtido para CPF/CNPJ do vendedor e push_name ausente"
+            );
+        }
+
+        // Sempre confirmar o documento ao vendedor (obrigatório)
+        // NFS-e separado do push_name para que o label seja correto
+        let push_name_fallback = session.contact_name.as_deref().filter(|_| seller_name.is_none());
+        self.outbound
+            .send_text(
+                seller_peer,
+                &message_templates::document_confirmed(
+                    document,
+                    seller_name.as_deref(),
+                    seller_situation.as_deref(),
+                    push_name_fallback,
+                ),
+            )
+            .await;
+
+        // NFS-e tem precedência — sobrescreve sempre o push_name
+        if seller_name.is_some() {
+            session.contact_name = seller_name.clone();
+        }
+        session.document = Some(document.to_string());
+        session.contact_loaded = true;
+
+        // Persiste em background
+        self.save_peer_contact(seller_peer, document, seller_name, seller_situation).await;
+
+        if let Err(e) = self
+            .core
+            .calculate_risk_score_internal_only(
+                session.user_id,
+                document,
+                &[],
+            )
+            .await
+        {
+            tracing::warn!(
+                peer = %mask_whatsapp_peer(seller_peer),
+                user_id = %session.user_id,
+                error = %e,
+                "core_api: seller risk score failed (continuing)"
+            );
+        }
+
+        self.try_send_holdfy_proposal(session, seller_peer, draft)
+            .await
+            .map(|_| ())
+    }
+
     /// Após comprador responder *ACEITO* e fornecer documento: criar pedido, enviar PIX a B e avisos a A/B.
     async fn finalize_order_after_buyer_accepted(
         &self,
@@ -508,7 +738,8 @@ impl MessageHandler {
         buyer_peer_key: &str,
         amount: String,
         description: String,
-        document: &str,
+        seller_document: &str,
+        buyer_document: &str,
         peer_hint_buyer: &str,
     ) -> Result<(), CoreApiError> {
         let buyer_id = crate::session::user_id_for_peer_key(buyer_peer_key);
@@ -543,7 +774,7 @@ impl MessageHandler {
 
         if let Err(e) = self
             .core
-            .calculate_risk_score_internal_only(buyer_id, document, social_empty)
+            .calculate_risk_score_internal_only(buyer_id, buyer_document, social_empty)
             .await
         {
             tracing::warn!(
@@ -553,14 +784,50 @@ impl MessageHandler {
                 "core_api: calculate_risk_score_internal_only failed (continuing). Configure APICASH_API_KEY for antifraude."
             );
         }
-
-        // Consulta nome do comprador via NFS-e (não bloqueia se falhar).
-        let buyer_name = crate::nfse_client::lookup_name(document).await;
-        if let Some(ref name) = buyer_name {
-            let msg = format!("*Comprador identificado:* {name}");
-            self.outbound.send_text(buyer_peer_key, &msg).await;
-            self.outbound.send_text(seller_peer_key, &msg).await;
+        if let Err(e) = self
+            .core
+            .calculate_risk_score_internal_only(seller_id, seller_document, social_empty)
+            .await
+        {
+            tracing::warn!(
+                seller_id = %seller_id,
+                error = %e,
+                "core_api: seller risk score failed (continuing)"
+            );
         }
+
+        let (buyer_person, buyer_lookup_status) =
+            crate::nfse_client::lookup_person(buyer_document).await;
+        let buyer_name: Option<String> = buyer_person.as_ref().and_then(|p| p.name.clone());
+        let buyer_situation = buyer_person.as_ref().and_then(|p| p.situation.clone());
+
+        // NFS-e como fonte primária; carregar sessão do comprador para push_name como fallback
+        let buyer_session = self.sessions.session_for(buyer_peer_key).await;
+        let buyer_display_name = buyer_name.as_deref().or(buyer_session.contact_name.as_deref());
+        if buyer_display_name.is_none() {
+            tracing::warn!(
+                peer = %mask_whatsapp_peer(buyer_peer_key),
+                status = ?buyer_lookup_status,
+                "nfse: nome não obtido para CPF/CNPJ do comprador e push_name ausente"
+            );
+        }
+
+        // Sempre confirmar o documento ao comprador (obrigatório)
+        let buyer_push_fallback = buyer_session.contact_name.as_deref().filter(|_| buyer_name.is_none());
+        self.outbound
+            .send_text(
+                buyer_peer_key,
+                &message_templates::document_confirmed(
+                    buyer_document,
+                    buyer_name.as_deref(),
+                    buyer_situation.as_deref(),
+                    buyer_push_fallback,
+                ),
+            )
+            .await;
+
+        // Persiste contato do comprador
+        self.save_peer_contact(buyer_peer_key, buyer_document, buyer_name.clone(), buyer_situation).await;
 
         let order = match self
             .core
@@ -568,7 +835,7 @@ impl MessageHandler {
                 buyer_id,
                 seller_id,
                 &amount,
-                document,
+                buyer_document,
                 social_empty,
                 Some(description.as_str()),
                 buyer_name.as_deref(),
@@ -734,6 +1001,8 @@ impl MessageHandler {
                     &amount,
                     &description,
                     &masked_buyer,
+                    buyer_display_name,
+                    buyer_document,
                 ),
             )
             .await;
@@ -757,6 +1026,17 @@ impl MessageHandler {
         let peer = ev.sender_id.clone();
         let peer_hint = mask_whatsapp_peer(&peer);
         let mut session = self.sessions.session_for(&peer).await;
+        self.maybe_load_contact(&mut session).await;
+
+        // Salva o nome de perfil WhatsApp quando ainda não temos nome melhor (não sobrescreve NFS-e)
+        if session.contact_name.is_none() {
+            if let Some(ref pn) = ev.push_name {
+                self.save_peer_push_name(&peer, pn.clone()).await;
+                session.contact_name = Some(pn.clone());
+            }
+        }
+
+        self.sessions.update(&peer, session.clone()).await;
         let body = ev.body.trim();
 
         // Persistir mensagem inbound no MongoDB
@@ -842,9 +1122,11 @@ impl MessageHandler {
             }
         }
         if order_flow::is_help(body) || body.eq_ignore_ascii_case("AJUDA") {
-            self.outbound
-                .send_text(&peer, message_templates::welcome())
-                .await;
+            let welcome_msg = match session.contact_name.as_deref() {
+                Some(name) => message_templates::welcome_known(Self::first_name(name)),
+                None => message_templates::welcome().to_string(),
+            };
+            self.outbound.send_text(&peer, &welcome_msg).await;
             self.outbound
                 .send_text(&peer, message_templates::welcome_help())
                 .await;
@@ -945,17 +1227,15 @@ impl MessageHandler {
                     return Ok(());
                 }
                 if order_flow::is_accept_proposal(body) {
-                    session.state = OrderFlowState::AwaitingBuyerDocument {
-                        seller_peer_key,
-                        amount,
-                        description,
-                    };
-                    session.touch();
-                    self.sessions.update(&peer, session).await;
-                    self.outbound
-                        .send_text(&peer, message_templates::ask_buyer_document())
+                    return self
+                        .begin_buyer_document_collection(
+                            &mut session,
+                            &peer,
+                            seller_peer_key,
+                            amount,
+                            description,
+                        )
                         .await;
-                    return Ok(());
                 }
 
                 session.state = OrderFlowState::BuyerPendingSellerProposal {
@@ -977,16 +1257,18 @@ impl MessageHandler {
                 } else if order_flow::is_new_order(body) || body.eq_ignore_ascii_case("NOVO_PEDIDO") {
                     self.start_holdfy_flow(&mut session, &peer, body, &ev).await?;
                 } else {
+                    let welcome_msg = match session.contact_name.as_deref() {
+                        Some(name) => message_templates::welcome_known(Self::first_name(name)),
+                        None => message_templates::welcome().to_string(),
+                    };
                     session.state = OrderFlowState::Idle;
                     self.sessions.update(&peer, session).await;
-                    self.outbound
-                        .send_text(&peer, message_templates::welcome())
-                        .await;
+                    self.outbound.send_text(&peer, &welcome_msg).await;
                     self.outbound
                         .send_text(&peer, message_templates::menu_hint())
                         .await;
                     self.outbound
-                        .send_welcome_interactive(&peer, message_templates::welcome())
+                        .send_welcome_interactive(&peer, &welcome_msg)
                         .await;
                 }
             }
@@ -994,6 +1276,39 @@ impl MessageHandler {
                 if matches!(step, CreatingOrderStep::AskAmount | CreatingOrderStep::AskCounterparty) {
                     self.advance_holdfy_collecting(&mut session, &peer, step, draft, body, &ev)
                         .await?;
+                } else if matches!(step, CreatingOrderStep::AskSellerDocument) {
+                    if let Some(doc) = order_flow::parse_document(body) {
+                        self.accept_seller_document_and_propose(&mut session, &peer, draft, &doc)
+                            .await?;
+                    } else {
+                        const MAX_DOC_ATTEMPTS: u32 = 5;
+                        let attempt = session.bump_invalid();
+                        session.last_activity_at = Utc::now();
+                        if attempt >= MAX_DOC_ATTEMPTS {
+                            session.reset_flow();
+                            self.sessions.update(&peer, session).await;
+                            self.outbound
+                                .send_text(
+                                    &peer,
+                                    message_templates::invalid_document_too_many_attempts(),
+                                )
+                                .await;
+                        } else {
+                            session.state = OrderFlowState::CreatingOrder {
+                                step: CreatingOrderStep::AskSellerDocument,
+                                draft,
+                            };
+                            self.sessions.update(&peer, session).await;
+                            self.outbound
+                                .send_text(
+                                    &peer,
+                                    &message_templates::invalid_document_retry(
+                                        attempt, MAX_DOC_ATTEMPTS,
+                                    ),
+                                )
+                                .await;
+                        }
+                    }
                 } else if matches!(step, CreatingOrderStep::WaitingBuyerAccept) {
                     if draft
                         .counterparty_peer_key
@@ -1016,17 +1331,27 @@ impl MessageHandler {
                                 .clone()
                                 .unwrap_or_else(|| "HoldFy".into());
                             if order_flow::peers_same_phone(&bpk, &peer) {
-                                session.state = OrderFlowState::AwaitingBuyerDocument {
-                                    seller_peer_key: peer.clone(),
-                                    amount: amt,
-                                    description: desc,
-                                };
-                                session.touch();
-                                self.sessions.update(&peer, session).await;
-                                self.outbound
-                                    .send_text(&peer, message_templates::ask_buyer_document())
+                                let seller_doc = draft.seller_document.clone().unwrap_or_default();
+                                if seller_doc.is_empty() {
+                                    self.outbound
+                                        .send_text(&peer, message_templates::ask_seller_document())
+                                        .await;
+                                    session.state = OrderFlowState::CreatingOrder {
+                                        step: CreatingOrderStep::AskSellerDocument,
+                                        draft,
+                                    };
+                                    self.sessions.update(&peer, session).await;
+                                    return Ok(());
+                                }
+                                return self
+                                    .begin_buyer_document_collection(
+                                        &mut session,
+                                        &peer,
+                                        peer.clone(),
+                                        amt,
+                                        desc,
+                                    )
                                     .await;
-                                return Ok(());
                             }
                         }
                         session.state = OrderFlowState::CreatingOrder {
@@ -1054,6 +1379,7 @@ impl MessageHandler {
             }
             OrderFlowState::AwaitingBuyerDocument {
                 seller_peer_key,
+                seller_document,
                 amount,
                 description,
             } => {
@@ -1063,6 +1389,7 @@ impl MessageHandler {
                         &peer,
                         amount,
                         description,
+                        &seller_document,
                         &doc,
                         &peer_hint,
                     )
@@ -1097,6 +1424,7 @@ impl MessageHandler {
                     } else {
                         session.state = OrderFlowState::AwaitingBuyerDocument {
                             seller_peer_key,
+                            seller_document,
                             amount,
                             description,
                         };

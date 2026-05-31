@@ -11,6 +11,9 @@ pub struct WhatsAppEvent {
     /// Telefone obtido de mensagem de contacto (vCard), só dígitos.
     #[serde(default)]
     pub contact_phone_digits: Option<String>,
+    /// Nome de perfil WhatsApp do remetente (push_name do protocolo).
+    #[serde(default)]
+    pub push_name: Option<String>,
 }
 
 impl WhatsAppEvent {
@@ -25,6 +28,7 @@ impl WhatsAppEvent {
             message_id: message_id.into(),
             body: body.into(),
             contact_phone_digits: None,
+            push_name: None,
         }
     }
 
@@ -38,6 +42,7 @@ impl WhatsAppEvent {
             message_id: message_id.into(),
             body: String::new(),
             contact_phone_digits: Some(digits.into()),
+            push_name: None,
         }
     }
 
@@ -53,6 +58,7 @@ impl WhatsAppEvent {
             message_id: message_id.into(),
             body: body.into(),
             contact_phone_digits: Some(contact_digits.into()),
+            push_name: None,
         }
     }
 }

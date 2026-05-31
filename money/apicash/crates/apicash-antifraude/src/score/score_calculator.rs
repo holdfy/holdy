@@ -78,11 +78,11 @@ pub const PENALTY_VALUE_ANOMALY: i32 = -100;
 // ─── Decision / risk thresholds ──────────────────────────────────────────────
 pub const THRESHOLD_LOW_MIN: u32 = 750;
 pub const THRESHOLD_MEDIUM_MIN: u32 = 500;
-pub const THRESHOLD_HIGH_MIN: u32 = 250;
+pub const THRESHOLD_HIGH_MIN: u32 = 200;
 pub const DECISION_APPROVE_MIN: u32 = 650;
-/// Review threshold fixo (300): CPF válido com 1 penalidade menor ainda passa para Review.
-/// Anterior era POINTS_CPF_REGULAR (350), o que bloqueava qualquer penalidade em usuário novo.
-pub const DECISION_REVIEW_MIN: u32 = 300;
+/// Review threshold (200): garante que CPF válido (350pts) + penalidade de volume/maturidade
+/// ainda resulta em Review em vez de Block. Score mínimo para não bloquear: 200.
+pub const DECISION_REVIEW_MIN: u32 = 200;
 /// ValueAnomaly só aplica com histórico mínimo de 5 transações — evita falso positivo em usuários novos.
 pub const VALUE_ANOMALY_MIN_TX: u32 = 5;
 
