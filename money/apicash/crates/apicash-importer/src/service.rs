@@ -117,6 +117,7 @@ impl ImporterService {
                 Ok(Some(mut draft)) => {
                     tracing::info!(extractor = extractor.name(), url, "importer: extracted");
                     draft.photos = self.rehost_photos(draft.photos).await;
+                    draft.video_url = self.rehost_video(draft.video_url).await;
                     self.cache_set(&cache_key, &draft).await;
                     return Ok(draft);
                 }
@@ -177,6 +178,24 @@ impl ImporterService {
             }
         }
         result
+    }
+
+    /// Upload de vídeo externo para MinIO. Mantém URL original em caso de falha.
+    async fn rehost_video(&self, video_url: Option<String>) -> Option<String> {
+        let url = video_url?;
+        let Some(store) = &self.image_store else {
+            return Some(url);
+        };
+        match store.upload_from_url(&url).await {
+            Ok(minio_url) => {
+                tracing::info!(minio_url, "importer: video reuploaded to MinIO");
+                Some(minio_url)
+            }
+            Err(e) => {
+                tracing::warn!(url, error = %e, "importer: video rehost failed, keeping original");
+                Some(url)
+            }
+        }
     }
 }
 

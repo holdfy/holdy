@@ -7,6 +7,8 @@
 //! - `CORREIOS_ACCESS_CODE`  — código cartão postagem (opcional)
 //! - `LINKETRACK_USER`       — e-mail LinkTrack (opcional)
 //! - `LINKETRACK_TOKEN`      — token LinkTrack (opcional)
+//! - `APICASH_TRACKING_MODE` — `simulated` = LogisticaHoldFy local; omitir/`live` = cascade real
+//! - `APICASH_TRACKING_SIMULATOR_URL` — URL do backend simulador (defeito: http://{MONEY_LAN_HOST}:8092)
 
 pub mod client;
 pub mod error;

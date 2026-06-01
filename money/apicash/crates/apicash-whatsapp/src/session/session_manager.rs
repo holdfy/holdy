@@ -46,6 +46,11 @@ pub enum OrderFlowState {
         amount: String,
         description: String,
     },
+    /// Vendedor (A) iniciou HoldFy; aguarda link do anúncio antes de continuar.
+    AwaitingListingUrl {
+        /// Rascunho parcial (pode já ter amount/phone se vieram na frase inicial).
+        draft: OrderDraft,
+    },
     /// Fluxo simples de disputa (encaminha para suporte humano).
     DisputeHint {
         order_id: Uuid,
@@ -73,6 +78,14 @@ pub struct OrderDraft {
     pub description: Option<String>,
     /// CPF/CNPJ do vendedor (quem iniciou o HoldFy).
     pub seller_document: Option<String>,
+    /// UUID do listing importado (salvo no banco pelo core).
+    pub listing_id: Option<Uuid>,
+    /// Fotos do anúncio (URLs MinIO). Primeira = imagem principal.
+    pub listing_photos: Vec<String>,
+    /// URL original do anúncio (Instagram, ML, etc.).
+    pub listing_source_url: Option<String>,
+    /// Preço sugerido extraído do anúncio (pode diferir do valor cobrado pelo vendedor).
+    pub listing_price_suggested: Option<String>,
 }
 
 /// `Uuid` estável por peer WhatsApp (igual ao da sessão desse número).

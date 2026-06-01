@@ -25,6 +25,7 @@ impl Extractor for OpenGraphExtractor {
         let mut title = None::<String>;
         let mut description = None::<String>;
         let mut image = None::<String>;
+        let mut video = None::<String>;
 
         for el in document.select(&meta_sel) {
             let property = el
@@ -38,6 +39,9 @@ impl Extractor for OpenGraphExtractor {
                 "og:title" if title.is_none() => title = Some(content.to_string()),
                 "og:description" if description.is_none() => description = Some(content.to_string()),
                 "og:image" if image.is_none() => image = Some(content.to_string()),
+                "og:video" | "og:video:url" | "og:video:secure_url" if video.is_none() => {
+                    video = Some(content.to_string());
+                }
                 _ => {}
             }
         }
@@ -53,6 +57,7 @@ impl Extractor for OpenGraphExtractor {
             description: description.filter(|s| !s.is_empty()),
             price_suggested: None,
             photos,
+            video_url: video.filter(|s| !s.is_empty()),
             source_url: url.to_string(),
             source_platform: SourcePlatform::detect(url),
             extractor_used: self.name().to_string(),

@@ -36,6 +36,7 @@ pub struct ImportResponse {
     pub location: Option<String>,
     pub seller_name: Option<String>,
     pub seller_rating: Option<String>,
+    pub video_url: Option<String>,
     pub raw_attributes: serde_json::Value,
 }
 
@@ -55,6 +56,7 @@ impl From<ProductDraft> for ImportResponse {
             location: d.location,
             seller_name: d.seller_name,
             seller_rating: d.seller_rating,
+            video_url: d.video_url,
             raw_attributes: d.raw_attributes,
         }
     }
@@ -147,6 +149,26 @@ pub async fn get_import_job(
         queued_at: job.queued_at,
         completed_at: job.completed_at,
     }))
+}
+
+/// `PATCH /v1/listings/:id/order` — vincula um listing a um pedido existente.
+pub async fn link_listing_to_order(
+    State(state): State<Arc<AppState>>,
+    Path(listing_id): Path<Uuid>,
+    Json(body): Json<LinkOrderBody>,
+) -> Result<axum::http::StatusCode, ApiError> {
+    let Some(repo) = &state.listing_repo else {
+        return Err(ApiError::bad_request("banco de dados não configurado"));
+    };
+    repo.set_order_id(listing_id, body.order_id)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+pub struct LinkOrderBody {
+    pub order_id: Uuid,
 }
 
 /// `POST /v1/listings/import` — faz scraping da URL e persiste no Postgres.

@@ -81,6 +81,8 @@ pub struct ProductDraft {
     pub seller_name: Option<String>,
     /// Rating/reputação do vendedor (ex.: "4.8/5" ou "Platina").
     pub seller_rating: Option<String>,
+    /// URL de vídeo do anúncio (og:video para Instagram/TikTok/etc).
+    pub video_url: Option<String>,
     /// Todos os atributos extras em formato livre (JSONB no postgres).
     pub raw_attributes: serde_json::Value,
 }

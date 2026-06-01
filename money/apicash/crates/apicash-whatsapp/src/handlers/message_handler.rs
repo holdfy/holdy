@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use apicash_auth::{AuthConfig, AuthService, Role};
-use apicash_importer::ImporterService;
+
 use apicash_logistics::LogisticsService;
 use chrono::Utc;
 use uuid::Uuid;
@@ -34,7 +34,6 @@ pub struct MessageHandler {
     sessions: Arc<SessionManager>,
     payment_registry: Arc<PaymentNotifyRegistry>,
     jwt: AuthService,
-    importer: Arc<ImporterService>,
     conv_store: Arc<ConversationStore>,
     logistics: Arc<LogisticsService>,
     pg_pool: Option<Arc<sqlx::PgPool>>,
@@ -46,7 +45,6 @@ impl MessageHandler {
         outbound: Arc<Outbound>,
         sessions: Arc<SessionManager>,
         payment_registry: Arc<PaymentNotifyRegistry>,
-        importer: Arc<ImporterService>,
         conv_store: Arc<ConversationStore>,
         logistics: Arc<LogisticsService>,
     ) -> Self {
@@ -56,7 +54,6 @@ impl MessageHandler {
             sessions,
             payment_registry,
             jwt: AuthService::new(AuthConfig::from_env()),
-            importer,
             conv_store,
             logistics,
             pg_pool: None,
@@ -176,6 +173,12 @@ impl MessageHandler {
         let msg = message_templates::payment_completed_notify(&order_id, &parties.amount);
         self.outbound.send_text(&parties.seller_peer, &msg).await;
         self.outbound.send_text(&parties.buyer_peer, &msg).await;
+
+        let tracking_wait = message_templates::awaiting_seller_tracking_code(&order_id);
+        self.outbound
+            .send_text(&parties.seller_peer, &tracking_wait)
+            .await;
+
         self.payment_registry.mark_notified(order_id).await;
 
         // Gerar resumo quando pagamento confirmado
@@ -201,6 +204,35 @@ impl MessageHandler {
             "bank payment: WhatsApp notify sent to both parties"
         );
         Ok(())
+    }
+
+    /// Notifica o vendedor sobre uma etapa de rastreio (LogisticaHoldFy simulador).
+    pub async fn notify_tracking_step(
+        &self,
+        seller_phone: &str,
+        order_id: Option<&str>,
+        tracking_code: &str,
+        step_label: &str,
+        description: &str,
+    ) {
+        let mut msg = String::from("📦 *Atualização de rastreio*");
+        if let Some(oid) = order_id.filter(|s| !s.trim().is_empty()) {
+            msg.push_str(&format!("\nPedido: `{oid}`"));
+        }
+        msg.push_str(&format!(
+            "\n\nCódigo: `{tracking_code}`\nEtapa: *{step_label}*\n{description}"
+        ));
+        let p = seller_phone.trim();
+        if p.is_empty() {
+            return;
+        }
+        self.outbound.send_text(p, &msg).await;
+        tracing::info!(
+            peer = %mask_whatsapp_peer(p),
+            code = %tracking_code,
+            step = %step_label,
+            "tracking step: WhatsApp enviado ao vendedor"
+        );
     }
 
     /// PN confirmado pelo WhatsApp (evita divergência 554198… vs 554188… do cartão).
@@ -317,6 +349,10 @@ impl MessageHandler {
                     amount: Some(amt.clone()),
                     description: Some(description.clone()),
                     seller_document: None,
+                    listing_id: draft.listing_id,
+                    listing_photos: draft.listing_photos.clone(),
+                    listing_source_url: draft.listing_source_url.clone(),
+                    listing_price_suggested: draft.listing_price_suggested.clone(),
                 },
             };
             session.touch();
@@ -334,6 +370,10 @@ impl MessageHandler {
                 amount: Some(amt.clone()),
                 description: Some(description.clone()),
                 seller_document: draft.seller_document.clone(),
+                listing_id: draft.listing_id,
+                listing_photos: draft.listing_photos.clone(),
+                listing_source_url: draft.listing_source_url.clone(),
+                listing_price_suggested: draft.listing_price_suggested.clone(),
             },
         };
         session.touch();
@@ -351,12 +391,15 @@ impl MessageHandler {
         let masked_buyer = mask_whatsapp_peer(&buyer_peer_key);
         let seller_doc = draft.seller_document.as_deref().unwrap_or("");
         let seller_name = session.contact_name.as_deref();
+        let listing_url = draft.listing_source_url.as_deref();
+        let listing_price = draft.listing_price_suggested.as_deref();
+
         let buyer_ok = self
             .outbound
             .send_text(
                 &buyer_peer_key,
                 message_templates::buyer_proposal_before_accept(
-                    &masked_seller, &amt, &description, seller_name, seller_doc,
+                    &masked_seller, &amt, &description, seller_name, seller_doc, listing_url, listing_price,
                 ),
             )
             .await;
@@ -385,62 +428,7 @@ impl MessageHandler {
         Ok(true)
     }
 
-    /// Vendedor enviou um link de produto — importar e pré-preencher rascunho.
-    async fn handle_url_import(
-        &self,
-        session: &mut UserSession,
-        seller_peer: &str,
-        url: &str,
-    ) -> Result<(), CoreApiError> {
-        self.outbound
-            .send_text(seller_peer, message_templates::importing_product())
-            .await;
-
-        match self.importer.import(url).await {
-            Ok(draft_product) => {
-                let title = draft_product.title.clone();
-                let price_str = draft_product.price_suggested.map(|p| p.round_dp(2).normalize().to_string());
-
-                let mut draft = OrderDraft {
-                    description: Some(title.clone()),
-                    ..Default::default()
-                };
-
-                if let Some(ref price) = price_str {
-                    draft.amount = Some(price.clone());
-                    session.state = OrderFlowState::CreatingOrder {
-                        step: CreatingOrderStep::AskCounterparty,
-                        draft,
-                    };
-                    session.touch();
-                    self.sessions.update(seller_peer, session.clone()).await;
-                    self.outbound
-                        .send_text(seller_peer, &message_templates::product_imported_with_price(&title, price))
-                        .await;
-                } else {
-                    session.state = OrderFlowState::CreatingOrder {
-                        step: CreatingOrderStep::AskAmount,
-                        draft,
-                    };
-                    session.touch();
-                    self.sessions.update(seller_peer, session.clone()).await;
-                    self.outbound
-                        .send_text(seller_peer, &message_templates::product_imported_no_price(&title))
-                        .await;
-                }
-            }
-            Err(e) => {
-                tracing::warn!(peer = %mask_whatsapp_peer(seller_peer), url_len = url.len(), error = %e, "importer: URL import failed");
-                session.state = OrderFlowState::Idle;
-                self.sessions.update(seller_peer, session.clone()).await;
-                self.outbound
-                    .send_text(seller_peer, message_templates::product_import_failed())
-                    .await;
-            }
-        }
-        Ok(())
-    }
-
+    /// Vendedor enviou um link de produto — importar via core API, salvar no banco e pré-preencher rascunho.
     async fn start_holdfy_flow(
         &self,
         session: &mut UserSession,
@@ -448,6 +436,7 @@ impl MessageHandler {
         body: &str,
         ev: &WhatsAppEvent,
     ) -> Result<(), CoreApiError> {
+        // Preserva amount/phone se vieram na frase inicial (ex.: "holdfy 200 para 41999...")
         let mut draft = OrderDraft::default();
         if let Some(parsed) = parse_holdfy_message(body, Some(ev)) {
             draft.amount = parsed.amount;
@@ -456,18 +445,107 @@ impl MessageHandler {
             Self::merge_holdfy_draft(&mut draft, body, ev);
         }
 
+        // Primeiro passo: pedir o link do anúncio
+        session.active_order_id = None;
+        session.state = OrderFlowState::AwaitingListingUrl { draft };
+        session.touch();
+        self.sessions.update(seller_peer, session.clone()).await;
+        self.outbound.send_text(seller_peer, message_templates::ask_listing_url()).await;
+        Ok(())
+    }
+
+    /// Trata a resposta ao pedido de link do anúncio.
+    /// - URL → importa e avança
+    /// - "pular" → segue o fluxo sem anúncio
+    async fn handle_listing_url_response(
+        &self,
+        session: &mut UserSession,
+        seller_peer: &str,
+        body: &str,
+        _ev: &WhatsAppEvent,
+        draft: OrderDraft,
+    ) -> Result<(), CoreApiError> {
+        let skip = matches!(body.to_lowercase().trim(), "pular" | "skip" | "não" | "nao" | "sem anuncio" | "sem anúncio");
+
+        if skip {
+            // Continua sem anúncio
+            self.advance_to_collect(session, seller_peer, draft).await
+        } else if order_flow::is_product_url(body) {
+            // Importa o link e avança
+            let mut draft = draft;
+            self.outbound.send_text(seller_peer, message_templates::importing_product()).await;
+            match self.core.import_listing(body, session.user_id).await {
+                Ok(resp) => {
+                    let title = resp.title.clone();
+                    let price_str = resp.price_suggested.clone();
+                    draft.description = Some(title.clone());
+                    draft.listing_id = resp.listing_id;
+                    draft.listing_photos = resp.photos.clone();
+                    draft.listing_source_url = Some(resp.source_url.clone());
+                    draft.listing_price_suggested = resp.price_suggested.clone();
+                    // Preenche amount com preço do anúncio se ainda não foi informado
+                    if draft.amount.is_none() {
+                        draft.amount = price_str.clone();
+                    }
+                    // Envia vídeo se disponível, senão imagem — confirmação ao vendedor
+                    if let Some(video_url) = &resp.video_url {
+                        match download_url_bytes(video_url).await {
+                            Ok(bytes) => {
+                                self.outbound.send_video_bytes(seller_peer, &bytes, None).await;
+                            }
+                            Err(_) => {
+                                if let Some(photo_url) = resp.photos.first() {
+                                    if let Ok(bytes) = download_url_bytes(photo_url).await {
+                                        self.outbound.send_image_bytes(seller_peer, &bytes, None).await;
+                                    }
+                                }
+                            }
+                        }
+                    } else if let Some(photo_url) = resp.photos.first() {
+                        if let Ok(bytes) = download_url_bytes(photo_url).await {
+                            self.outbound.send_image_bytes(seller_peer, &bytes, None).await;
+                        }
+                    }
+                    let msg = match &price_str {
+                        Some(p) => message_templates::product_imported_with_price(&title, p, &resp.source_url),
+                        None => message_templates::product_imported_no_price(&title, &resp.source_url),
+                    };
+                    self.outbound.send_text(seller_peer, &msg).await;
+                    self.advance_to_collect(session, seller_peer, draft).await
+                }
+                Err(e) => {
+                    tracing::warn!(peer = %mask_whatsapp_peer(seller_peer), error = %e, "import listing failed");
+                    self.outbound.send_text(seller_peer, message_templates::product_import_failed()).await;
+                    // Dá outra hipótese de enviar link ou pular
+                    session.state = OrderFlowState::AwaitingListingUrl { draft };
+                    session.touch();
+                    self.sessions.update(seller_peer, session.clone()).await;
+                    Ok(())
+                }
+            }
+        } else {
+            // Resposta não reconhecida — pede de novo
+            self.outbound.send_text(seller_peer, message_templates::ask_listing_url()).await;
+            session.state = OrderFlowState::AwaitingListingUrl { draft };
+            session.touch();
+            self.sessions.update(seller_peer, session.clone()).await;
+            Ok(())
+        }
+    }
+
+    async fn advance_to_collect(
+        &self,
+        session: &mut UserSession,
+        seller_peer: &str,
+        draft: OrderDraft,
+    ) -> Result<(), CoreApiError> {
         let collect = next_collect_step(
             draft.amount.as_deref(),
             draft.counterparty_peer_key.as_deref(),
         );
         if collect == HoldfyCollectStep::Ready {
-            return self
-                .try_send_holdfy_proposal(session, seller_peer, draft)
-                .await
-                .map(|_| ());
+            return self.try_send_holdfy_proposal(session, seller_peer, draft).await.map(|_| ());
         }
-
-        session.active_order_id = None;
         session.state = OrderFlowState::CreatingOrder {
             step: Self::holdfy_creating_step(collect),
             draft: draft.clone(),
@@ -929,6 +1007,20 @@ impl MessageHandler {
 
         let order_id = order.id;
 
+        // Vincula o listing ao pedido se o vendedor tiver importado um anúncio
+        {
+            let seller_draft_listing = match &seller_sess.state {
+                OrderFlowState::CreatingOrder { draft, .. } => draft.listing_id,
+                _ => None,
+            };
+            if let Some(lid) = seller_draft_listing {
+                let core = self.core.clone();
+                tokio::spawn(async move {
+                    let _ = core.link_listing_to_order(lid, order_id).await;
+                });
+            }
+        }
+
         self.payment_registry
             .register(
                 order_id,
@@ -1280,11 +1372,15 @@ impl MessageHandler {
                     .await;
                 return Ok(());
             }
+            OrderFlowState::AwaitingListingUrl { draft } => {
+                self.handle_listing_url_response(&mut session, &peer, body, &ev, draft).await?;
+            }
             OrderFlowState::Idle => {
                 if let Some(tracking_code) = order_flow::extract_tracking_code(body) {
                     self.handle_tracking_request(&peer, &tracking_code, session.active_order_id).await;
                 } else if order_flow::is_product_url(body) {
-                    self.handle_url_import(&mut session, &peer, body).await?;
+                    // URL enviada diretamente sem iniciar HoldFy → inicia o fluxo pedindo link
+                    self.start_holdfy_flow(&mut session, &peer, body, &ev).await?;
                 } else if order_flow::is_new_order(body) || body.eq_ignore_ascii_case("NOVO_PEDIDO") {
                     self.start_holdfy_flow(&mut session, &peer, body, &ev).await?;
                 } else {
@@ -1523,4 +1619,13 @@ impl MessageHandler {
 
         Ok(())
     }
+}
+
+/// Baixa bytes de uma URL (imagem MinIO ou externa). Soft-fail: retorna Err em qualquer falha.
+async fn download_url_bytes(url: &str) -> Result<Vec<u8>, String> {
+    let resp = reqwest::get(url).await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+    resp.bytes().await.map(|b| b.to_vec()).map_err(|e| e.to_string())
 }

@@ -99,25 +99,41 @@ pub fn counterparty_same_as_sender() -> &'static str {
 }
 
 /// Proposta ao comprador (B) antes de existir pedido na API.
-/// Inclui nome completo e CPF/CNPJ do vendedor (obrigatório).
+/// Inclui nome completo e CPF/CNPJ do vendedor (obrigatório) e link do anúncio se disponível.
 pub fn buyer_proposal_before_accept(
     seller_phone_masked: &str,
     amount: &str,
     description: &str,
     seller_name: Option<&str>,
     seller_document: &str,
+    listing_url: Option<&str>,
+    listing_price: Option<&str>,
 ) -> String {
     let seller_doc_fmt = format_document(seller_document);
-    let seller_line = match seller_name {
-        Some(name) => format!("👤 Vendedor: *{name}* — `{seller_doc_fmt}`"),
-        None => format!("👤 Vendedor: *{seller_phone_masked}* — `{seller_doc_fmt}`"),
+    let seller_display = seller_name.unwrap_or(seller_phone_masked);
+
+    // Bloco de anúncio + comparação de valores
+    let listing_block = match listing_url {
+        Some(url) => {
+            let diverge_note = match listing_price {
+                Some(lp) if lp.trim() != amount.trim() => format!(
+                    "\n💲 Preço no anúncio: *R$ {lp}*\n\
+                     ⚠️ _O vendedor está cobrando um valor diferente do anúncio._"
+                ),
+                _ => String::new(),
+            };
+            format!("\n\n📦 *Anúncio:*\n{url}{diverge_note}")
+        }
+        None => String::new(),
     };
+
     format!(
         "*Proposta HoldFy*\n\
-         {seller_line}\n\
-         💰 Valor: *R$ {amount}*\n\
-         📋 Descrição: *{description}*\n\n\
-         *ACEITO* = gerar *PIX*. *RECUSO* / *não* / *recuso* = encerrar."
+         👤 Vendedor: *{seller_display}* — `{seller_doc_fmt}`\
+         {listing_block}\n\
+         📋 {description}\n\n\
+         💰 O valor cobrado é: *R$ {amount}*\n\
+         *ACEITO* = gerar PIX por esse valor. *RECUSO* / *não* = encerrar."
     )
 }
 
@@ -201,6 +217,14 @@ pub fn payment_completed_notify(order_id: &uuid::Uuid, amount: &str) -> String {
     )
 }
 
+/// Enviada ao vendedor logo após confirmação do PIX — pede código de rastreio.
+pub fn awaiting_seller_tracking_code(order_id: &uuid::Uuid) -> String {
+    format!(
+        "📦 Estou aguardando o número de rastreio do envio.\n\
+         Pedido `{order_id}` — envie o código quando postar (ex.: AA123456789BR)."
+    )
+}
+
 pub fn awaiting_payment_hint() -> &'static str {
     "Aguardando confirmação automática do PIX pelo Gatebox. Você será avisado aqui quando o pagamento for registrado."
 }
@@ -261,19 +285,25 @@ pub fn invalid_document_too_many_attempts() -> &'static str {
     "Muitas tentativas inválidas. Fluxo cancelado.\nDigite *holdfy* para recomeçar."
 }
 
+pub fn ask_listing_url() -> &'static str {
+    "📎 Manda o *link do anúncio* (Instagram, Mercado Livre, OLX...).\n\
+     Vou buscar título, fotos e preço automaticamente.\n\n\
+     Sem anúncio? Responda *pular*."
+}
+
 pub fn importing_product() -> &'static str {
     "🔍 Buscando produto no link..."
 }
 
-pub fn product_imported_with_price(title: &str, price: &str) -> String {
+pub fn product_imported_with_price(title: &str, price: &str, source_url: &str) -> String {
     format!(
-        "✅ *{title}*\n💰 R$ *{price}*\n\nPara qual número de celular devo enviar o Holdfy?\nEx.: *(41) 99999-9999*"
+        "✅ *{title}*\n🔗 {source_url}\n💰 R$ *{price}*\n\nPara qual número de celular devo enviar o Holdfy?\nEx.: *(41) 99999-9999*"
     )
 }
 
-pub fn product_imported_no_price(title: &str) -> String {
+pub fn product_imported_no_price(title: &str, source_url: &str) -> String {
     format!(
-        "✅ *{title}*\n\nNão encontrei o preço. Qual o *valor* do Holdfy? (ex. *99,90*)"
+        "✅ *{title}*\n🔗 {source_url}\n\nNão encontrei o preço. Qual o *valor* do Holdfy? (ex. *99,90*)"
     )
 }
 

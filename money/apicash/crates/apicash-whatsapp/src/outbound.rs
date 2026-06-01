@@ -195,6 +195,45 @@ impl Outbound {
         }
     }
 
+    /// Envia vídeo como mídia WhatsApp. Fallback silencioso se falhar.
+    pub async fn send_video_bytes(&self, to: &str, bytes: &[u8], caption: Option<&str>) {
+        match self {
+            Outbound::Rust { client, .. } => match resolve_delivery_jid(client.as_ref(), to).await {
+                Ok(jid) => {
+                    match client.upload(bytes.to_vec(), MediaType::Video).await {
+                        Ok(upload) => {
+                            let m = wa::Message {
+                                video_message: Some(Box::new(wa::message::VideoMessage {
+                                    mimetype: Some("video/mp4".to_string()),
+                                    url: Some(upload.url),
+                                    direct_path: Some(upload.direct_path),
+                                    media_key: Some(upload.media_key),
+                                    file_enc_sha256: Some(upload.file_enc_sha256),
+                                    file_sha256: Some(upload.file_sha256),
+                                    file_length: Some(upload.file_length),
+                                    caption: caption.map(|s| s.to_string()),
+                                    ..Default::default()
+                                })),
+                                ..Default::default()
+                            };
+                            if let Err(e) = client.send_message(jid, m).await {
+                                tracing::error!(error = %e, "whatsapp-rust: send_video falhou");
+                            }
+                        }
+                        Err(e) => tracing::error!(error = %e, "whatsapp-rust: upload vídeo falhou"),
+                    }
+                }
+                Err(e) => tracing::error!(peer = %mask_whatsapp_peer(to), %e, "send_video: jid inválido"),
+            },
+            Outbound::Cloud { .. } => {
+                tracing::warn!(to = %mask_whatsapp_peer(to), "send_video: Cloud API não implementado — usar send_image_bytes");
+            }
+            Outbound::Stub => {
+                tracing::info!(to = %mask_whatsapp_peer(to), len = bytes.len(), "whatsapp stub: video");
+            }
+        }
+    }
+
     /// Menu inicial: novo pedido ou ajuda (Cloud API; stub regista log).
     pub async fn send_welcome_interactive(&self, to: &str, body: impl AsRef<str>) {
         let body = body.as_ref();

@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 use whatsapp_cloud_api::models::webhooks::{NotificationMessageType, NotificationPayload};
 
-use apicash_importer::ImporterService;
+
 use apicash_logistics::{CascadingTracker, LogisticsService, MelhorEnvioClient};
 
 use crate::tracking_monitor::TrackingMonitor;
@@ -131,6 +131,16 @@ struct BankPaymentNotifyByRefRequest {
     payment_reference: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct TrackingStepNotifyRequest {
+    seller_phone: String,
+    #[serde(default)]
+    order_id: Option<String>,
+    tracking_code: String,
+    step_label: String,
+    description: String,
+}
+
 fn internal_api_key_ok(headers: &HeaderMap, expected: &str) -> bool {
     if expected.is_empty() {
         return false;
@@ -192,6 +202,44 @@ async fn internal_bank_payment_notify_by_ref(
     }
 }
 
+async fn internal_tracking_step_notify(
+    axum::extract::State(state): axum::extract::State<InternalNotifyState>,
+    headers: HeaderMap,
+    Json(req): Json<TrackingStepNotifyRequest>,
+) -> StatusCode {
+    if !internal_api_key_ok(&headers, &state.api_key) {
+        return StatusCode::UNAUTHORIZED;
+    }
+    state
+        .handler
+        .notify_tracking_step(
+            &req.seller_phone,
+            req.order_id.as_deref(),
+            &req.tracking_code,
+            &req.step_label,
+            &req.description,
+        )
+        .await;
+    StatusCode::OK
+}
+
+fn internal_notify_routes(state: InternalNotifyState) -> Router {
+    Router::new()
+        .route(
+            "/internal/bank-payment-notify",
+            post(internal_bank_payment_notify),
+        )
+        .route(
+            "/internal/bank-payment-notify-by-ref",
+            post(internal_bank_payment_notify_by_ref),
+        )
+        .route(
+            "/internal/tracking-step-notify",
+            post(internal_tracking_step_notify),
+        )
+        .with_state(state)
+}
+
 /// `GET /health`, `/ready` e rotas internas (banco → WhatsApp).
 pub async fn run_health_only_server(
     bind: &str,
@@ -202,15 +250,7 @@ pub async fn run_health_only_server(
     let app = Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
-        .route(
-            "/internal/bank-payment-notify",
-            post(internal_bank_payment_notify),
-        )
-        .route(
-            "/internal/bank-payment-notify-by-ref",
-            post(internal_bank_payment_notify_by_ref),
-        )
-        .with_state(internal);
+        .merge(internal_notify_routes(internal));
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!(%bind, "whatsapp agent health + internal notify");
     axum::serve(listener, app).await?;
@@ -312,7 +352,6 @@ pub async fn spawn_agent(
     let core = CoreApiClient::new(cfg.core_url);
     let sessions = Arc::new(crate::session::SessionManager::new());
     let payment_registry = Arc::new(crate::payment_notify::PaymentNotifyRegistry::new());
-    let importer = Arc::new(ImporterService::new_with_redis().await);
     let conv_store = ConversationStore::from_env().await;
     let logistics = Arc::new(build_logistics_service());
     let mut handler_builder = MessageHandler::new(
@@ -320,7 +359,6 @@ pub async fn spawn_agent(
         outbound.clone(),
         sessions,
         payment_registry,
-        importer,
         conv_store,
         logistics,
     );

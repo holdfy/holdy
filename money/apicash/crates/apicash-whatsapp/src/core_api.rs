@@ -310,4 +310,47 @@ impl CoreApiClient {
         self.post_json_with_api_key("/internal/orders/settle", &body, bearer, k)
             .await
     }
+
+    /// Importa URL de anúncio via rota interna (service API key). Salva no banco e retorna dados + listing_id.
+    pub async fn import_listing(&self, url: &str, user_id: Uuid) -> Result<ImportListingResponse, CoreApiError> {
+        let body = serde_json::json!({ "url": url, "user_id": user_id });
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        tracing::info!(url_len = url.len(), %user_id, "core_api: POST /internal/listings/import");
+        self.post_json_with_api_key("/internal/listings/import", &body, None, k).await
+    }
+
+    /// Vincula um listing a um pedido via rota interna (fire-and-forget aceitável).
+    pub async fn link_listing_to_order(&self, listing_id: Uuid, order_id: Uuid) -> Result<(), CoreApiError> {
+        let body = serde_json::json!({ "order_id": order_id });
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        let url = format!("/internal/listings/{listing_id}/order");
+        let mut req = self.client.patch(format!("{}{}", self.base, url))
+            .headers(self.headers(None))
+            .json(&body);
+        if let Some(key) = k {
+            req = req.header("x-api-key", key);
+        }
+        let resp = req.send().await?;
+        if !resp.status().is_success() {
+            tracing::warn!(listing_id = %listing_id, order_id = %order_id, status = %resp.status(), "link_listing_to_order: non-2xx");
+        }
+        Ok(())
+    }
+}
+
+/// Resposta de `POST /v1/listings/import`.
+#[derive(Debug, Deserialize)]
+pub struct ImportListingResponse {
+    pub listing_id: Option<Uuid>,
+    pub title: String,
+    pub description: Option<String>,
+    pub price_suggested: Option<String>,
+    #[serde(default)]
+    pub photos: Vec<String>,
+    pub source_url: String,
+    pub source_platform: String,
+    pub seller_name: Option<String>,
+    pub video_url: Option<String>,
 }

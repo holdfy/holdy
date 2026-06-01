@@ -58,6 +58,16 @@ impl ListingRepository {
 
         Ok(row.0)
     }
+
+    /// Vincula um listing a um pedido existente.
+    pub async fn set_order_id(&self, listing_id: Uuid, order_id: Uuid) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE listings SET order_id = $1 WHERE id = $2")
+            .bind(order_id)
+            .bind(listing_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
 }
 
 // ─── ImportJob ────────────────────────────────────────────────────────────────

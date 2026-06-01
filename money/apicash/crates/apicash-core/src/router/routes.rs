@@ -45,9 +45,6 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/orders/{id}/dispute", post(order_handler::open_dispute))
         .route("/risk/score", post(order_handler::calculate_risk_score))
         .route("/reputation/{user_id}", get(reputation_handler::get_reputation))
-        .route("/v1/listings/import", post(importer_handler::import_listing))
-        .route("/v1/listings/import/async", post(importer_handler::import_listing_async))
-        .route("/v1/listings/jobs/{id}", get(importer_handler::get_import_job))
         .route("/logistics/shipping/quote", post(logistics_handler::quote_shipping))
         .route("/logistics/shipping/label", post(logistics_handler::generate_label))
         .route("/logistics/tracking/{code}", get(logistics_handler::track_shipment))
@@ -89,6 +86,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/internal/orders/settle",
             post(order_handler::settle_order_internal),
         )
+        .route("/internal/listings/import", post(importer_handler::import_listing))
+        .route("/internal/listings/import/async", post(importer_handler::import_listing_async))
+        .route("/internal/listings/jobs/{id}", get(importer_handler::get_import_job))
+        .route("/internal/listings/{id}/order", axum::routing::patch(importer_handler::link_listing_to_order))
         .layer(GovernorLayer::new(governor_conf.clone()))
         .with_state(state.clone());
 

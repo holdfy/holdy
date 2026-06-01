@@ -1,12 +1,16 @@
 //! Multi-provedor de rastreio com circuit breaker em cascata.
 //!
-//! Ordem de prioridade:
+//! Modo simulado (`APICASH_TRACKING_MODE=simulated`):
+//!   → apenas LogisticaHoldFy (`apprastreio/backend`, porta 8092)
+//!
+//! Modo live (defeito):
 //!   1. Correios Business API (se `CORREIOS_USER` + `CORREIOS_ACCESS_CODE`)
 //!   2. LinkTrack API       (se `LINKETRACK_USER` + `LINKETRACK_TOKEN`)
 //!   3. Melhor Envio        (fallback sempre adicionado)
 
 pub mod circuit_breaker;
 pub mod correios;
+pub mod holdfy_simulator;
 pub mod linketrack;
 pub mod melhor_envio;
 
@@ -21,8 +25,11 @@ use crate::types::{TrackingInfo, TrackingStatus};
 
 use circuit_breaker::CircuitBreaker;
 use correios::CorreiosProvider;
+use holdfy_simulator::HoldfySimulatorProvider;
 use linketrack::LinkTrackProvider;
 use melhor_envio::MelhorEnvioTracker;
+
+pub use holdfy_simulator::is_tracking_simulated;
 
 // ─── Trait ────────────────────────────────────────────────────────────────────
 
@@ -96,6 +103,20 @@ impl CascadingTracker {
     /// Constrói o tracker a partir do ambiente.
     pub fn from_env(me_client: MelhorEnvioClient) -> Self {
         let mut providers: Vec<ProviderEntry> = Vec::new();
+
+        // Modo simulado: só LogisticaHoldFy (dev local — ver apprastreio/)
+        if let Some(simulator) = HoldfySimulatorProvider::from_env() {
+            info!(
+                base_url = %simulator.base_url(),
+                "tracking: modo simulado (APICASH_TRACKING_MODE=simulated) — LogisticaHoldFy"
+            );
+            let breaker = simulator.breaker.clone();
+            providers.push(ProviderEntry {
+                provider: Box::new(simulator),
+                breaker,
+            });
+            return Self { providers };
+        }
 
         // 1. Correios (se variáveis configuradas)
         if let Some(correios) = CorreiosProvider::from_env() {

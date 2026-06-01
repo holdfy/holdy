@@ -78,6 +78,7 @@ impl Extractor for JsonLdExtractor {
                     location,
                     seller_name,
                     seller_rating,
+                    video_url: None,
                     raw_attributes,
                 }));
             }

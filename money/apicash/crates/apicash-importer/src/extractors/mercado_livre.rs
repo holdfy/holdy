@@ -152,6 +152,7 @@ impl Extractor for MercadoLivreExtractor {
             location,
             seller_name: None, // would require /users/{seller_id} — skip for now
             seller_rating: None,
+            video_url: None,
             raw_attributes,
         }))
     }
