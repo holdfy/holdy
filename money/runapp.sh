@@ -97,6 +97,11 @@ FRONT_GATEBOX_PORT="${FRONT_GATEBOX_PORT:-3030}"
 FRONT_GATEBOX_LOG="${MONEY}/.runapp/front-gatebox"
 mkdir -p "${FRONT_GATEBOX_LOG}"
 
+SCRAPER_ROOT="${SCRAPER_ROOT:-${MONEY}/../scraper-service}"
+SCRAPER_PORT="${SCRAPER_PORT:-4000}"
+SCRAPER_LOG="${MONEY}/.runapp/scraper-service"
+mkdir -p "${SCRAPER_LOG}"
+
 # WhatsApp pareamento: pasta do PNG + pair.html para o browser. Sobrescrever com WA_QR_DIR no .env
 WA_QR_DIR_DEFAULT="${WA_QR_DIR_DEFAULT:-$(dirname "${MONEY}")/whatsapp_qrcode}"
 
@@ -1434,6 +1439,112 @@ front_gatebox_print_status() {
   fi
 }
 
+# -----------------------------------------------------------------------------
+# scraper-service — headless browser Python/Playwright, porta SCRAPER_PORT
+# -----------------------------------------------------------------------------
+
+scraper_present() {
+  [ -f "${SCRAPER_ROOT}/scraper.py" ]
+}
+
+scraper_python() {
+  # Prefere o venv local; cai para python3 do sistema se não existir ainda
+  if [ -x "${SCRAPER_ROOT}/.venv/bin/python" ]; then
+    printf '%s' "${SCRAPER_ROOT}/.venv/bin/python"
+  else
+    printf '%s' "$(command -v python3 2>/dev/null || echo python3)"
+  fi
+}
+
+scraper_ensure_deps() {
+  scraper_present || return 1
+
+  local py
+  py="$(command -v python3 2>/dev/null || true)"
+  if [ -z "${py}" ]; then
+    warn "scraper-service: python3 não encontrado — instale com: sudo apt install python3 python3-venv"
+    return 1
+  fi
+
+  # Criar venv se não existir
+  if [ ! -x "${SCRAPER_ROOT}/.venv/bin/python" ]; then
+    log "scraper-service: criando venv Python"
+    "${py}" -m venv "${SCRAPER_ROOT}/.venv" || { warn "scraper-service: falha ao criar venv"; return 1; }
+  fi
+
+  local pip="${SCRAPER_ROOT}/.venv/bin/pip"
+
+  # Instalar dependências Python
+  if ! "${SCRAPER_ROOT}/.venv/bin/python" -c "import playwright" 2>/dev/null; then
+    log "scraper-service: instalando dependências Python (playwright, aiohttp)"
+    "${pip}" install -q -r "${SCRAPER_ROOT}/requirements.txt" || { warn "scraper-service: pip install falhou"; return 1; }
+  fi
+
+  # Instalar Chromium do Playwright
+  if ! "${SCRAPER_ROOT}/.venv/bin/python" -m playwright install --dry-run chromium 2>/dev/null | grep -q "Chromium"; then
+    log "scraper-service: instalando Chromium (playwright)"
+    "${SCRAPER_ROOT}/.venv/bin/python" -m playwright install chromium || \
+      warn "scraper-service: falha ao instalar Chromium — tente: cd ${SCRAPER_ROOT} && .venv/bin/python -m playwright install chromium"
+  fi
+}
+
+scraper_stop() {
+  local pf="${SCRAPER_LOG}/scraper.pid"
+  if [ -f "${pf}" ]; then
+    local pid
+    pid="$(tr -d '[:space:]' <"${pf}" 2>/dev/null || true)"
+    if [ -n "${pid:-}" ]; then
+      kill -TERM "${pid}" >/dev/null 2>&1 || true
+      local _i; for _i in $(seq 1 40); do kill -0 "${pid}" >/dev/null 2>&1 || break; sleep 0.25; done
+      kill -KILL "${pid}" >/dev/null 2>&1 || true
+    fi
+    rm -f "${pf}"
+  fi
+  gb_kill_by_port "${SCRAPER_PORT}"
+}
+
+scraper_start() {
+  scraper_present || { warn "scraper-service não encontrado em ${SCRAPER_ROOT}"; return 1; }
+  scraper_ensure_deps || return 1
+  scraper_stop
+
+  local py
+  py="$(scraper_python)"
+
+  set -a; [ -f "${MONEY}/.env" ] && . "${MONEY}/.env"; set +a
+  export SCRAPER_PORT="${SCRAPER_PORT:-4000}"
+  export SCRAPER_API_KEY="${SCRAPER_API_KEY:-${APICASH_API_KEY:-}}"
+
+  log "starting scraper-service (Python/Playwright, port ${SCRAPER_PORT}, logs ${SCRAPER_LOG}/scraper.log)"
+  (
+    cd "${SCRAPER_ROOT}"
+    exec "${py}" scraper.py server
+  ) >>"${SCRAPER_LOG}/scraper.log" 2>&1 &
+  printf '%s\n' $! >"${SCRAPER_LOG}/scraper.pid"
+
+  gb_wait_http_ok "scraper-service" "http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SCRAPER_PORT}/health" 30 || \
+    warn "scraper-service não respondeu — ver ${SCRAPER_LOG}/scraper.log"
+}
+
+scraper_print_status() {
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SCRAPER_PORT}/health"
+  printf '\n== scraper-service (Python/Playwright) — port %s ==\n' "${SCRAPER_PORT}"
+  if command -v curl >/dev/null 2>&1; then
+    local body code
+    code="$(curl -sS -o /tmp/_scraper_health.json -w '%{http_code}' --max-time 2 "${url}" 2>/dev/null || echo 000)"
+    if [ "${code}" = "200" ] && [ -f /tmp/_scraper_health.json ]; then
+      local session
+      session="$(python3 -c "import json,sys; d=json.load(open('/tmp/_scraper_health.json')); print(d.get('session','?'))" 2>/dev/null || echo "?")"
+      printf '  http=%s  session=%s  url=%s\n' "${code}" "${session}" "${url}"
+      if [ "${session}" = "missing" ]; then
+        printf '  AVISO: sem cookies — execute: cd %s && .venv/bin/python scraper.py login\n' "${SCRAPER_ROOT}"
+      fi
+    else
+      printf '  http=%s  log=%s/scraper.log\n' "${code:-000}" "${SCRAPER_LOG}"
+    fi
+  fi
+}
+
 print_infra_hint() {
   if command -v docker >/dev/null 2>&1; then
     printf '\n== Docker (money/docker-compose.yml) ==\n'
@@ -1520,6 +1631,7 @@ run_stop() {
   case "${SCOPE}" in
   all)
     bb_stop_all
+    scraper_stop
     front_gatebox_stop
     holdfy_admin_stop
     site_stop_all
@@ -1573,6 +1685,9 @@ run_start() {
     if front_gatebox_present; then
       front_gatebox_start || warn "front-gatebox não subiu — ver ${FRONT_GATEBOX_LOG}/front-gatebox.log"
     fi
+    if scraper_present; then
+      scraper_start || warn "scraper-service não subiu — ver ${SCRAPER_LOG}/scraper.log"
+    fi
     if [ -d "${BANCO_BE}" ]; then
       bb_start_all || warn "backend_banco não subiu — app Flutter (:8091) falha com connection refused"
     fi
@@ -1619,6 +1734,7 @@ run_status() {
   all)
     holdfy_admin_print_status
     front_gatebox_print_status
+    scraper_print_status
     print_infra_hint
     ;;
   esac

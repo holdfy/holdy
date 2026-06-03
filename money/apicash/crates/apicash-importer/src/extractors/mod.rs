@@ -9,11 +9,13 @@ pub mod json_ld;
 pub mod llm;
 pub mod mercado_livre;
 pub mod open_graph;
+pub mod tiktok;
 
 pub use json_ld::JsonLdExtractor;
 pub use llm::LlmExtractor;
 pub use mercado_livre::MercadoLivreExtractor;
 pub use open_graph::OpenGraphExtractor;
+pub use tiktok::TikTokExtractor;
 
 /// A single extraction strategy.
 #[async_trait]
