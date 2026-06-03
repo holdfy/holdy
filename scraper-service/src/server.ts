@@ -13,6 +13,7 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 chromium.use(StealthPlugin());
 import { scrapeTikTok } from "./scrapers/tiktok";
+import { scrapeFacebook } from "./scrapers/facebook";
 
 const PORT = parseInt(process.env.SCRAPER_PORT || "4000");
 const API_KEY = process.env.SCRAPER_API_KEY || "";
@@ -49,6 +50,10 @@ async function getBrowser(): Promise<Browser> {
 
 function isTikTok(url: string): boolean {
   return url.includes("tiktok.com");
+}
+
+function isFacebook(url: string): boolean {
+  return url.includes("facebook.com") || url.includes("fb.com");
 }
 
 async function scrape(url: string): Promise<unknown> {
@@ -129,6 +134,11 @@ async function scrape(url: string): Promise<unknown> {
       }
       console.log(`[scraper] TikTok target URL: ${targetUrl.substring(0, 100)}`);
       return await scrapeTikTok(page, targetUrl);
+    }
+
+    if (isFacebook(url)) {
+      console.log(`[scraper] Facebook URL: ${url.substring(0, 100)}`);
+      return await scrapeFacebook(page, url);
     }
 
     return { error: "platform not supported", url };

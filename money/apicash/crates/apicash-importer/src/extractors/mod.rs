@@ -5,12 +5,14 @@ use async_trait::async_trait;
 use crate::error::ImporterError;
 use crate::types::ProductDraft;
 
+pub mod facebook;
 pub mod json_ld;
 pub mod llm;
 pub mod mercado_livre;
 pub mod open_graph;
 pub mod tiktok;
 
+pub use facebook::FacebookExtractor;
 pub use json_ld::JsonLdExtractor;
 pub use llm::LlmExtractor;
 pub use mercado_livre::MercadoLivreExtractor;

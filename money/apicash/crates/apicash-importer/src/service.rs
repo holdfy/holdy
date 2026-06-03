@@ -7,8 +7,8 @@ use url::Url;
 
 use crate::error::ImporterError;
 use crate::extractors::{
-    Extractor, JsonLdExtractor, LlmExtractor, MercadoLivreExtractor, OpenGraphExtractor,
-    TikTokExtractor,
+    Extractor, FacebookExtractor, JsonLdExtractor, LlmExtractor, MercadoLivreExtractor,
+    OpenGraphExtractor, TikTokExtractor,
 };
 use crate::image_store::MinioImageStore;
 use crate::types::ProductDraft;
@@ -68,6 +68,7 @@ impl ImporterService {
 
         let extractors: Vec<Box<dyn Extractor>> = vec![
             Box::new(TikTokExtractor::new(client.clone())),
+            Box::new(FacebookExtractor::new(client.clone())),
             Box::new(JsonLdExtractor),
             Box::new(OpenGraphExtractor),
             Box::new(MercadoLivreExtractor::new(client.clone())),
