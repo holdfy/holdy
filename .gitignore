@@ -34,6 +34,20 @@ config.env
 **/importante.txt
 **/importante*.txt
 **/conversa_gpt
+silvio.txt
+ajustes.txt
+dev-dashboard.html
+
+# --- Python ---
+**/.venv/
+**/venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+.Python
+**/cookies.json
 
 # --- Rust / Cargo ---
 **/target/

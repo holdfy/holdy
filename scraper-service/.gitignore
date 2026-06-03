@@ -1,0 +1,21 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Node
+node_modules/
+
+# Runtime / sensível
+cookies.json
+*.session
+*.pkl
+*.log
+
+# IDEs
+.idea/
+.vscode/
