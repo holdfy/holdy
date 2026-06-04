@@ -339,8 +339,8 @@ pub fn parse_pix_key(raw: &str) -> Option<String> {
     match digits.len() {
         11 => return Some(digits), // CPF
         14 => return Some(digits), // CNPJ
-        10 | 11 if s.starts_with('+') || s.starts_with("55") => {
-            // telefone com DDI
+        10 if s.starts_with('+') || s.starts_with("55") => {
+            // telefone local com DDI implícito
             let full = if digits.starts_with("55") { digits } else { format!("55{digits}") };
             return Some(full);
         }

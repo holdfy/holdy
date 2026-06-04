@@ -670,8 +670,18 @@ runapp_open_startup_browsers() {
   local dev_dash="${MONEY}/../dev-dashboard.html"
   if [ -f "${dev_dash}" ]; then
     sleep 0.4
-    dev_dash="$(cd "$(dirname "${dev_dash}")" && pwd)/$(basename "${dev_dash}")"
-    runapp_open_in_browser "referência dev Holdfy" "file://${dev_dash}" || true
+    local dash_dir
+    dash_dir="$(cd "$(dirname "${dev_dash}")" && pwd)"
+    local dash_port="${DEV_DASH_PORT:-9090}"
+    # Serve via HTTP so browser CORS allows the health-check fetch() calls.
+    if ! fuser "${dash_port}/tcp" >/dev/null 2>&1; then
+      mkdir -p "${MONEY}/.runapp/dev-dash"
+      python3 -m http.server "${dash_port}" --directory "${dash_dir}" \
+        >"${MONEY}/.runapp/dev-dash/server.log" 2>&1 &
+      echo $! > "${MONEY}/.runapp/dev-dash/server.pid"
+      sleep 0.3
+    fi
+    runapp_open_in_browser "referência dev Holdfy" "http://127.0.0.1:${dash_port}/dev-dashboard.html" || true
   fi
 
   if [ -n "${qr_url}" ]; then
