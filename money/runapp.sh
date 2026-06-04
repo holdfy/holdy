@@ -102,6 +102,12 @@ SCRAPER_PORT="${SCRAPER_PORT:-4000}"
 SCRAPER_LOG="${MONEY}/.runapp/scraper-service"
 mkdir -p "${SCRAPER_LOG}"
 
+RASTREIO_ROOT="${RASTREIO_ROOT:-${MONEY}/../apprastreio/backend}"
+RASTREIO_PORT="${LOGISTICA_HTTP_PORT:-${RASTREIO_PORT:-8092}}"
+RASTREIO_LOG="${MONEY}/.runapp/rastreio"
+RASTREIO_BIN="${RASTREIO_LOG}/logistica-holdfy-backend"
+mkdir -p "${RASTREIO_LOG}"
+
 # WhatsApp pareamento: pasta do PNG + pair.html para o browser. Sobrescrever com WA_QR_DIR no .env
 WA_QR_DIR_DEFAULT="${WA_QR_DIR_DEFAULT:-$(dirname "${MONEY}")/whatsapp_qrcode}"
 
@@ -1545,6 +1551,76 @@ scraper_print_status() {
   fi
 }
 
+# -----------------------------------------------------------------------------
+# apprastreio/backend — simulador de rastreio Rust, porta RASTREIO_PORT (8092)
+# -----------------------------------------------------------------------------
+
+rastreio_present() {
+  [ -f "${RASTREIO_ROOT}/Cargo.toml" ]
+}
+
+rastreio_build() {
+  rastreio_present || { warn "apprastreio/backend não encontrado em ${RASTREIO_ROOT}"; return 1; }
+  log "building logistica-holdfy-backend (cargo release)"
+  (cd "${RASTREIO_ROOT}" && cargo build --release)
+}
+
+rastreio_stop() {
+  local pf="${RASTREIO_LOG}/rastreio.pid"
+  if [ -f "${pf}" ]; then
+    local pid
+    pid="$(tr -d '[:space:]' <"${pf}" 2>/dev/null || true)"
+    if [ -n "${pid:-}" ]; then
+      kill -TERM "${pid}" >/dev/null 2>&1 || true
+      local _i; for _i in $(seq 1 40); do kill -0 "${pid}" >/dev/null 2>&1 || break; sleep 0.25; done
+      kill -KILL "${pid}" >/dev/null 2>&1 || true
+    fi
+    rm -f "${pf}"
+  fi
+  gb_kill_by_port "${RASTREIO_PORT}"
+  pkill -f "logistica-holdfy-backend" 2>/dev/null || true
+}
+
+rastreio_start() {
+  rastreio_present || { warn "apprastreio/backend não encontrado em ${RASTREIO_ROOT}"; return 1; }
+  rastreio_stop
+  rastreio_build || { warn "build logistica-holdfy-backend falhou"; return 1; }
+
+  local bin="${RASTREIO_ROOT}/target/release/logistica-holdfy-backend"
+
+  set -a; [ -f "${MONEY}/.env" ] && . "${MONEY}/.env"; set +a
+  export LOGISTICA_HTTP_PORT="${RASTREIO_PORT}"
+
+  log "starting logistica-holdfy-backend (port ${RASTREIO_PORT}, logs ${RASTREIO_LOG}/rastreio.log)"
+  (
+    cd "${RASTREIO_ROOT}"
+    exec "${bin}"
+  ) >>"${RASTREIO_LOG}/rastreio.log" 2>&1 &
+  printf '%s\n' $! >"${RASTREIO_LOG}/rastreio.pid"
+
+  gb_wait_http_ok "logistica-holdfy-backend /health" \
+    "http://${RUNAPP_LOOPBACK:-127.0.0.1}:${RASTREIO_PORT}/health" 60 || \
+    warn "logistica-holdfy-backend não respondeu — ver ${RASTREIO_LOG}/rastreio.log"
+}
+
+rastreio_print_status() {
+  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${RASTREIO_PORT}/health"
+  printf '\n== logistica-holdfy-backend (rastreio) — port %s ==\n' "${RASTREIO_PORT}"
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 2 "${url}" 2>/dev/null || echo 000)"
+    printf '  http=%s  url=%s  log=%s/rastreio.log\n' "${code:-000}" "${url}" "${RASTREIO_LOG}"
+  else
+    printf '  log=%s/rastreio.log (curl ausente)\n' "${RASTREIO_LOG}"
+  fi
+}
+
+rastreio_logs() {
+  log "following rastreio log; Ctrl+C to stop"
+  mkdir -p "${RASTREIO_LOG}"
+  tail -n 80 -F "${RASTREIO_LOG}/rastreio.log" 2>/dev/null || true
+}
+
 print_infra_hint() {
   if command -v docker >/dev/null 2>&1; then
     printf '\n== Docker (money/docker-compose.yml) ==\n'
@@ -1576,6 +1652,7 @@ Scope (opcional):
   gatebox   API Rust Gatebox (PIX) — infra: ./runinfra.sh (Postgres Gatebox; mesmo Pulsar/Redis que APICash)
   banco     apenas API Go em gatebox/banco/backend_banco (se existir)
   site      apenas site público Vite (holdy/site), defeito :5173
+  rastreio  apenas logistica-holdfy-backend (simulador de rastreio Rust, porta RASTREIO_PORT :8092)
 
 Env útil:
   RUNAPP_AUTO_SITE=1 (defeito) — com stack all, iniciar também holdy/site (npm run dev)
@@ -1618,7 +1695,7 @@ fi
 
 if [ "${CMD}" != "whatsapp-pair" ] && [ "${CMD}" != "open-browsers" ]; then
   case "${SCOPE}" in
-  all | apicash | gatebox | banco | site | sulcred) ;;
+  all | apicash | gatebox | banco | site | sulcred | rastreio) ;;
   *)
     warn "scope inválido: ${SCOPE}"
     usage
@@ -1630,6 +1707,7 @@ fi
 run_stop() {
   case "${SCOPE}" in
   all)
+    rastreio_stop
     bb_stop_all
     scraper_stop
     front_gatebox_stop
@@ -1644,6 +1722,7 @@ run_stop() {
   sulcred) sulcred_stop ;;
   banco) bb_stop_all ;;
   site) site_stop_all ;;
+  rastreio) rastreio_stop ;;
   esac
 }
 
@@ -1662,6 +1741,7 @@ run_build() {
   gatebox) gb_build || return 1 ;;
   banco) bb_build ;;
   site) site_build ;;
+  rastreio) rastreio_build || return 1 ;;
   esac
 }
 
@@ -1691,6 +1771,9 @@ run_start() {
     if [ -d "${BANCO_BE}" ]; then
       bb_start_all || warn "backend_banco não subiu — app Flutter (:8091) falha com connection refused"
     fi
+    if rastreio_present; then
+      rastreio_start || warn "logistica-holdfy-backend não subiu — ver ${RASTREIO_LOG}/rastreio.log"
+    fi
     runapp_open_startup_browsers || true
     unset RUNAPP_DEFER_BROWSER
     ;;
@@ -1710,6 +1793,9 @@ run_start() {
     ;;
   site)
     site_start_all || return 1
+    ;;
+  rastreio)
+    rastreio_start || return 1
     ;;
   esac
 }
@@ -1731,6 +1817,9 @@ run_status() {
   all | site) site_print_status ;;
   esac
   case "${SCOPE}" in
+  all | rastreio) rastreio_print_status ;;
+  esac
+  case "${SCOPE}" in
   all)
     holdfy_admin_print_status
     front_gatebox_print_status
@@ -1743,13 +1832,14 @@ run_status() {
 run_logs() {
   case "${SCOPE}" in
   all)
-    warn "logs all: use logs apicash | logs gatebox | logs banco | logs site em terminais separados"
+    warn "logs all: use logs apicash | logs gatebox | logs banco | logs site | logs rastreio em terminais separados"
     ac_logs_all
     ;;
   apicash) ac_logs_all ;;
   gatebox) gb_logs_all ;;
   banco) bb_logs_all ;;
   site) site_logs_all ;;
+  rastreio) rastreio_logs ;;
   esac
 }
 

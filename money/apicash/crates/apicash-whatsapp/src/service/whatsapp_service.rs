@@ -135,6 +135,8 @@ struct BankPaymentNotifyByRefRequest {
 struct TrackingStepNotifyRequest {
     seller_phone: String,
     #[serde(default)]
+    buyer_phone: Option<String>,
+    #[serde(default)]
     order_id: Option<String>,
     tracking_code: String,
     step_label: String,
@@ -214,6 +216,7 @@ async fn internal_tracking_step_notify(
         .handler
         .notify_tracking_step(
             &req.seller_phone,
+            req.buyer_phone.as_deref(),
             req.order_id.as_deref(),
             &req.tracking_code,
             &req.step_label,

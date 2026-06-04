@@ -65,7 +65,7 @@ class _TrackerDetailScreenState extends State<TrackerDetailScreen> {
       if (!mounted) return;
       setState(() => _tracker = t);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Etapa registrada — vendedor notificado')),
+        const SnackBar(content: Text('Etapa registrada — notificações enviadas via WhatsApp')),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -112,15 +112,11 @@ class _TrackerDetailScreenState extends State<TrackerDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _WhatsAppLinkCard(
+          _TrackingCodeCard(
             tracker: _tracker,
             onCopyCode: () => _copy(
               _tracker.trackingCode,
               'Código copiado',
-            ),
-            onCopyWhatsApp: () => _copy(
-              _tracker.whatsAppLinkText,
-              'Texto copiado — cole no WhatsApp HoldFy',
             ),
           ),
           const SizedBox(height: 16),
@@ -164,13 +160,11 @@ class _TrackerDetailScreenState extends State<TrackerDetailScreen> {
                         ),
                       ),
                     ),
-                  if (_tracker.sellerPhone != null &&
-                      _tracker.sellerPhone!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
+                  const Padding(
+                      padding: EdgeInsets.only(top: 8),
                       child: Text(
-                        'Notificações → vendedor ${_tracker.sellerPhone}',
-                        style: const TextStyle(
+                        'Notificações automáticas via WhatsApp HoldFy',
+                        style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF94A3B8),
                         ),
@@ -249,16 +243,14 @@ class _TrackerDetailScreenState extends State<TrackerDetailScreen> {
   }
 }
 
-class _WhatsAppLinkCard extends StatelessWidget {
-  const _WhatsAppLinkCard({
+class _TrackingCodeCard extends StatelessWidget {
+  const _TrackingCodeCard({
     required this.tracker,
     required this.onCopyCode,
-    required this.onCopyWhatsApp,
   });
 
   final Tracker tracker;
   final VoidCallback onCopyCode;
-  final VoidCallback onCopyWhatsApp;
 
   @override
   Widget build(BuildContext context) {
@@ -271,72 +263,31 @@ class _WhatsAppLinkCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.chat_outlined, color: holdfyAccent),
+                Icon(Icons.local_shipping_outlined, color: holdfyAccent),
                 const SizedBox(width: 8),
                 Text(
-                  'Vincular no WhatsApp',
+                  'Código de rastreio',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               tracker.trackingCode,
               style: const TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 18,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              '1. Copie o código ou o texto abaixo\n'
-              '2. Cole no chat WhatsApp HoldFy para vincular ao pedido\n'
-              '3. Avance as etapas aqui — o vendedor recebe cada atualização',
-              style: TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 12,
-                height: 1.45,
+                letterSpacing: 1.5,
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onCopyCode,
-                    icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('Copiar código'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: onCopyWhatsApp,
-                    icon: const Icon(Icons.message_outlined, size: 18),
-                    label: const Text('Copiar p/ WhatsApp'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF111827),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF2A3544)),
-              ),
-              child: Text(
-                tracker.whatsAppLinkText,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  color: Color(0xFF94A3B8),
-                ),
-              ),
+            OutlinedButton.icon(
+              onPressed: onCopyCode,
+              icon: const Icon(Icons.copy, size: 18),
+              label: const Text('Copiar código'),
             ),
           ],
         ),

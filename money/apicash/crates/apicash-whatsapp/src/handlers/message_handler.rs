@@ -6,6 +6,7 @@ use apicash_auth::{AuthConfig, AuthService, Role};
 
 use apicash_logistics::LogisticsService;
 use chrono::Utc;
+use sqlx::Row;
 use uuid::Uuid;
 
 use crate::conversation_store::{ConversationStore, MessageDirection, SummaryTrigger, WaMessage};
@@ -96,6 +97,66 @@ impl MessageHandler {
             message_id: None,
         };
         tokio::spawn(async move { store.record_message(msg).await });
+    }
+
+    /// Registra o código de rastreio do vendedor, notifica o comprador e confirma ao vendedor.
+    /// Chamado quando o vendedor envia o código após pagamento confirmado.
+    async fn register_seller_tracking(&self, seller_peer: &str, code: &str, order_id: Uuid) {
+        // Busca o peer do comprador no registro de pagamentos.
+        let buyer_peer = self
+            .payment_registry
+            .get(order_id)
+            .await
+            .map(|p| p.buyer_peer);
+
+        let buyer_peer_ref = buyer_peer.as_deref().unwrap_or("");
+
+        // Persiste na tabela de monitoramento para polling proativo.
+        if let Some(pool) = &self.pg_pool {
+            if let Err(e) = crate::tracking_monitor::upsert_tracking(
+                pool,
+                order_id,
+                code,
+                buyer_peer_ref,
+                seller_peer,
+            )
+            .await
+            {
+                tracing::warn!(
+                    order_id = %order_id,
+                    code = %code,
+                    error = %e,
+                    "register_seller_tracking: falha ao persistir código (monitoramento não ativo)"
+                );
+            }
+        }
+
+        // Notifica o comprador com o código de rastreio.
+        if !buyer_peer_ref.is_empty() {
+            self.outbound
+                .send_text(
+                    buyer_peer_ref,
+                    &message_templates::buyer_order_shipped(code, &order_id),
+                )
+                .await;
+            tracing::info!(
+                order_id = %order_id,
+                code = %code,
+                buyer = %mask_whatsapp_peer(buyer_peer_ref),
+                "register_seller_tracking: comprador notificado"
+            );
+        } else {
+            tracing::warn!(
+                order_id = %order_id,
+                code = %code,
+                "register_seller_tracking: buyer_peer não encontrado, comprador não notificado"
+            );
+        }
+
+        // Confirma ao vendedor que o código foi registrado.
+        self.outbound
+            .send_text(seller_peer, &message_templates::seller_tracking_registered(code))
+            .await;
     }
 
     /// Responde a um pedido de rastreio via WhatsApp.
@@ -206,15 +267,52 @@ impl MessageHandler {
         Ok(())
     }
 
-    /// Notifica o vendedor sobre uma etapa de rastreio (LogisticaHoldFy simulador).
+    /// Busca buyer_peer e seller_peer no DB pelo tracking_code (fallback quando o payload não traz telefones).
+    async fn lookup_peers_by_tracking_code(&self, tracking_code: &str) -> (Option<String>, Option<String>) {
+        let Some(pool) = &self.pg_pool else { return (None, None) };
+        let row = sqlx::query(
+            "SELECT buyer_peer, seller_peer FROM order_tracking_status WHERE tracking_code = $1 LIMIT 1",
+        )
+        .bind(tracking_code)
+        .fetch_optional(pool.as_ref())
+        .await;
+        match row {
+            Ok(Some(r)) => {
+                let buyer: String = r.try_get("buyer_peer").unwrap_or_else(|_| String::new());
+                let seller: String = r.try_get("seller_peer").unwrap_or_else(|_| String::new());
+                (
+                    if buyer.is_empty() { None } else { Some(buyer) },
+                    if seller.is_empty() { None } else { Some(seller) },
+                )
+            }
+            _ => (None, None),
+        }
+    }
+
+    /// Notifica comprador (toda etapa) e vendedor (status críticos).
     pub async fn notify_tracking_step(
         &self,
         seller_phone: &str,
+        buyer_phone: Option<&str>,
         order_id: Option<&str>,
         tracking_code: &str,
         step_label: &str,
         description: &str,
     ) {
+        // Se buyer_phone não veio no payload, busca no DB pelo tracking_code.
+        let (db_buyer, db_seller) = if buyer_phone.map(str::trim).filter(|s| !s.is_empty()).is_none() {
+            self.lookup_peers_by_tracking_code(tracking_code).await
+        } else {
+            (None, None)
+        };
+        let resolved_buyer = buyer_phone.map(str::trim).filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .or(db_buyer);
+        let resolved_seller = {
+            let sp = seller_phone.trim();
+            if sp.is_empty() { db_seller } else { Some(sp.to_string()) }
+        };
+
         let mut msg = String::from("📦 *Atualização de rastreio*");
         if let Some(oid) = order_id.filter(|s| !s.trim().is_empty()) {
             msg.push_str(&format!("\nPedido: `{oid}`"));
@@ -222,17 +320,44 @@ impl MessageHandler {
         msg.push_str(&format!(
             "\n\nCódigo: `{tracking_code}`\nEtapa: *{step_label}*\n{description}"
         ));
-        let p = seller_phone.trim();
-        if p.is_empty() {
-            return;
+
+        // Comprador recebe aviso em cada etapa.
+        if let Some(bp) = resolved_buyer.as_deref() {
+            self.outbound.send_text(bp, &msg).await;
+            tracing::info!(
+                peer = %mask_whatsapp_peer(bp),
+                code = %tracking_code,
+                step = %step_label,
+                "tracking step: WhatsApp enviado ao comprador"
+            );
         }
-        self.outbound.send_text(p, &msg).await;
-        tracing::info!(
-            peer = %mask_whatsapp_peer(p),
-            code = %tracking_code,
-            step = %step_label,
-            "tracking step: WhatsApp enviado ao vendedor"
-        );
+
+        // Vendedor recebe aviso nos status críticos: entrega, retorno, devolução e problema.
+        let label_lc = step_label.to_lowercase();
+        let is_critical = label_lc.contains("entregue")
+            || label_lc.contains("delivered")
+            || label_lc.contains("retorno")
+            || label_lc.contains("return")
+            || label_lc.contains("devolvido")
+            || label_lc.contains("returned")
+            || label_lc.contains("problema")
+            || label_lc.contains("exception");
+        if is_critical {
+            if let Some(sp) = resolved_seller.as_deref() {
+                let seller_msg = message_templates::tracking_critical_seller_notify(
+                    tracking_code,
+                    step_label,
+                    order_id,
+                );
+                self.outbound.send_text(sp, &seller_msg).await;
+                tracing::info!(
+                    peer = %mask_whatsapp_peer(sp),
+                    code = %tracking_code,
+                    step = %step_label,
+                    "tracking step: WhatsApp enviado ao vendedor (status crítico)"
+                );
+            }
+        }
     }
 
     /// PN confirmado pelo WhatsApp (evita divergência 554198… vs 554188… do cartão).
@@ -1377,7 +1502,27 @@ impl MessageHandler {
             }
             OrderFlowState::Idle => {
                 if let Some(tracking_code) = order_flow::extract_tracking_code(body) {
-                    self.handle_tracking_request(&peer, &tracking_code, session.active_order_id).await;
+                    // Tenta resolver o order_id: primeiro da sessão, depois do payment_registry
+                    // (o registry sobrevive a restarts; a sessão não).
+                    let resolved_order_id = if let Some(oid) = session.active_order_id {
+                        Some(oid)
+                    } else {
+                        self.payment_registry
+                            .find_order_for_seller(&peer)
+                            .await
+                            .map(|(oid, _)| oid)
+                    };
+
+                    if let Some(order_id) = resolved_order_id {
+                        // Restaura active_order_id na sessão para próximas mensagens.
+                        if session.active_order_id.is_none() {
+                            session.active_order_id = Some(order_id);
+                            self.sessions.update(&peer, session.clone()).await;
+                        }
+                        self.register_seller_tracking(&peer, &tracking_code, order_id).await;
+                    } else {
+                        self.handle_tracking_request(&peer, &tracking_code, None).await;
+                    }
                 } else if order_flow::is_product_url(body) {
                     // URL enviada diretamente sem iniciar HoldFy → inicia o fluxo pedindo link
                     self.start_holdfy_flow(&mut session, &peer, body, &ev).await?;

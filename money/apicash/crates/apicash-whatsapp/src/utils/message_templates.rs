@@ -324,3 +324,40 @@ pub fn tracking_not_found(code: &str) -> String {
 pub fn tracking_all_providers_down() -> &'static str {
     "Serviço de rastreio temporariamente indisponível. Tente novamente em alguns minutos."
 }
+
+/// Enviado ao comprador quando o vendedor informa o código de rastreio.
+pub fn buyer_order_shipped(code: &str, order_id: &uuid::Uuid) -> String {
+    format!(
+        "📦 *Seu pedido foi enviado!*\nPedido `{order_id}`\n\nCódigo de rastreio: `{code}`\n\
+         Você receberá atualizações automáticas a cada movimentação."
+    )
+}
+
+/// Confirmação ao vendedor de que o código foi registrado.
+pub fn seller_tracking_registered(code: &str) -> String {
+    format!("✅ Código `{code}` registrado. O comprador será avisado a cada etapa do envio.")
+}
+
+/// Enviado ao vendedor em status críticos de rastreio (entrega, retorno, devolução, problema).
+pub fn tracking_critical_seller_notify(code: &str, step_label: &str, order_id: Option<&str>) -> String {
+    let order_line = match order_id.filter(|s| !s.trim().is_empty()) {
+        Some(oid) => format!("\nPedido: `{oid}`"),
+        None => String::new(),
+    };
+    let label_lc = step_label.to_lowercase();
+    let (icon, extra) = if label_lc.contains("entregue") || label_lc.contains("delivered") {
+        ("✅", " Aguardando confirmação de recebimento para liberação do pagamento.")
+    } else if label_lc.contains("problema") || label_lc.contains("exception") {
+        ("⚠️", " Verifique com a transportadora.")
+    } else {
+        ("🔄", " Entre em contacto com o comprador.")
+    };
+    format!(
+        "{icon} *Atualização do pedido*{order_line}\nCódigo: `{code}`\nStatus: *{step_label}*\n{extra}"
+    )
+}
+
+/// Mantido para compatibilidade — use tracking_critical_seller_notify.
+pub fn tracking_delivered_seller_notify(code: &str, order_id: Option<&str>) -> String {
+    tracking_critical_seller_notify(code, "Entregue", order_id)
+}

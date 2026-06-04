@@ -139,9 +139,11 @@ pub async fn add_preset_step(
 }
 
 fn notify_tracker_step(state: &AppState, tracker: &Tracker, step_label: &str, description: &str) {
-    let seller = tracker.seller_phone.clone().unwrap_or_default();
+    // Telefones não são armazenados no app de rastreio.
+    // O WhatsApp service resolve buyer/seller pelo tracking_code via order_tracking_status.
     state.notifier.spawn_notify(
-        seller,
+        String::new(),
+        None,
         tracker.order_id.clone(),
         tracker.tracking_code.clone(),
         step_label.to_string(),

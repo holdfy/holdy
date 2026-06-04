@@ -59,7 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
         orderId: result.orderId,
         originCity: result.originCity,
         destinationCity: result.destinationCity,
-        sellerPhone: result.sellerPhone,
       );
       if (!mounted) return;
       await Navigator.of(context).push(
@@ -260,7 +259,7 @@ class _TrackerTile extends StatelessWidget {
                       )
                     else
                       const Text(
-                        'Aguardando 1ª etapa — vincule no WhatsApp',
+                        'Aguardando 1ª etapa',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -286,14 +285,12 @@ class _CreateFormResult {
     this.orderId,
     this.originCity,
     this.destinationCity,
-    this.sellerPhone,
   });
 
   final String? description;
   final String? orderId;
   final String? originCity;
   final String? destinationCity;
-  final String? sellerPhone;
 }
 
 class _CreateTrackerDialog extends StatefulWidget {
@@ -308,7 +305,6 @@ class _CreateTrackerDialogState extends State<_CreateTrackerDialog> {
   final _orderId = TextEditingController();
   final _origin = TextEditingController(text: 'São Paulo');
   final _dest = TextEditingController(text: 'Rio de Janeiro');
-  final _sellerPhone = TextEditingController();
 
   @override
   void dispose() {
@@ -316,7 +312,6 @@ class _CreateTrackerDialogState extends State<_CreateTrackerDialog> {
     _orderId.dispose();
     _origin.dispose();
     _dest.dispose();
-    _sellerPhone.dispose();
     super.dispose();
   }
 
@@ -353,15 +348,6 @@ class _CreateTrackerDialogState extends State<_CreateTrackerDialog> {
               controller: _dest,
               decoration: const InputDecoration(labelText: 'Cidade destino'),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _sellerPhone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'WhatsApp vendedor (notificações)',
-                hintText: '5511999999999',
-              ),
-            ),
           ],
         ),
       ),
@@ -379,7 +365,6 @@ class _CreateTrackerDialogState extends State<_CreateTrackerDialog> {
                 orderId: _orderId.text.trim(),
                 originCity: _origin.text.trim(),
                 destinationCity: _dest.text.trim(),
-                sellerPhone: _sellerPhone.text.trim(),
               ),
             );
           },

@@ -45,7 +45,7 @@ impl TrackingMonitor {
     async fn poll_once(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let rows = sqlx::query(
             r#"
-            SELECT id, order_id, tracking_code, buyer_peer, last_status
+            SELECT id, order_id, tracking_code, buyer_peer, seller_peer, last_status
             FROM order_tracking_status
             WHERE last_status NOT IN ('delivered', 'returned')
             "#,
@@ -60,6 +60,7 @@ impl TrackingMonitor {
             let order_id: Uuid = row.try_get("order_id")?;
             let code: String = row.try_get("tracking_code")?;
             let buyer_peer: String = row.try_get("buyer_peer")?;
+            let seller_peer: String = row.try_get("seller_peer")?;
             let last_status: String = row.try_get("last_status")?;
 
             match self.tracker.track(&code).await {
@@ -103,12 +104,28 @@ impl TrackingMonitor {
                     if !description.is_empty() {
                         msg.push_str(&format!("\n_{}_", description));
                     }
+
+                    // Comprador recebe todo e qualquer status.
                     self.outbound.send_text(&buyer_peer, &msg).await;
+
+                    // Vendedor recebe apenas status críticos que exigem ação ou atenção.
+                    let notify_seller = matches!(
+                        info.current_status,
+                        apicash_logistics::TrackingStatus::Delivered
+                            | apicash_logistics::TrackingStatus::ReturnInProgress
+                            | apicash_logistics::TrackingStatus::Returned
+                            | apicash_logistics::TrackingStatus::Exception
+                    );
+                    if notify_seller && !seller_peer.is_empty() {
+                        self.outbound.send_text(&seller_peer, &msg).await;
+                    }
+
                     info!(
                         order_id = %order_id,
                         code,
                         old = %last_status,
                         new = %new_status,
+                        seller_notified = notify_seller,
                         "tracking_monitor: notificado"
                     );
                 }
@@ -128,19 +145,22 @@ pub async fn upsert_tracking(
     order_id: Uuid,
     tracking_code: &str,
     buyer_peer: &str,
+    seller_peer: &str,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
-        INSERT INTO order_tracking_status (order_id, tracking_code, buyer_peer, last_status)
-        VALUES ($1, $2, $3, 'unknown')
+        INSERT INTO order_tracking_status (order_id, tracking_code, buyer_peer, seller_peer, last_status)
+        VALUES ($1, $2, $3, $4, 'unknown')
         ON CONFLICT (order_id, tracking_code) DO UPDATE
-            SET buyer_peer = EXCLUDED.buyer_peer,
-                updated_at = NOW()
+            SET buyer_peer  = EXCLUDED.buyer_peer,
+                seller_peer = EXCLUDED.seller_peer,
+                updated_at  = NOW()
         "#,
     )
     .bind(order_id)
     .bind(tracking_code)
     .bind(buyer_peer)
+    .bind(seller_peer)
     .execute(pool)
     .await?;
     Ok(())

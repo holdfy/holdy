@@ -41,7 +41,6 @@ class Tracker {
     this.orderId,
     this.originCity,
     this.destinationCity,
-    this.sellerPhone,
     required this.events,
     required this.createdAt,
     required this.nextPresetIndex,
@@ -53,16 +52,12 @@ class Tracker {
   final String? orderId;
   final String? originCity;
   final String? destinationCity;
-  final String? sellerPhone;
   final List<TrackingEvent> events;
   final DateTime createdAt;
   final int nextPresetIndex;
 
   String get currentStatus =>
       events.isNotEmpty ? events.last.status : 'pending';
-
-  /// Texto para colar no WhatsApp HoldFy e vincular ao pedido.
-  String get whatsAppLinkText => 'rastrear $trackingCode';
 
   factory Tracker.fromJson(Map<String, dynamic> j) {
     final rawEvents = j['events'] as List<dynamic>? ?? [];
@@ -73,7 +68,6 @@ class Tracker {
       orderId: j['order_id'] as String?,
       originCity: j['origin_city'] as String?,
       destinationCity: j['destination_city'] as String?,
-      sellerPhone: j['seller_phone'] as String?,
       events: rawEvents
           .map((e) => TrackingEvent.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -132,7 +126,6 @@ class ApiClient {
     String? orderId,
     String? originCity,
     String? destinationCity,
-    String? sellerPhone,
   }) async {
     final body = <String, dynamic>{
       if (description != null && description.isNotEmpty)
@@ -142,8 +135,6 @@ class ApiClient {
         'origin_city': originCity,
       if (destinationCity != null && destinationCity.isNotEmpty)
         'destination_city': destinationCity,
-      if (sellerPhone != null && sellerPhone.isNotEmpty)
-        'seller_phone': sellerPhone,
     };
     final json = await _postJson('/trackers', body);
     return Tracker.fromJson(json);

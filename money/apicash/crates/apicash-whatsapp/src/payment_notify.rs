@@ -51,6 +51,18 @@ impl PaymentNotifyRegistry {
         self.inner.read().await.get(&order_id).cloned()
     }
 
+    /// Retorna o order_id mais recente (último inserido) onde este peer é o vendedor.
+    /// Usado quando a sessão foi reiniciada e active_order_id foi perdido.
+    pub async fn find_order_for_seller(&self, seller_peer: &str) -> Option<(Uuid, OrderPaymentParties)> {
+        let inner = self.inner.read().await;
+        // Itera todas as entradas — a coleção é pequena (dezenas de pedidos no máximo).
+        // Sem timestamp no registry, devolve o primeiro match encontrado.
+        inner
+            .iter()
+            .find(|(_, p)| p.seller_peer == seller_peer)
+            .map(|(id, p)| (*id, p.clone()))
+    }
+
     pub async fn was_notified(&self, order_id: Uuid) -> bool {
         self.notified.read().await.contains(&order_id)
     }

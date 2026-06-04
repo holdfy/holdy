@@ -39,6 +39,7 @@ impl WhatsAppNotifier {
     pub fn spawn_notify(
         self: &Arc<Self>,
         seller_phone: String,
+        buyer_phone: Option<String>,
         order_id: Option<String>,
         tracking_code: String,
         step_label: String,
@@ -48,6 +49,7 @@ impl WhatsAppNotifier {
         tokio::spawn(async move {
             this.notify_step(
                 &seller_phone,
+                buyer_phone.as_deref(),
                 order_id.as_deref(),
                 &tracking_code,
                 &step_label,
@@ -60,6 +62,7 @@ impl WhatsAppNotifier {
     async fn notify_step(
         &self,
         seller_phone: &str,
+        buyer_phone: Option<&str>,
         order_id: Option<&str>,
         tracking_code: &str,
         step_label: &str,
@@ -73,14 +76,13 @@ impl WhatsAppNotifier {
             warn!(code = %tracking_code, "whatsapp notify: APICASH_API_KEY ausente");
             return;
         }
+        // Telefones são opcionais — o WhatsApp service resolve pelo tracking_code via DB.
         let seller = normalize_phone(seller_phone);
-        if seller.is_empty() {
-            info!(code = %tracking_code, "whatsapp notify: telefone do vendedor não configurado");
-            return;
-        }
+        let buyer = buyer_phone.map(normalize_phone).filter(|s| !s.is_empty());
 
         let body = NotifyBody {
             seller_phone: seller,
+            buyer_phone: buyer,
             order_id: order_id.map(str::to_string),
             tracking_code: tracking_code.to_string(),
             step_label: step_label.to_string(),
@@ -96,7 +98,7 @@ impl WhatsAppNotifier {
             .await
         {
             Ok(resp) if resp.status().is_success() => {
-                info!(code = %tracking_code, step = %step_label, "whatsapp notify: enviado ao vendedor");
+                info!(code = %tracking_code, step = %step_label, "whatsapp notify: enviado");
             }
             Ok(resp) => {
                 let status = resp.status();
@@ -113,6 +115,8 @@ impl WhatsAppNotifier {
 #[derive(Serialize)]
 struct NotifyBody {
     seller_phone: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    buyer_phone: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     order_id: Option<String>,
     tracking_code: String,

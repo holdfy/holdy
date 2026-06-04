@@ -22,5 +22,5 @@ pub use service::LogisticsService;
 pub use tracking::CascadingTracker;
 pub use types::{
     CarrierCode, PackageDimensions, ShippingAddress, ShippingLabel, ShippingQuote,
-    ShippingQuoteRequest, TrackingEvent, TrackingInfo,
+    ShippingQuoteRequest, TrackingEvent, TrackingInfo, TrackingStatus,
 };
