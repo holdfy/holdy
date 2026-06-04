@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["seventrust", "sulcred", "client-simulator"]
+members = ["seventrust", "sulcred", "client-simulator", "simulator_anchor_pix"]

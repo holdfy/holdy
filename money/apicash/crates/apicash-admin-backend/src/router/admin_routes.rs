@@ -9,7 +9,7 @@ use apicash_auth::middleware::verify_admin;
 
 use crate::handlers::{
     dashboard_handler, dispute_admin_handler, orders_handler, report_handler, seller_handler,
-    yield_handler,
+    stellar_handler, yield_handler,
 };
 use crate::state::AdminState;
 
@@ -47,6 +47,7 @@ pub fn admin_router(state: AdminState) -> Router {
         )
         .route("/admin/reports/yield", get(yield_handler::get_yield_report))
         .route("/admin/users/score", get(report_handler::list_user_scores))
+        .route("/admin/stellar/transactions", get(stellar_handler::list_stellar_transactions))
         .layer(middleware::from_fn(move |req, next| {
             let auth = auth.clone();
             async move { verify_admin(&auth, req, next).await }

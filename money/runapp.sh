@@ -404,7 +404,10 @@ apply_network_mode() {
     export APICASH_SOROBAN_ENABLED=1
     export APICASH_SOROBAN_STRICT=1
     export APICASH_STELLAR_NETWORK=testnet
-    log "rede: testnet (SOROBAN_ENABLED=1, REQUIRE_TESTNET=1, STELLAR_NETWORK=testnet)"
+    # Usar simulator_anchor_pix no lugar do Etherfuse real
+    export APICASH_FIAT_RAIL=anchor
+    export APICASH_STELLAR_ANCHOR_URL="http://${MONEY_LAN_HOST:-192.168.0.10}:${ANCHOR_SIM_PORT:-8093}"
+    log "rede: testnet (SOROBAN_ENABLED=1, REQUIRE_TESTNET=1, STELLAR_NETWORK=testnet, ANCHOR_SIM=${APICASH_STELLAR_ANCHOR_URL})"
     ;;
   mainnet)
     export APICASH_REQUIRE_TESTNET=
@@ -644,16 +647,29 @@ runapp_open_startup_browsers() {
 
   if holdfy_admin_present; then
     local admin_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
-    runapp_open_in_browser "holdfy-admin" "${admin_url}" || true
+    runapp_open_in_browser "holdfy-admin (dashboard)" "${admin_url}" || true
+    sleep 0.4
+    runapp_open_in_browser "holdfy-admin (pedidos)" "${admin_url}orders" || true
+    sleep 0.4
+    runapp_open_in_browser "holdfy-admin (Stellar/Soroban)" "${admin_url}stellar" || true
   fi
   if front_gatebox_present; then
+    sleep 0.4
     local fg_base="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${FRONT_GATEBOX_PORT}"
     log "abrindo GateBox portal"
-    runapp_open_in_browser "GateBox" "${fg_base}/" || true
+    runapp_open_in_browser "GateBox admin" "${fg_base}/#/admin/login" || true
+    sleep 0.4
+    runapp_open_in_browser "GateBox transações HoldFy" "${fg_base}/#/admin/holdfy/transactions" || true
+  fi
+  if rastreio_present; then
+    sleep 0.4
+    local rastreio_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${RASTREIO_PORT}/"
+    runapp_open_in_browser "Rastreio (logistica-holdfy)" "${rastreio_url}trackers" || true
   fi
 
   local dev_dash="${MONEY}/../dev-dashboard.html"
   if [ -f "${dev_dash}" ]; then
+    sleep 0.4
     dev_dash="$(cd "$(dirname "${dev_dash}")" && pwd)/$(basename "${dev_dash}")"
     runapp_open_in_browser "referência dev Holdfy" "file://${dev_dash}" || true
   fi
@@ -1062,6 +1078,119 @@ sulcred_print_status() {
   else
     printf '  pid=%s  (curl ausente para health-check)\n' "${SIM_PID}"
   fi
+}
+
+# -----------------------------------------------------------------------------
+# simulator_anchor_pix — simulador Etherfuse (on/off-ramp PIX ↔ BRLx, porta 8093)
+# Necessário para modo testnet com APICASH_FIAT_RAIL=anchor sem Etherfuse real.
+# -----------------------------------------------------------------------------
+
+ANCHOR_SIM_PORT="${ANCHOR_SIM_PORT:-8093}"
+ANCHOR_SIM_LOG="${MONEY}/.runapp/anchor-sim"
+ANCHOR_SIM_PID="${ANCHOR_SIM_LOG}/anchor-sim.pid"
+mkdir -p "${ANCHOR_SIM_LOG}"
+
+anchor_sim_dir() {
+  local candidates=(
+    "${MONEY}/../gatebox/simulador_rust/simulator_anchor_pix"
+    "${MONEY}/gatebox/simulador_rust/simulator_anchor_pix"
+    "/home/devel/git/pos-nearx/gatebox/simulador_rust/simulator_anchor_pix"
+  )
+  local d
+  for d in "${candidates[@]}"; do
+    if [ -f "${d}/Cargo.toml" ]; then
+      (cd "${d}" && pwd)
+      return 0
+    fi
+  done
+  return 1
+}
+
+anchor_sim_present() {
+  anchor_sim_dir >/dev/null 2>&1
+}
+
+anchor_sim_stop() {
+  log "stopping simulator-anchor-pix"
+  if [ -f "${ANCHOR_SIM_PID}" ]; then
+    local pid
+    pid="$(tr -d '[:space:]' <"${ANCHOR_SIM_PID}" 2>/dev/null || true)"
+    if [ -n "${pid:-}" ] && kill -0 "${pid}" 2>/dev/null; then
+      kill "${pid}" 2>/dev/null || true
+      sleep 0.5
+    fi
+    rm -f "${ANCHOR_SIM_PID}"
+  fi
+  pkill -f "target/release/simulator-anchor-pix" 2>/dev/null || true
+  pkill -f "target/debug/simulator-anchor-pix"   2>/dev/null || true
+}
+
+anchor_sim_start() {
+  local root ws_root
+  root="$(anchor_sim_dir 2>/dev/null)" || {
+    warn "simulator-anchor-pix não encontrado — testnet sem on/off-ramp real"
+    return 0
+  }
+  ws_root="$(dirname "${root}")"
+
+  command -v cargo >/dev/null 2>&1 || {
+    warn "cargo ausente — não é possível iniciar simulator-anchor-pix"
+    return 1
+  }
+
+  anchor_sim_stop || true
+
+  local bin="${ws_root}/target/release/simulator-anchor-pix"
+  if [[ "${SKIP_BUILD:-0}" != "1" ]] || [[ ! -x "${bin}" ]]; then
+    log "building simulator-anchor-pix (cargo release)"
+    (cd "${root}" && cargo build --release -p simulator-anchor-pix) || {
+      warn "cargo build simulator-anchor-pix falhou"
+      return 1
+    }
+  fi
+
+  [[ -x "${bin}" ]] || {
+    warn "binário simulator-anchor-pix não encontrado após build: ${bin}"
+    return 1
+  }
+
+  log "starting simulator-anchor-pix (PORT=${ANCHOR_SIM_PORT}, logs ${ANCHOR_SIM_LOG}/anchor-sim.log)"
+  (
+    set -a
+    [ -f "${MONEY}/.env" ] && . "${MONEY}/.env"
+    set +a
+    export PORT="${ANCHOR_SIM_PORT}"
+    exec "${bin}"
+  ) >>"${ANCHOR_SIM_LOG}/anchor-sim.log" 2>&1 &
+
+  printf '%s\n' $! >"${ANCHOR_SIM_PID}"
+  sleep 0.5
+  if kill -0 "$(cat "${ANCHOR_SIM_PID}" 2>/dev/null)" 2>/dev/null; then
+    log "simulator-anchor-pix OK (porta ${ANCHOR_SIM_PORT})"
+  else
+    warn "simulator-anchor-pix falhou ao iniciar — ver ${ANCHOR_SIM_LOG}/anchor-sim.log"
+  fi
+}
+
+anchor_sim_print_status() {
+  printf '\n== simulator-anchor-pix (Etherfuse mock) — PORT=%s ==\n' "${ANCHOR_SIM_PORT}"
+  if ! anchor_sim_present; then
+    printf '  (diretório simulator_anchor_pix não encontrado)\n'
+    return 0
+  fi
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 1 "http://127.0.0.1:${ANCHOR_SIM_PORT}/health" 2>/dev/null || true)"
+    printf '  http health=%s  log=%s/anchor-sim.log\n' "${code:-000}" "${ANCHOR_SIM_LOG}"
+  else
+    printf '  (curl ausente para health-check)\n'
+  fi
+}
+
+anchor_sim_logs() {
+  log "following simulator-anchor-pix log; Ctrl+C to stop"
+  mkdir -p "${ANCHOR_SIM_LOG}"
+  tail -n 80 -F "${ANCHOR_SIM_LOG}/anchor-sim.log" 2>/dev/null || true
 }
 
 # -----------------------------------------------------------------------------
@@ -1653,6 +1782,8 @@ Scope (opcional):
   banco     apenas API Go em gatebox/banco/backend_banco (se existir)
   site      apenas site público Vite (holdy/site), defeito :5173
   rastreio  apenas logistica-holdfy-backend (simulador de rastreio Rust, porta RASTREIO_PORT :8092)
+  anchor-sim simulador Etherfuse (on/off-ramp PIX ↔ BRLx testnet), porta ANCHOR_SIM_PORT :8093
+  testnet   (só para logs) — filtra Stellar/BRLx/Soroban/settle/erros em tempo real
 
 Env útil:
   RUNAPP_AUTO_SITE=1 (defeito) — com stack all, iniciar também holdy/site (npm run dev)
@@ -1695,7 +1826,7 @@ fi
 
 if [ "${CMD}" != "whatsapp-pair" ] && [ "${CMD}" != "open-browsers" ]; then
   case "${SCOPE}" in
-  all | apicash | gatebox | banco | site | sulcred | rastreio) ;;
+  all | apicash | gatebox | banco | site | sulcred | rastreio | anchor-sim | testnet) ;;
   *)
     warn "scope inválido: ${SCOPE}"
     usage
@@ -1708,6 +1839,7 @@ run_stop() {
   case "${SCOPE}" in
   all)
     rastreio_stop
+    anchor_sim_stop
     bb_stop_all
     scraper_stop
     front_gatebox_stop
@@ -1723,6 +1855,7 @@ run_stop() {
   banco) bb_stop_all ;;
   site) site_stop_all ;;
   rastreio) rastreio_stop ;;
+  anchor-sim) anchor_sim_stop ;;
   esac
 }
 
@@ -1768,6 +1901,9 @@ run_start() {
     if scraper_present; then
       scraper_start || warn "scraper-service não subiu — ver ${SCRAPER_LOG}/scraper.log"
     fi
+    if anchor_sim_present; then
+      anchor_sim_start || warn "simulator-anchor-pix não subiu — ver ${ANCHOR_SIM_LOG}/anchor-sim.log"
+    fi
     if [ -d "${BANCO_BE}" ]; then
       bb_start_all || warn "backend_banco não subiu — app Flutter (:8091) falha com connection refused"
     fi
@@ -1797,6 +1933,9 @@ run_start() {
   rastreio)
     rastreio_start || return 1
     ;;
+  anchor-sim)
+    anchor_sim_start || return 1
+    ;;
   esac
 }
 
@@ -1820,6 +1959,9 @@ run_status() {
   all | rastreio) rastreio_print_status ;;
   esac
   case "${SCOPE}" in
+  all | anchor-sim) anchor_sim_print_status ;;
+  esac
+  case "${SCOPE}" in
   all)
     holdfy_admin_print_status
     front_gatebox_print_status
@@ -1829,10 +1971,45 @@ run_status() {
   esac
 }
 
+logs_testnet() {
+  # Todos os logs relevantes para transações Stellar/testnet filtrados numa única stream.
+  local files=()
+  [ -f "${AC_LOG}/apicash-core.log" ]    && files+=("${AC_LOG}/apicash-core.log")
+  [ -f "${AC_LOG}/apicash-whatsapp.log" ] && files+=("${AC_LOG}/apicash-whatsapp.log")
+  [ -f "${ANCHOR_SIM_LOG}/anchor-sim.log" ] && files+=("${ANCHOR_SIM_LOG}/anchor-sim.log")
+
+  # Cria os ficheiros se ainda não existirem para o tail não falhar
+  for f in "${AC_LOG}/apicash-core.log" "${AC_LOG}/apicash-whatsapp.log" "${ANCHOR_SIM_LOG}/anchor-sim.log"; do
+    [ -f "${f}" ] || touch "${f}" 2>/dev/null || true
+    files+=("${f}")
+  done
+  # Remove duplicados mantendo ordem
+  local -A seen; local uniq=()
+  for f in "${files[@]}"; do
+    [[ -n "${seen[$f]:-}" ]] && continue
+    seen[$f]=1; uniq+=("$f")
+  done
+
+  log "=== HoldFy Testnet — transações Stellar, settle, BRLx, Soroban, erros ==="
+  log "Ficheiros: ${uniq[*]}"
+  log "Ctrl+C para sair"
+  printf '\n'
+
+  # Filtra linhas relevantes: Stellar, BRLx, Soroban, settle, anchor, erros e warns
+  tail -n 80 -F "${uniq[@]}" 2>/dev/null \
+    | grep --line-buffered -i \
+        -e "stellar\|soroban\|brlx\|escrow\|testnet" \
+        -e "settle\|lock_funds\|on.ramp\|off.ramp\|anchor" \
+        -e "invoke_contract\|transfer_brlx\|issue_brlx" \
+        -e "simulator.anchor\|deposit\|withdraw\|pix_key" \
+        -e " ERROR \| WARN \|error =\|warn =" \
+        -e "BRLx\|bloqueado\|liberado\|release\|custody"
+}
+
 run_logs() {
   case "${SCOPE}" in
   all)
-    warn "logs all: use logs apicash | logs gatebox | logs banco | logs site | logs rastreio em terminais separados"
+    warn "logs all: use logs apicash | logs gatebox | logs banco | logs site | logs rastreio | logs testnet em terminais separados"
     ac_logs_all
     ;;
   apicash) ac_logs_all ;;
@@ -1840,6 +2017,8 @@ run_logs() {
   banco) bb_logs_all ;;
   site) site_logs_all ;;
   rastreio) rastreio_logs ;;
+  anchor-sim) anchor_sim_logs ;;
+  testnet) logs_testnet ;;
   esac
 }
 
@@ -1851,6 +2030,9 @@ testnet | mainnet)
   run_stop
   run_start
   run_status
+  if [ "${CMD}" = "testnet" ]; then
+    logs_testnet
+  fi
   ;;
 open-browsers)
   ac_setup_whatsapp_qr_dir || true

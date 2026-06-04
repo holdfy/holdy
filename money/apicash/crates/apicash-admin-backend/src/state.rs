@@ -30,6 +30,8 @@ pub struct AdminState {
     pub antifraude: Arc<AntiFraudeService>,
     pub disputes: Arc<DisputeService>,
     pub orders: Arc<dyn OrderRepository>,
+    /// Pool Postgres para queries especializadas (ex.: Stellar transactions).
+    pub pg_pool: Option<sqlx::PgPool>,
 }
 
 impl AdminState {
@@ -61,6 +63,7 @@ impl AdminState {
             antifraude,
             disputes,
             orders: Arc::new(InMemoryOrderRepository::new()),
+            pg_pool: None,
         }
     }
 
@@ -109,7 +112,7 @@ impl AdminState {
             Default::default(),
         ));
 
-        let orders: Arc<dyn OrderRepository> = Arc::new(PostgresOrderRepository::new(pool));
+        let orders: Arc<dyn OrderRepository> = Arc::new(PostgresOrderRepository::new(pool.clone()));
 
         tracing::info!("admin: Postgres repositories enabled");
         Ok(Self {
@@ -118,6 +121,7 @@ impl AdminState {
             antifraude,
             disputes,
             orders,
+            pg_pool: Some(pool),
         })
     }
 }

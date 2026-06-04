@@ -9,6 +9,7 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import GavelIcon from "@mui/icons-material/Gavel";
 import PeopleIcon from "@mui/icons-material/People";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import HubIcon from "@mui/icons-material/Hub";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { adminKeyStore } from "./api";
 import Login from "./pages/Login";
@@ -17,6 +18,7 @@ import Orders from "./pages/Orders";
 import Disputes from "./pages/Disputes";
 import Scores from "./pages/Scores";
 import YieldReport from "./pages/YieldReport";
+import StellarTransactions from "./pages/StellarTransactions";
 
 const DRAWER_WIDTH = 240;
 
@@ -26,6 +28,7 @@ const NAV = [
   { label: "Disputas", icon: <GavelIcon />, path: "/disputes" },
   { label: "Usuários / Score", icon: <PeopleIcon />, path: "/scores" },
   { label: "Yield Report", icon: <TrendingUpIcon />, path: "/yield" },
+  { label: "Stellar / Soroban", icon: <HubIcon />, path: "/stellar" },
 ];
 
 function AdminLayout({ children }) {
@@ -106,6 +109,7 @@ export default function App() {
                 <Route path="/disputes" element={<Disputes />} />
                 <Route path="/scores" element={<Scores />} />
                 <Route path="/yield" element={<YieldReport />} />
+                <Route path="/stellar" element={<StellarTransactions />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </AdminLayout>

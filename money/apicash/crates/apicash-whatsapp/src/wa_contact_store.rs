@@ -62,6 +62,7 @@ pub struct WaContact {
     pub document: Option<String>,
     pub document_type: Option<String>,
     pub situation: Option<String>,
+    pub pix_key: Option<String>,
 }
 
 /// Grava (ou atualiza) dados de contato. Usa UPSERT: nunca sobrescreve nome/CPF já preenchido
@@ -71,13 +72,14 @@ pub async fn save_contact(pool: &PgPool, c: &WaContact) {
         if d.len() == 11 { "cpf" } else { "cnpj" }
     });
     let _ = sqlx::query(
-        "INSERT INTO wa_contacts (peer_key, user_id, name, document, document_type, situation)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        "INSERT INTO wa_contacts (peer_key, user_id, name, document, document_type, situation, pix_key)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (peer_key) DO UPDATE SET
              name          = COALESCE(EXCLUDED.name,          wa_contacts.name),
              document      = COALESCE(EXCLUDED.document,      wa_contacts.document),
              document_type = COALESCE(EXCLUDED.document_type, wa_contacts.document_type),
              situation     = COALESCE(EXCLUDED.situation,     wa_contacts.situation),
+             pix_key       = COALESCE(EXCLUDED.pix_key,       wa_contacts.pix_key),
              updated_at    = NOW()",
     )
     .bind(&c.peer_key)
@@ -86,8 +88,34 @@ pub async fn save_contact(pool: &PgPool, c: &WaContact) {
     .bind(&c.document)
     .bind(doc_type.or(c.document_type.as_deref()))
     .bind(&c.situation)
+    .bind(&c.pix_key)
     .execute(pool)
     .await;
+}
+
+/// Grava ou atualiza só a chave PIX (sem tocar nos outros campos).
+pub async fn save_pix_key(pool: &PgPool, peer_key: &str, pix_key: &str) {
+    let _ = sqlx::query(
+        "UPDATE wa_contacts SET pix_key = $1, updated_at = NOW() WHERE peer_key = $2",
+    )
+    .bind(pix_key)
+    .bind(peer_key)
+    .execute(pool)
+    .await;
+}
+
+/// Retorna a chave PIX guardada para um peer, ou `None`.
+pub async fn load_pix_key(pool: &PgPool, peer_key: &str) -> Option<String> {
+    use sqlx::Row;
+    let row = sqlx::query(
+        "SELECT pix_key FROM wa_contacts WHERE peer_key = $1",
+    )
+    .bind(peer_key)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()?;
+    row.try_get::<Option<String>, _>("pix_key").ok().flatten()
 }
 
 /// Carrega contato por peer_key. Retorna `None` se não encontrado ou em erro.
@@ -110,5 +138,6 @@ pub async fn load_contact(pool: &PgPool, peer_key: &str) -> Option<WaContact> {
         document: row.try_get("document").ok().flatten(),
         document_type: row.try_get("document_type").ok().flatten(),
         situation: row.try_get("situation").ok().flatten(),
+        pix_key: row.try_get("pix_key").ok().flatten(),
     })
 }

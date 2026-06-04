@@ -361,3 +361,57 @@ pub fn tracking_critical_seller_notify(code: &str, step_label: &str, order_id: O
 pub fn tracking_delivered_seller_notify(code: &str, order_id: Option<&str>) -> String {
     tracking_critical_seller_notify(code, "Entregue", order_id)
 }
+
+// ─── Chave PIX do vendedor ────────────────────────────────────────────────────
+
+pub fn ask_seller_pix_key() -> &'static str {
+    "Para onde devo enviar o seu pagamento?\n\
+     Informe a sua *chave PIX*: CPF, CNPJ, e-mail, telefone ou chave aleatória (UUID).\n\n\
+     Ex.: `99999999999` ou `vendedor@email.com`"
+}
+
+pub fn seller_pix_already_stored(pix_key: &str) -> String {
+    format!(
+        "Chave PIX registrada: `{pix_key}`\n\n\
+         Responda *ok* para usar esta chave ou *trocar* para informar outra."
+    )
+}
+
+pub fn seller_pix_confirmed(pix_key: &str) -> String {
+    format!("✅ Chave PIX `{pix_key}` registada — usarei esta para enviar o pagamento quando o comprador confirmar o recebimento.")
+}
+
+pub fn seller_pix_invalid() -> &'static str {
+    "Chave PIX não reconhecida. Envie um CPF (11 dígitos), CNPJ (14), e-mail, telefone com DDD ou chave aleatória (UUID)."
+}
+
+// ─── Confirmação de recebimento (comprador) ───────────────────────────────────
+
+pub fn ask_buyer_confirm_receipt(order_id: &uuid::Uuid, amount: &str) -> String {
+    format!(
+        "📦 Produto recebido?\n\
+         Pedido `{order_id}` · *R$ {amount}*\n\n\
+         Responda *CONFIRMAR RECEBIMENTO* para liberar o pagamento ao vendedor.\n\
+         _Esta ação não pode ser desfeita._"
+    )
+}
+
+pub fn buyer_receipt_confirmed(amount: &str) -> String {
+    format!("✅ Recebimento confirmado. Liberando *R$ {amount}* ao vendedor (até ~1 min).")
+}
+
+pub fn seller_payment_released(amount: &str, pix_key: &str) -> String {
+    format!(
+        "💰 *Pagamento liberado*\n\
+         R$ *{amount}* enviado para `{pix_key}`.\n\
+         O comprador confirmou o recebimento."
+    )
+}
+
+pub fn seller_payment_released_no_pix(amount: &str) -> String {
+    format!(
+        "💰 *Pagamento liberado*\n\
+         R$ *{amount}* a caminho — mas não temos a sua chave PIX.\n\
+         Responda com a sua *chave PIX* para receber."
+    )
+}

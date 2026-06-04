@@ -299,6 +299,21 @@ impl CoreApiClient {
         self.post_json("/custody/release", &body, bearer).await
     }
 
+    /// Off-ramp: envia BRLx ao vendedor via PIX após release do escrow.
+    /// Requer que o pedido esteja `Completed` (custody liberada).
+    pub async fn off_ramp_order(
+        &self,
+        order_id: Uuid,
+        destination_pix_key: &str,
+    ) -> Result<serde_json::Value, CoreApiError> {
+        let body = serde_json::json!({ "destination_pix_key": destination_pix_key });
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        let url = format!("/orders/{order_id}/off-ramp");
+        tracing::info!(%order_id, "core_api: POST /orders/:id/off-ramp");
+        self.post_json_with_api_key(&url, &body, None, k).await
+    }
+
     pub async fn settle_order_internal(
         &self,
         order_id: Uuid,

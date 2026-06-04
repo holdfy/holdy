@@ -44,7 +44,7 @@ pub fn is_skip(cmd: &str) -> bool {
     )
 }
 
-/// Intent to confirm delivery (not final).
+/// Intent to confirm delivery (first touch — bot asks for explicit confirmation).
 pub fn is_confirm_receipt_intent(cmd: &str) -> bool {
     matches!(
         normalize_cmd(cmd).as_str(),
@@ -60,12 +60,17 @@ pub fn is_confirm_receipt_intent(cmd: &str) -> bool {
 
 /// Final, explicit confirmation required to release escrow.
 pub fn is_confirm_receipt_final(cmd: &str) -> bool {
+    let n = normalize_cmd(cmd);
     matches!(
-        normalize_cmd(cmd).as_str(),
+        n.as_str(),
         "confirmar recebimento"
             | "confirmar_recebimento"
             | "confirmarrecebimento"
-            | "confirmar recebimento."
+            | "sim"
+            | "sim, recebi"
+            | "recebi sim"
+            | "confirmo"
+            | "confirmo recebimento"
     )
 }
 
@@ -305,4 +310,62 @@ pub fn try_dispute(current: &OrderFlowState, cmd: &str) -> Option<OrderFlowState
         }
         _ => None,
     }
+}
+
+// ─── Chave PIX do vendedor ────────────────────────────────────────────────────
+
+/// Valida e normaliza uma chave PIX enviada pelo vendedor.
+/// Aceita: CPF (11 dígitos), CNPJ (14 dígitos), e-mail, telefone celular, UUID aleatório.
+pub fn parse_pix_key(raw: &str) -> Option<String> {
+    let s = raw.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    // UUID (chave aleatória Banco Central)
+    if s.len() == 36 && s.chars().filter(|c| *c == '-').count() == 4 {
+        if s.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+            return Some(s.to_lowercase());
+        }
+    }
+
+    // E-mail
+    if s.contains('@') && s.contains('.') && !s.contains(' ') {
+        return Some(s.to_lowercase());
+    }
+
+    // Só dígitos: CPF (11), CNPJ (14), ou telefone (+55DD9XXXXXXXX)
+    let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
+    match digits.len() {
+        11 => return Some(digits), // CPF
+        14 => return Some(digits), // CNPJ
+        10 | 11 if s.starts_with('+') || s.starts_with("55") => {
+            // telefone com DDI
+            let full = if digits.starts_with("55") { digits } else { format!("55{digits}") };
+            return Some(full);
+        }
+        _ => {}
+    }
+    // Telefone com DDI 55 completo (12-13 dígitos)
+    if digits.len() == 12 || digits.len() == 13 {
+        return Some(digits);
+    }
+
+    None
+}
+
+/// Vendedor quer trocar a chave PIX já registrada.
+pub fn is_pix_change(body: &str) -> bool {
+    matches!(
+        normalize_cmd(body).as_str(),
+        "trocar" | "mudar" | "outra" | "outra chave" | "trocar chave" | "mudar chave"
+    )
+}
+
+/// Vendedor confirma a chave PIX já registrada.
+pub fn is_pix_confirm(body: &str) -> bool {
+    matches!(
+        normalize_cmd(body).as_str(),
+        "ok" | "sim" | "confirmar" | "confirmo" | "certo" | "correto" | "usar essa" | "manter"
+    )
 }

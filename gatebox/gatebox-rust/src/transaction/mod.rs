@@ -1,4 +1,4 @@
-mod ddl;
+pub mod ddl;
 mod handler;
 mod repository;
 mod service;

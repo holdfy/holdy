@@ -206,7 +206,7 @@ impl MessageHandler {
         });
     }
 
-    /// Pagamento confirmado no Gatebox: avisa vendedor e comprador (sem settle nem liberação de custódia).
+    /// Pagamento confirmado no Gatebox: avisa vendedor e comprador e dispara settle (BRLx → testnet).
     pub async fn notify_bank_payment(
         &self,
         order_id: Uuid,
@@ -242,15 +242,33 @@ impl MessageHandler {
 
         self.payment_registry.mark_notified(order_id).await;
 
+        // Dispara settle em background: poll anchor → BRLx real no testnet → Soroban lock.
+        // Fire-and-forget: não bloqueia o notify; erros são logados.
+        {
+            let core = self.core.clone();
+            tokio::spawn(async move {
+                match core.settle_order_internal(order_id, None).await {
+                    Ok(_) => tracing::info!(%order_id, "settle_order_internal: BRLx bloqueado no Soroban"),
+                    Err(e) => tracing::warn!(%order_id, error = %e, "settle_order_internal: falhou (rail simulated ignora, anchor requer testnet configurado)"),
+                }
+            });
+        }
+
         // Gerar resumo quando pagamento confirmado
         let buyer_uid = crate::session::user_id_for_peer_key(&parties.buyer_peer);
         let seller_uid = crate::session::user_id_for_peer_key(&parties.seller_peer);
         self.trigger_summary(&parties.buyer_peer, buyer_uid, Some(order_id), SummaryTrigger::PaymentConfirmed);
         self.trigger_summary(&parties.seller_peer, seller_uid, Some(order_id), SummaryTrigger::PaymentConfirmed);
 
+        // Comprador entra em AwaitingConfirmation — aguarda "recebi" para liberar escrow.
         let mut buyer_sess = self.sessions.session_for(&parties.buyer_peer).await;
-        buyer_sess.reset_flow();
         buyer_sess.active_order_id = Some(order_id);
+        buyer_sess.state = OrderFlowState::AwaitingConfirmation {
+            order_id,
+            amount: parties.amount.clone(),
+            description: String::new(),
+        };
+        buyer_sess.touch();
         self.sessions.update(&parties.buyer_peer, buyer_sess).await;
 
         let mut seller_sess = self.sessions.session_for(&parties.seller_peer).await;
@@ -265,6 +283,115 @@ impl MessageHandler {
             "bank payment: WhatsApp notify sent to both parties"
         );
         Ok(())
+    }
+
+    /// Comprador confirmou recebimento: libera custódia + dispara off-ramp ao vendedor.
+    async fn handle_buyer_confirm_receipt(
+        &self,
+        buyer_peer: &str,
+        order_id: Uuid,
+        amount: &str,
+        mut session: UserSession,
+    ) {
+        let buyer_id = session.user_id;
+        let idempotency_key = format!("confirm_receipt:{order_id}:{buyer_id}");
+
+        // Gera JWT do comprador para autorizar o release.
+        let bearer = self.jwt_for_user(buyer_id, apicash_auth::Role::Buyer)
+            .ok()
+            .map(|t| t);
+
+        // 1. Release da custódia no Core.
+        match self.core.release_custody(order_id, buyer_id, &idempotency_key, bearer.as_deref()).await {
+            Ok(_) => {
+                tracing::info!(%order_id, %buyer_id, "custody released by buyer");
+            }
+            Err(e) => {
+                tracing::warn!(%order_id, error = %e, "release_custody falhou");
+                self.outbound.send_text(buyer_peer, "Não foi possível confirmar o recebimento agora. Tente novamente em instantes.").await;
+                session.state = OrderFlowState::AwaitingConfirmation {
+                    order_id,
+                    amount: amount.to_string(),
+                    description: String::new(),
+                };
+                self.sessions.update(buyer_peer, session).await;
+                return;
+            }
+        }
+
+        // 2. Notifica comprador.
+        self.outbound
+            .send_text(buyer_peer, &message_templates::buyer_receipt_confirmed(amount))
+            .await;
+
+        // 3. Obtém seller_peer e chave PIX do vendedor.
+        let seller_peer = self.payment_registry.get(order_id).await
+            .map(|p| p.seller_peer);
+
+        let seller_pix = if let Some(ref sp) = seller_peer {
+            let from_registry = {
+                let seller_sess = self.sessions.session_for(sp).await;
+                seller_sess.seller_pix_key.clone()
+            };
+            if let Some(k) = from_registry {
+                Some(k)
+            } else if let Some(pool) = &self.pg_pool {
+                crate::wa_contact_store::load_pix_key(pool, sp).await
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // 4. Off-ramp em background (não bloqueia).
+        {
+            let core = self.core.clone();
+            let outbound = self.outbound.clone();
+            let amount_str = amount.to_string();
+            let sp = seller_peer.clone();
+            match seller_pix {
+                Some(ref pix) => {
+                    let pix_key = pix.clone();
+                    let pix_for_msg = pix.clone();
+                    tokio::spawn(async move {
+                        match core.off_ramp_order(order_id, &pix_key).await {
+                            Ok(_) => {
+                                tracing::info!(%order_id, pix_key = %pix_key, "off-ramp OK");
+                                if let Some(ref sp) = sp {
+                                    outbound.send_text(sp, &message_templates::seller_payment_released(&amount_str, &pix_for_msg)).await;
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!(%order_id, error = %e, "off-ramp falhou");
+                                if let Some(ref sp) = sp {
+                                    outbound.send_text(sp, &message_templates::seller_payment_released_no_pix(&amount_str)).await;
+                                }
+                            }
+                        }
+                    });
+                }
+                None => {
+                    if let Some(ref sp) = seller_peer {
+                        self.outbound
+                            .send_text(sp, &message_templates::seller_payment_released_no_pix(amount))
+                            .await;
+                    }
+                    tracing::warn!(%order_id, "off-ramp: chave PIX do vendedor não encontrada");
+                }
+            }
+        }
+
+        // 5. Reset de estado.
+        session.reset_flow();
+        session.active_order_id = Some(order_id);
+        self.sessions.update(buyer_peer, session).await;
+        if let Some(sp) = seller_peer {
+            let mut seller_s = self.sessions.session_for(&sp).await;
+            seller_s.reset_flow();
+            seller_s.active_order_id = Some(order_id);
+            self.sessions.update(&sp, seller_s).await;
+        }
     }
 
     /// Busca buyer_peer e seller_peer no DB pelo tracking_code (fallback quando o payload não traz telefones).
@@ -764,6 +891,7 @@ impl MessageHandler {
                 document: doc,
                 document_type: None,
                 situation,
+                pix_key: None,
             };
             let pool = pool.clone();
             tokio::spawn(async move {
@@ -960,9 +1088,49 @@ impl MessageHandler {
             );
         }
 
-        self.try_send_holdfy_proposal(session, seller_peer, draft)
-            .await
-            .map(|_| ())
+        // Pede a chave PIX antes de enviar a proposta.
+        self.ask_or_confirm_seller_pix(session, seller_peer, draft).await
+    }
+
+    /// Depois do CPF confirmado: verifica se já há chave PIX e pede/confirma.
+    async fn ask_or_confirm_seller_pix(
+        &self,
+        session: &mut UserSession,
+        seller_peer: &str,
+        draft: OrderDraft,
+    ) -> Result<(), CoreApiError> {
+        // Tenta carregar chave PIX já guardada (DB ou sessão).
+        let stored_pix = if let Some(k) = &session.seller_pix_key {
+            Some(k.clone())
+        } else if let Some(pool) = &self.pg_pool {
+            crate::wa_contact_store::load_pix_key(pool, seller_peer).await
+        } else {
+            None
+        };
+
+        if let Some(ref pix) = stored_pix {
+            session.seller_pix_key = Some(pix.clone());
+            session.state = OrderFlowState::CreatingOrder {
+                step: CreatingOrderStep::AskSellerPix,
+                draft,
+            };
+            session.touch();
+            self.sessions.update(seller_peer, session.clone()).await;
+            self.outbound
+                .send_text(seller_peer, &message_templates::seller_pix_already_stored(pix))
+                .await;
+        } else {
+            session.state = OrderFlowState::CreatingOrder {
+                step: CreatingOrderStep::AskSellerPix,
+                draft,
+            };
+            session.touch();
+            self.sessions.update(seller_peer, session.clone()).await;
+            self.outbound
+                .send_text(seller_peer, message_templates::ask_seller_pix_key())
+                .await;
+        }
+        Ok(())
     }
 
     /// Após comprador responder *ACEITO* e fornecer documento: criar pedido, enviar PIX a B e avisos a A/B.
@@ -1581,6 +1749,43 @@ impl MessageHandler {
                                 .await;
                         }
                     }
+                } else if matches!(step, CreatingOrderStep::AskSellerPix) {
+                    if order_flow::is_pix_change(body) {
+                        // Vendedor quer trocar a chave
+                        session.seller_pix_key = None;
+                        session.state = OrderFlowState::CreatingOrder {
+                            step: CreatingOrderStep::AskSellerPix,
+                            draft,
+                        };
+                        self.sessions.update(&peer, session).await;
+                        self.outbound.send_text(&peer, message_templates::ask_seller_pix_key()).await;
+                    } else if order_flow::is_pix_confirm(body) && session.seller_pix_key.is_some() {
+                        // Confirma chave já guardada
+                        let pix = session.seller_pix_key.clone().unwrap();
+                        self.outbound.send_text(&peer, &message_templates::seller_pix_confirmed(&pix)).await;
+                        self.try_send_holdfy_proposal(&mut session, &peer, draft).await.map(|_| ())?;
+                    } else if let Some(pix) = order_flow::parse_pix_key(body) {
+                        // Nova chave fornecida — guarda e avança
+                        session.seller_pix_key = Some(pix.clone());
+                        if let Some(pool) = &self.pg_pool {
+                            let pool = pool.clone();
+                            let peer_k = peer.clone();
+                            let pix_k = pix.clone();
+                            tokio::spawn(async move {
+                                crate::wa_contact_store::save_pix_key(&pool, &peer_k, &pix_k).await;
+                            });
+                        }
+                        self.outbound.send_text(&peer, &message_templates::seller_pix_confirmed(&pix)).await;
+                        self.try_send_holdfy_proposal(&mut session, &peer, draft).await.map(|_| ())?;
+                    } else {
+                        // Formato inválido
+                        session.state = OrderFlowState::CreatingOrder {
+                            step: CreatingOrderStep::AskSellerPix,
+                            draft,
+                        };
+                        self.sessions.update(&peer, session).await;
+                        self.outbound.send_text(&peer, message_templates::seller_pix_invalid()).await;
+                    }
                 } else if matches!(step, CreatingOrderStep::WaitingBuyerAccept) {
                     if draft
                         .counterparty_peer_key
@@ -1738,18 +1943,44 @@ impl MessageHandler {
                         .await;
                 }
             }
-            OrderFlowState::AwaitingConfirmation { order_id, .. } => {
+            OrderFlowState::AwaitingConfirmation { order_id, amount, .. } => {
                 if let Some(tracking_code) = order_flow::extract_tracking_code(body) {
-                    session.reset_flow();
+                    session.state = OrderFlowState::AwaitingConfirmation {
+                        order_id,
+                        amount,
+                        description: String::new(),
+                    };
                     session.active_order_id = Some(order_id);
                     self.sessions.update(&peer, session).await;
                     self.handle_tracking_request(&peer, &tracking_code, Some(order_id)).await;
-                } else {
-                    session.reset_flow();
+                } else if order_flow::is_confirm_receipt_final(body) {
+                    // Confirmação explícita → release + off-ramp
+                    self.handle_buyer_confirm_receipt(&peer, order_id, &amount, session).await;
+                } else if order_flow::is_confirm_receipt_intent(body) {
+                    // Primeiro toque — pede confirmação explícita
+                    session.state = OrderFlowState::AwaitingConfirmation {
+                        order_id,
+                        amount: amount.clone(),
+                        description: String::new(),
+                    };
                     session.active_order_id = Some(order_id);
                     self.sessions.update(&peer, session).await;
                     self.outbound
-                        .send_text(&peer, message_templates::awaiting_payment_hint())
+                        .send_text(&peer, &message_templates::ask_buyer_confirm_receipt(&order_id, &amount))
+                        .await;
+                    self.outbound
+                        .send_interactive_confirm_receipt(&peer, &message_templates::ask_buyer_confirm_receipt(&order_id, &amount))
+                        .await;
+                } else {
+                    session.state = OrderFlowState::AwaitingConfirmation {
+                        order_id,
+                        amount: amount.clone(),
+                        description: String::new(),
+                    };
+                    session.active_order_id = Some(order_id);
+                    self.sessions.update(&peer, session).await;
+                    self.outbound
+                        .send_text(&peer, &message_templates::ask_buyer_confirm_receipt(&order_id, &amount))
                         .await;
                 }
             }

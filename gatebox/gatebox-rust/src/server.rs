@@ -658,6 +658,7 @@ impl App {
             customer_status_types_svc: Some(customer_status_types_svc.clone()),
             app_log_repo: Some(app_log_repo.clone()),
             login_limiter: admin::LoginRateLimiter::new(),
+            read_pool: Some(read_pool.clone()),
         };
         let qr_cache_early: gatebox_rust::bank_bridge::QrRefCache =
             Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));

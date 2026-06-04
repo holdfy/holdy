@@ -82,6 +82,8 @@ pub struct AdminState {
     pub customer_status_types_svc: Option<Arc<dyn CustomerStatusTypesService>>,
     pub app_log_repo: Option<Arc<dyn AppLogRepository>>,
     pub login_limiter: Arc<LoginRateLimiter>,
+    /// Pool de leitura para queries especializadas (ex.: HoldFy transactions).
+    pub read_pool: Option<Arc<sqlx::PgPool>>,
 }
 
 // ---- Auth ----
@@ -500,6 +502,83 @@ async fn pix_cancel_transaction(
     Err(AppError::BadRequest("Not implemented"))
 }
 
+// ---- HoldFy Transactions ----
+
+#[derive(Debug, Deserialize)]
+struct HoldfyQuery {
+    limit: Option<i64>,
+    page: Option<i64>,
+}
+
+/// Lista transações originadas pelo HoldFy (APICash).
+/// Identifica por: remittance_information/description contém "HoldFy" ou external_id começa com "order".
+/// Inclui campo `network` derivado da variável de ambiente APICASH_STELLAR_NETWORK / STELLAR_NETWORK.
+async fn holdfy_list_transactions(
+    State(state): State<AdminState>,
+    _auth: AdminAuth,
+    Query(p): Query<HoldfyQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let pool = state.read_pool.as_ref().ok_or(AppError::Internal)?;
+    let limit = p.limit.unwrap_or(50).clamp(1, 200);
+    let offset = (p.page.unwrap_or(1).max(1) - 1) * limit;
+
+    let network = std::env::var("APICASH_STELLAR_NETWORK")
+        .or_else(|_| std::env::var("STELLAR_NETWORK"))
+        .unwrap_or_else(|_| "simulated".to_string());
+
+    let rows = sqlx::query(crate::transaction::ddl::SQL_LIST_HOLDFY)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool.as_ref())
+        .await
+        .map_err(|e| {
+            tracing::error!("holdfy_list_transactions query failed: {e}");
+            AppError::Internal
+        })?;
+
+    let total: i64 = sqlx::query_scalar(crate::transaction::ddl::SQL_COUNT_HOLDFY)
+        .fetch_one(pool.as_ref())
+        .await
+        .unwrap_or(0);
+
+    use sqlx::Row;
+    let status_label = |v: Option<i64>| match v {
+        Some(1) => "Novo",
+        Some(2) => "Fila",
+        Some(3) => "Aguardando",
+        Some(4) => "Concluído",
+        Some(5) => "Erro",
+        Some(6) => "Estornado",
+        _ => "—",
+    };
+
+    let items: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|r| {
+            let status_id: Option<i64> = r.try_get("status_transaction_id").ok();
+            serde_json::json!({
+                "id":            r.try_get::<i64,_>("id").ok(),
+                "name":          r.try_get::<Option<String>,_>("name").ok().flatten().unwrap_or_default(),
+                "document":      r.try_get::<Option<String>,_>("document_number").ok().flatten().unwrap_or_default(),
+                "amount":        r.try_get::<Option<rust_decimal::Decimal>,_>("amount").ok().flatten(),
+                "description":   r.try_get::<Option<String>,_>("description").ok().flatten().unwrap_or_default(),
+                "order_ref":     r.try_get::<Option<String>,_>("external_id").ok().flatten().unwrap_or_default(),
+                "status_id":     status_id,
+                "status":        status_label(status_id),
+                "gateway":       r.try_get::<Option<String>,_>("gateway").ok().flatten().unwrap_or_default(),
+                "created_at":    r.try_get::<Option<chrono::DateTime<chrono::Utc>>,_>("created_at").ok().flatten(),
+                "network":       &network,
+            })
+        })
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "data": items,
+        "pagination": { "page": p.page.unwrap_or(1), "limit": limit, "total": total },
+        "network": network,
+    })))
+}
+
 // ---- Settings ----
 async fn settings_get(_auth: AdminAuth) -> Json<serde_json::Value> {
     Json(serde_json::json!({
@@ -735,6 +814,7 @@ pub fn routes(state: AdminState) -> Router {
         .route("/pix/status", get(pix_status))
         .route("/pix/qrcode", post(pix_create_qrcode))
         .route("/pix/transactions/:id/cancel", post(pix_cancel_transaction))
+        .route("/holdfy/transactions", get(holdfy_list_transactions))
         .route("/settings", get(settings_get).put(settings_update))
         .route("/settings/partners", get(settings_list_partners).post(settings_create_partner))
         .route("/settings/partners/:id", put(settings_update_partner).delete(settings_delete_partner))

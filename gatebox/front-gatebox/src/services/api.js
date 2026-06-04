@@ -192,6 +192,10 @@ export const adminApi = {
         method: "POST",
       }),
   },
+  holdfy: {
+    transactions: (params) =>
+      request(`${API_BASE}/admin/holdfy/transactions?${new URLSearchParams(params || {}).toString()}`),
+  },
   settings: {
     get: () => request(`${API_BASE}/admin/settings`),
     update: (data) =>

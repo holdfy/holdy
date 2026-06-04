@@ -213,3 +213,31 @@ pub const SQL_INSERT_PIX_IN_CREDIT: &str = r#"
         $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), 'v1.0')
     RETURNING id
 "#;
+
+/// HoldFy transactions: PIX IN originados pelo APICash (description/remittance contém "HoldFy" ou external_id contém "order").
+/// Inclui created_at para mostrar data/hora. Params: limit $1, offset $2.
+pub const SQL_LIST_HOLDFY: &str = r#"
+    SELECT id, name, document_number, amount, description, remittance_information,
+           external_id, status_transaction_id, gateway, created_at
+    FROM transaction
+    WHERE deleted_at IS NULL
+      AND (
+        remittance_information ILIKE '%holdfy%'
+        OR description ILIKE '%holdfy%'
+        OR external_id ILIKE 'order%'
+        OR external_id ILIKE '%order_%'
+      )
+    ORDER BY created_at DESC
+    LIMIT $1 OFFSET $2
+"#;
+
+pub const SQL_COUNT_HOLDFY: &str = r#"
+    SELECT COUNT(*)::bigint FROM transaction
+    WHERE deleted_at IS NULL
+      AND (
+        remittance_information ILIKE '%holdfy%'
+        OR description ILIKE '%holdfy%'
+        OR external_id ILIKE 'order%'
+        OR external_id ILIKE '%order_%'
+      )
+"#;

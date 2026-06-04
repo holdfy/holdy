@@ -53,6 +53,7 @@ import AdminAccount from "layouts/admin/Account";
 import AdminChangePassword from "layouts/admin/ChangePassword";
 import AdminDisputes from "layouts/admin/Disputes";
 import AdminSettings from "layouts/admin/Settings";
+import AdminHoldfyTransactions from "layouts/admin/HoldfyTransactions";
 import BackofficeLogs from "layouts/backoffice/Logs";
 import BackofficeAccounts from "layouts/backoffice/Accounts";
 import LogoutRedirect from "components/LogoutRedirect";
@@ -89,6 +90,7 @@ export const adminRoutes = [
   { path: "/admin/customers", element: <AdminCustomers /> },
   { path: "/admin/customers/:id", element: <AdminCustomerDetail /> },
   { path: "/admin/pix/transactions", element: <AdminPixTransactions /> },
+  { path: "/admin/holdfy/transactions", element: <AdminHoldfyTransactions /> },
   { path: "/admin/pix/transactions/:id", element: <AdminPixTransactionDetail /> },
   { path: "/admin/partners", element: <AdminPartners /> },
   { path: "/admin/webhooks", element: <AdminWebhooks /> },
@@ -164,6 +166,7 @@ export const adminSidenav = [
       { name: "Dashboard", key: "dashboard", route: "/admin/dashboard", component: <AdminDashboard /> },
       { name: "Clientes", key: "customers", route: "/admin/customers", component: <AdminCustomers /> },
       { name: "Transações PIX", key: "pix", route: "/admin/pix/transactions", component: <AdminPixTransactions /> },
+      { name: "Transações HoldFy", key: "holdfy-tx", route: "/admin/holdfy/transactions", component: <AdminHoldfyTransactions /> },
       { name: "Parceiros", key: "partners", route: "/admin/partners", component: <AdminPartners /> },
       { name: "Webhooks", key: "webhooks", route: "/admin/webhooks", component: <AdminWebhooks /> },
       { name: "Disputas", key: "disputes", route: "/admin/disputes", component: <AdminDisputes /> },

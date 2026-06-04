@@ -65,6 +65,8 @@ pub enum CreatingOrderStep {
     AskAmount,
     /// Vendedor (A): CPF/CNPJ antes de enviar proposta ao comprador.
     AskSellerDocument,
+    /// Vendedor (A): chave PIX para receber o pagamento após confirmação do comprador.
+    AskSellerPix,
     /// Proposta enviada a B; aguardamos *ACEITO* antes do `POST /orders`.
     WaitingBuyerAccept,
 }
@@ -116,6 +118,8 @@ pub struct UserSession {
     pub contact_name: Option<String>,
     /// CPF ou CNPJ fornecido durante o fluxo (armazenado em wa_contacts).
     pub document: Option<String>,
+    /// Chave PIX do vendedor (coletada durante criação do pedido, persistida em wa_contacts).
+    pub seller_pix_key: Option<String>,
     /// Indica se já tentámos carregar o contato do banco nesta sessão.
     pub contact_loaded: bool,
 }
@@ -133,6 +137,7 @@ impl UserSession {
             invalid_input_streak: 0,
             contact_name: None,
             document: None,
+            seller_pix_key: None,
             contact_loaded: false,
         }
     }

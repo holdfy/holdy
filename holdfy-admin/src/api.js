@@ -41,6 +41,7 @@ export const adminApi = {
       body: JSON.stringify(resolution),
     }),
   listScores: () => req("/admin/users/score"),
+  listStellarTransactions: () => req("/admin/stellar/transactions"),
   yieldReport: (params = {}) => {
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v != null))
