@@ -51,8 +51,19 @@ pub enum OrderFlowState {
         /// Rascunho parcial (pode já ter amount/phone se vieram na frase inicial).
         draft: OrderDraft,
     },
-    /// Fluxo simples de disputa (encaminha para suporte humano).
-    DisputeHint {
+    /// Disputa aberta: aguardando o comprador escolher o motivo (menu 1-5).
+    DisputeCollectingReason {
+        order_id: Uuid,
+    },
+    /// Comprador escolheu o motivo; aguardando envio de fotos/rastreio/texto.
+    DisputeCollectingEvidence {
+        order_id:  Uuid,
+        reason:    String,
+        /// Número de evidências já enviadas nesta sessão.
+        evidence_count: u8,
+    },
+    /// Evidências submetidas; disputa aguarda análise IA / resposta do vendedor / admin.
+    DisputeAwaitingDecision {
         order_id: Uuid,
     },
 }

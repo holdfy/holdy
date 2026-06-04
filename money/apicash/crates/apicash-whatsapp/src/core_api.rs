@@ -335,6 +335,35 @@ impl CoreApiClient {
         self.post_json_with_api_key("/internal/listings/import", &body, None, k).await
     }
 
+    /// Abre disputa para um pedido.
+    pub async fn open_dispute(&self, order_id: Uuid, reason: &str) -> Result<serde_json::Value, CoreApiError> {
+        let body = serde_json::json!({ "reason": reason });
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        self.post_json_with_api_key(&format!("/orders/{order_id}/dispute"), &body, None, k).await
+    }
+
+    /// Adiciona evidência textual (rastreio, mensagem) a uma disputa.
+    pub async fn add_dispute_evidence_text(
+        &self,
+        order_id: Uuid,
+        _uploaded_by: Uuid,
+        content: &str,
+    ) -> Result<serde_json::Value, CoreApiError> {
+        let body = serde_json::json!({ "kind": "message", "content": content });
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        self.post_json_with_api_key(&format!("/orders/{order_id}/dispute/evidence"), &body, None, k).await
+    }
+
+    /// Aciona análise de evidências pela IA (fire-and-forget).
+    pub async fn trigger_dispute_analysis(&self, order_id: Uuid) -> Result<serde_json::Value, CoreApiError> {
+        let body = serde_json::json!({});
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        self.post_json_with_api_key(&format!("/orders/{order_id}/dispute/analyze"), &body, None, k).await
+    }
+
     /// Vincula um listing a um pedido via rota interna (fire-and-forget aceitável).
     pub async fn link_listing_to_order(&self, listing_id: Uuid, order_id: Uuid) -> Result<(), CoreApiError> {
         let body = serde_json::json!({ "order_id": order_id });

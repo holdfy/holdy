@@ -16,9 +16,12 @@ use apicash_custody::{
     YieldCalculator,
 };
 use apicash_disputes::repository::{
-    DisputeRepository, InMemoryDisputeRepository, PostgresDisputeRepository,
+    DisputeRepository, EvidenceRepository,
+    InMemoryDisputeRepository, InMemoryEvidenceRepository,
+    PostgresDisputeRepository, PostgresEvidenceRepository,
 };
 use apicash_disputes::service::{DisputeService, NoopDisputeEventSink};
+use apicash_disputes::utils::DisputeTimeoutConfig;
 use reqwest::Client;
 use sqlx::postgres::PgPoolOptions;
 
@@ -50,11 +53,13 @@ impl AdminState {
         ));
 
         let dispute_repo: Arc<dyn DisputeRepository> = Arc::new(InMemoryDisputeRepository::new());
+        let evidence_repo: Arc<dyn EvidenceRepository> = Arc::new(InMemoryEvidenceRepository::new());
         let disputes = Arc::new(DisputeService::new(
             dispute_repo,
+            evidence_repo,
             custody.clone(),
             Arc::new(NoopDisputeEventSink),
-            Default::default(),
+            DisputeTimeoutConfig::default(),
         ));
 
         Self {
@@ -105,11 +110,14 @@ impl AdminState {
 
         let dispute_repo: Arc<dyn DisputeRepository> =
             Arc::new(PostgresDisputeRepository::new(pool.clone()));
+        let evidence_repo: Arc<dyn EvidenceRepository> =
+            Arc::new(PostgresEvidenceRepository::new(pool.clone()));
         let disputes = Arc::new(DisputeService::new(
             dispute_repo,
+            evidence_repo,
             custody.clone(),
             Arc::new(NoopDisputeEventSink),
-            Default::default(),
+            DisputeTimeoutConfig::default(),
         ));
 
         let orders: Arc<dyn OrderRepository> = Arc::new(PostgresOrderRepository::new(pool.clone()));

@@ -233,6 +233,46 @@ pub fn dispute_message() -> &'static str {
     "Disputa registrada. O suporte responde em até 1 dia útil."
 }
 
+pub fn dispute_reason_menu() -> &'static str {
+    "⚠️ *Disputa aberta.* O valor fica retido até a resolução.\n\nQual é o motivo?\n\n1️⃣ Não recebi o produto\n2️⃣ Produto chegou quebrado\n3️⃣ Produto diferente do anúncio\n4️⃣ Caixa chegou vazia\n5️⃣ Outro motivo\n\nResponda com o número correspondente."
+}
+
+pub fn dispute_evidence_request(reason: &str) -> String {
+    format!(
+        "📋 Motivo registrado: *{reason}*\n\nAgora envie as *fotos ou vídeos* que comprovam o problema (até 5 arquivos).\n\nVocê também pode enviar o *código de rastreio* caso alegue não recebimento.\n\nDigite *pronto* quando terminar."
+    )
+}
+
+pub fn dispute_evidence_received(count: u8) -> String {
+    format!("✅ Evidência {count} recebida. Continue enviando ou digite *pronto* para encerrar.")
+}
+
+pub fn dispute_evidence_submitted() -> &'static str {
+    "📤 Evidências enviadas para análise. Você receberá o resultado em até *2 dias úteis*. O valor permanece retido até a decisão."
+}
+
+pub fn dispute_seller_notify(amount: &str, deadline_hours: u64) -> String {
+    format!(
+        "⚠️ *Uma disputa foi aberta* para o pedido de R$ {amount}.\nVocê tem *{deadline_hours} horas* para enviar sua resposta e contra-evidências.\n\nResponda: *contestar* para abrir sua defesa."
+    )
+}
+
+pub fn dispute_resolved_buyer(amount: &str) -> String {
+    format!("✅ Disputa resolvida a seu favor. O valor de R$ {amount} será estornado. O processo de reembolso leva até 2 dias úteis.")
+}
+
+pub fn dispute_resolved_seller(amount: &str) -> String {
+    format!("✅ Disputa resolvida a seu favor. O valor de R$ {amount} será liberado para sua chave PIX.")
+}
+
+pub fn dispute_red_flag_warning() -> &'static str {
+    "⚠️ Sua conta apresenta sinais de risco elevado. Esta disputa será revisada manualmente pela equipe de segurança."
+}
+
+pub fn dispute_collect_counter_evidence() -> &'static str {
+    "📸 Envie fotos ou documentos que comprovem a entrega do produto (nota fiscal, comprovante de rastreio, etc.). Digite *pronto* quando terminar."
+}
+
 pub fn cancelled() -> &'static str {
     "Pedido atual cancelado. *Novo pedido* para começar de novo."
 }

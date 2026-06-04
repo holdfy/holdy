@@ -20,6 +20,7 @@ apicash-core = { workspace = true }
 apicash-antifraude = { workspace = true, features = ["mock"] }
 apicash-custody = { workspace = true }
 apicash-auth = { workspace = true }
+apicash-disputes = { workspace = true }
 apicash-importer = { workspace = true }
 apicash-logistics = { workspace = true }
 mongodb = { workspace = true }

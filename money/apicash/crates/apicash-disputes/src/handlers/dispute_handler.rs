@@ -25,9 +25,10 @@ impl DisputeHandler {
         opened_by_user_id: Uuid,
         reason: String,
         evidence: Vec<Evidence>,
+        buyer_score: Option<i32>,
     ) -> Result<Dispute, DisputeError> {
         self.service
-            .open_dispute(order_id, opened_by, opened_by_user_id, reason, evidence)
+            .open_dispute(order_id, opened_by, opened_by_user_id, reason, evidence, buyer_score)
             .await
     }
 }

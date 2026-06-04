@@ -115,4 +115,12 @@ impl AntiFraudeService {
             .await
             .map_err(ApiCashError::from)
     }
+
+    /// Latest persisted score for a specific user (None if never scored).
+    pub async fn get_latest_score(&self, user_id: Uuid) -> Result<Option<UserScore>, ApiCashError> {
+        self.repository
+            .get_by_user_id(user_id)
+            .await
+            .map_err(ApiCashError::from)
+    }
 }
