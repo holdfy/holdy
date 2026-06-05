@@ -1,6 +1,7 @@
 //! Lógica do fluxo conversacional de pedido (sem efeitos colaterais de rede).
 
 use rust_decimal::Decimal;
+use uuid::Uuid;
 
 use crate::models::WhatsAppEvent;
 use crate::session::OrderFlowState;
@@ -304,10 +305,18 @@ pub fn try_dispute(current: &OrderFlowState, cmd: &str) -> Option<OrderFlowState
     match current {
         OrderFlowState::AwaitingPayment { order_id, .. }
         | OrderFlowState::AwaitingConfirmation { order_id, .. } => {
-            Some(OrderFlowState::DisputeHint {
-                order_id: *order_id,
-            })
+            Some(OrderFlowState::DisputeCollectingReason { order_id: *order_id })
         }
+        _ => None,
+    }
+}
+
+/// Returns the `order_id` if a dispute should be opened for the current state + command.
+pub fn try_dispute_order_id(current: &OrderFlowState, cmd: &str) -> Option<Uuid> {
+    if !is_dispute(cmd) { return None; }
+    match current {
+        OrderFlowState::AwaitingPayment { order_id, .. }
+        | OrderFlowState::AwaitingConfirmation { order_id, .. } => Some(*order_id),
         _ => None,
     }
 }

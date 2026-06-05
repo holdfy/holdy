@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use apicash_auth::{AuthConfig, AuthService, Role};
-
+use apicash_disputes::DisputeReason;
 use apicash_logistics::LogisticsService;
 use chrono::Utc;
 use sqlx::Row;
@@ -1549,21 +1549,85 @@ impl MessageHandler {
             return Ok(());
         }
 
-        if let Some(next) = order_flow::try_dispute(&session.state, &ev.body) {
-            let dispute_order_id = match &next { OrderFlowState::DisputeHint { order_id } => Some(*order_id), _ => None };
-            session.state = next;
-            tracing::info!(
-                peer = %peer_hint,
-                user_id = %session.user_id,
-                action = "DisputeOpened",
-                success = true,
-                "whatsapp: disputa solicitada"
-            );
+        if let Some(order_id) = order_flow::try_dispute_order_id(&session.state, &ev.body) {
+            // Abre disputa no backend e inicia coleta de motivo.
+            tracing::info!(peer = %peer_hint, %order_id, "whatsapp: disputa iniciada");
+            session.state = OrderFlowState::DisputeCollectingReason { order_id };
+            session.touch();
             self.sessions.update(&peer, session.clone()).await;
-            self.trigger_summary(&peer, session.user_id, dispute_order_id, SummaryTrigger::DisputeOpened);
+            self.trigger_summary(&peer, session.user_id, Some(order_id), SummaryTrigger::DisputeOpened);
             self.outbound
-                .send_text(&peer, message_templates::dispute_message())
+                .send_text(&peer, message_templates::dispute_reason_menu())
                 .await;
+            return Ok(());
+        }
+
+        // ─── Disputa: escolha do motivo (menu 1-5) ───────────────────────────────
+        if let OrderFlowState::DisputeCollectingReason { order_id } = session.state.clone() {
+            let choice: Option<u8> = ev.body.trim().parse().ok();
+            if let Some(n) = choice.filter(|&n| n >= 1 && n <= 5) {
+                use apicash_disputes::DisputeReason;
+                let reason = DisputeReason::from_menu_choice(n)
+                    .unwrap_or(DisputeReason::Other);
+                let reason_str = reason.to_str().to_string();
+
+                // Chama API para abrir a disputa no backend.
+                let _ = self.core.open_dispute(order_id, &reason_str).await;
+
+                session.state = OrderFlowState::DisputeCollectingEvidence {
+                    order_id,
+                    reason: reason_str.clone(),
+                    evidence_count: 0,
+                };
+                session.touch();
+                self.sessions.update(&peer, session).await;
+                self.outbound
+                    .send_text(&peer, &message_templates::dispute_evidence_request(&reason_str))
+                    .await;
+                return Ok(());
+            }
+            // Input inválido
+            self.outbound.send_text(&peer, "Responda com o número do motivo (1 a 5).").await;
+            return Ok(());
+        }
+
+        // ─── Disputa: coleta de evidências (fotos/rastreio/"pronto") ─────────────
+        if let OrderFlowState::DisputeCollectingEvidence { order_id, reason, evidence_count } = session.state.clone() {
+            let trimmed = ev.body.trim().to_lowercase();
+            if trimmed == "pronto" || trimmed == "ok" || trimmed == "enviei" || evidence_count >= 5 {
+                // Submete evidências e aciona análise IA em background.
+                let core = self.core.clone();
+                tokio::spawn(async move {
+                    let _ = core.trigger_dispute_analysis(order_id).await;
+                });
+
+                session.state = OrderFlowState::DisputeAwaitingDecision { order_id };
+                session.touch();
+                self.sessions.update(&peer, session).await;
+                self.outbound
+                    .send_text(&peer, message_templates::dispute_evidence_submitted())
+                    .await;
+                return Ok(());
+            }
+            // Qualquer texto vira evidência do tipo "message".
+            let _ = self.core.add_dispute_evidence_text(order_id, session.user_id, &ev.body).await;
+            let new_count = evidence_count.saturating_add(1);
+            session.state = OrderFlowState::DisputeCollectingEvidence {
+                order_id,
+                reason,
+                evidence_count: new_count,
+            };
+            session.touch();
+            self.sessions.update(&peer, session).await;
+            self.outbound
+                .send_text(&peer, &message_templates::dispute_evidence_received(new_count))
+                .await;
+            return Ok(());
+        }
+
+        // ─── Disputa aguardando decisão ───────────────────────────────────────────
+        if let OrderFlowState::DisputeAwaitingDecision { .. } = session.state {
+            self.outbound.send_text(&peer, "Sua disputa está em análise. Você será notificado assim que houver uma decisão.").await;
             return Ok(());
         }
 
@@ -1984,12 +2048,22 @@ impl MessageHandler {
                         .await;
                 }
             }
-            OrderFlowState::DisputeHint { order_id } => {
-                session.state = OrderFlowState::DisputeHint { order_id };
+            OrderFlowState::DisputeCollectingReason { order_id } => {
+                session.state = OrderFlowState::DisputeCollectingReason { order_id };
                 self.sessions.update(&peer, session).await;
                 self.outbound
-                    .send_text(&peer, message_templates::dispute_message())
+                    .send_text(&peer, message_templates::dispute_reason_menu())
                     .await;
+            }
+            OrderFlowState::DisputeCollectingEvidence { order_id, reason, evidence_count } => {
+                session.state = OrderFlowState::DisputeCollectingEvidence { order_id, reason, evidence_count };
+                self.sessions.update(&peer, session).await;
+                self.outbound.send_text(&peer, "Envie as fotos/evidências ou digite *pronto* para encerrar.").await;
+            }
+            OrderFlowState::DisputeAwaitingDecision { order_id } => {
+                session.state = OrderFlowState::DisputeAwaitingDecision { order_id };
+                self.sessions.update(&peer, session).await;
+                self.outbound.send_text(&peer, "Sua disputa está em análise. Você será notificado quando houver uma decisão.").await;
             }
         }
 

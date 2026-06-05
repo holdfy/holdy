@@ -77,6 +77,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             run_funding_poller(poller_state).await;
         });
     }
+    // Background job: auto-resolve disputas expiradas (verifica a cada hora).
+    {
+        let dispute_svc = state.disputes.clone();
+        tokio::spawn(async move {
+            let interval = std::time::Duration::from_secs(3_600); // 1h
+            loop {
+                tokio::time::sleep(interval).await;
+                dispute_svc.auto_resolve_timeout().await;
+            }
+        });
+    }
     let app = create_router(state);
 
     let addr = apicash_core::config::http_bind_addr();

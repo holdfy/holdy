@@ -6,10 +6,15 @@
 
 pub mod error;
 pub mod handlers;
+pub mod image_store;
 pub mod models;
+pub mod openai_client;
 pub mod repository;
 pub mod service;
 pub mod utils;
 
-pub use crate::models::{Dispute, DisputeStatus, ResolutionType};
+pub use crate::models::{
+    AiVerdict, Dispute, DisputeParty, DisputeReason, DisputeStatus, EvidenceAnalysisResult,
+    EvidenceKind, EvidenceParty, EvidenceRow, ResolutionType,
+};
 pub use service::DisputeService;

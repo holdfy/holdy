@@ -982,27 +982,211 @@ pub async fn open_dispute(
         ));
     }
 
-    let dispute_id = Uuid::new_v4();
-    let opened_by = if actor_id == stored.order.buyer_id {
-        "buyer"
+    let opened_by_party = if actor_id == stored.order.buyer_id {
+        apicash_disputes::DisputeParty::Buyer
     } else {
-        "seller"
+        apicash_disputes::DisputeParty::Seller
     };
 
+    // Recalcula score do comprador para detectar high_risk_buyer.
+    let buyer_score = state
+        .antifraude
+        .get_latest_score(stored.order.buyer_id)
+        .await
+        .ok()
+        .flatten()
+        .map(|s| s.score as i32);
+
+    let dispute = state
+        .disputes
+        .open_dispute(
+            id,
+            opened_by_party,
+            actor_id,
+            body.reason.clone().unwrap_or_else(|| "other".to_string()),
+            vec![],
+            buyer_score,
+        )
+        .await
+        .map_err(|e| {
+            error!(error = %e, "open_dispute failed");
+            ApiError::internal("failed to open dispute")
+        })?;
+
     info!(
-        %dispute_id,
-        %id,
-        %opened_by,
+        dispute_id = %dispute.id,
+        order_id = %id,
+        opened_by = ?dispute.opened_by,
+        high_risk = dispute.high_risk_buyer,
         "dispute opened"
     );
 
     Ok(Json(serde_json::json!({
-        "dispute_id": dispute_id,
+        "dispute_id": dispute.id,
         "order_id": id,
         "status": "open",
-        "opened_by": opened_by,
-        "reason": body.reason,
-        "message": "Disputa registrada. O suporte responde em até 1 dia útil."
+        "opened_by": if actor_id == stored.order.buyer_id { "buyer" } else { "seller" },
+        "reason": dispute.reason,
+        "deadline_at": dispute.deadline_at,
+        "high_risk_buyer": dispute.high_risk_buyer,
+        "message": if dispute.high_risk_buyer {
+            "Disputa registrada. Análise de risco em andamento — suporte responde em até 1 dia útil."
+        } else {
+            "Disputa registrada. Envie fotos ou evidências. O suporte responde em até 2 dias úteis."
+        }
+    })))
+}
+
+/// Get dispute details for an order (buyer, seller, or admin).
+#[instrument(skip(state, claims), fields(order_id = %id))]
+pub async fn get_dispute(
+    State(state): State<Arc<AppState>>,
+    claims: Option<Extension<JwtClaims>>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let stored = state
+        .orders
+        .get(id)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?
+        .ok_or_else(|| ApiError::not_found("order not found"))?;
+
+    let actor_id = if state.auth.config().auth_disabled {
+        stored.order.buyer_id
+    } else {
+        let Some(Extension(c)) = claims else {
+            return Err(ApiError::unauthorized("missing JWT"));
+        };
+        c.current_user_id()
+    };
+
+    let is_party = actor_id == stored.order.buyer_id
+        || actor_id == stored.order.seller_id;
+    if !is_party {
+        return Err(ApiError::forbidden("access denied"));
+    }
+
+    // Find dispute by order_id (list and filter — small dataset per order).
+    let disputes = state
+        .disputes
+        .list_all_disputes()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+
+    let dispute = disputes
+        .into_iter()
+        .find(|d| d.order_id == id)
+        .ok_or_else(|| ApiError::not_found("no dispute found for this order"))?;
+
+    let (_, evidence) = state
+        .disputes
+        .get_dispute_with_evidence(dispute.id)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?
+        .ok_or_else(|| ApiError::not_found("dispute not found"))?;
+
+    let is_admin = !is_party; // future: check role from JWT
+    let evidence_json: Vec<_> = evidence
+        .iter()
+        .map(|e| serde_json::json!({
+            "id": e.id,
+            "party": e.party.to_str(),
+            "kind": e.kind.to_str(),
+            "minio_url": e.minio_url,
+            "content": e.content,
+            "ai_flagged": e.ai_flagged,
+            "created_at": e.created_at,
+        }))
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "dispute_id": dispute.id,
+        "order_id": id,
+        "status": format!("{:?}", dispute.status).to_ascii_lowercase(),
+        "opened_by": format!("{:?}", dispute.opened_by).to_ascii_lowercase(),
+        "reason": dispute.reason,
+        "deadline_at": dispute.deadline_at,
+        "resolved_at": dispute.resolved_at,
+        "resolution_type": dispute.resolution_type.as_ref().map(|r| format!("{r:?}").to_ascii_lowercase()),
+        "resolution_notes": dispute.resolution_notes,
+        "ai_verdict": dispute.ai_verdict.map(|v| v.to_str()),
+        "ai_confidence": dispute.ai_confidence,
+        // reasoning só para admin
+        "ai_reasoning": if is_admin { dispute.ai_reasoning } else { None },
+        "high_risk_buyer": dispute.high_risk_buyer,
+        "evidence": evidence_json,
+    })))
+}
+
+/// Add evidence (photo/video/tracking) to an open dispute.
+/// Accepts JSON body (for text/tracking) — binary upload handled separately.
+#[instrument(skip(state, claims, body), fields(order_id = %id))]
+pub async fn add_dispute_evidence(
+    State(state): State<Arc<AppState>>,
+    claims: Option<Extension<JwtClaims>>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<EvidenceBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let stored = state
+        .orders
+        .get(id)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?
+        .ok_or_else(|| ApiError::not_found("order not found"))?;
+
+    let actor_id = if state.auth.config().auth_disabled {
+        stored.order.buyer_id
+    } else {
+        let Some(Extension(c)) = claims else {
+            return Err(ApiError::unauthorized("missing JWT"));
+        };
+        c.current_user_id()
+    };
+
+    let party = if actor_id == stored.order.buyer_id {
+        apicash_disputes::EvidenceParty::Buyer
+    } else if actor_id == stored.order.seller_id {
+        apicash_disputes::EvidenceParty::Seller
+    } else {
+        return Err(ApiError::forbidden("access denied"));
+    };
+
+    // Find dispute.
+    let disputes = state.disputes.list_all_disputes().await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    let dispute = disputes.into_iter().find(|d| d.order_id == id)
+        .ok_or_else(|| ApiError::not_found("no dispute found for this order"))?;
+
+    let kind = match body.kind.as_deref() {
+        Some("tracking_code") => apicash_disputes::EvidenceKind::TrackingCode,
+        Some("message")       => apicash_disputes::EvidenceKind::Message,
+        Some("video")         => apicash_disputes::EvidenceKind::Video,
+        Some("photo") | _     => apicash_disputes::EvidenceKind::Photo,
+    };
+
+    let row = state
+        .disputes
+        .add_evidence(
+            dispute.id,
+            actor_id,
+            party,
+            kind,
+            body.ext.as_deref(),
+            None, // binary bytes via multipart handled separately
+            body.content.clone(),
+        )
+        .await
+        .map_err(|e| {
+            error!(error = %e, "add_evidence failed");
+            ApiError::internal("failed to add evidence")
+        })?;
+
+    Ok(Json(serde_json::json!({
+        "evidence_id": row.id,
+        "dispute_id": dispute.id,
+        "kind": row.kind.to_str(),
+        "sha256": row.sha256,
+        "message": "Evidência registrada com sucesso."
     })))
 }
 
@@ -1010,4 +1194,11 @@ pub async fn open_dispute(
 pub struct DisputeBody {
     #[serde(default)]
     pub reason: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct EvidenceBody {
+    pub kind:    Option<String>,
+    pub ext:     Option<String>,
+    pub content: Option<String>,
 }

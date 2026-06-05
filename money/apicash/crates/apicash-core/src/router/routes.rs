@@ -43,6 +43,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         )
         .route("/orders/{id}/off-ramp", post(order_handler::order_off_ramp))
         .route("/orders/{id}/dispute", post(order_handler::open_dispute))
+        .route("/orders/{id}/dispute", get(order_handler::get_dispute))
+        .route("/orders/{id}/dispute/evidence", post(order_handler::add_dispute_evidence))
         .route("/risk/score", post(order_handler::calculate_risk_score))
         .route("/reputation/{user_id}", get(reputation_handler::get_reputation))
         .route("/logistics/shipping/quote", post(logistics_handler::quote_shipping))

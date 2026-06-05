@@ -15,6 +15,15 @@ use apicash_custody::{
     CustodyRepository, CustodyService, InMemoryCustodyRepository, PostgresCustodyRepository,
     YieldCalculator,
 };
+use apicash_disputes::{
+    DisputeService,
+    repository::{
+        InMemoryDisputeRepository, InMemoryEvidenceRepository,
+        PostgresDisputeRepository, PostgresEvidenceRepository,
+    },
+    service::NoopDisputeEventSink,
+    utils::DisputeTimeoutConfig,
+};
 use apicash_importer::ImporterService;
 use apicash_logistics::LogisticsService;
 use crate::repository::ListingRepository;
@@ -64,6 +73,7 @@ pub struct AppState {
     pub anchor: Arc<AnchorService>,
     pub orders: Arc<dyn OrderRepository>,
     pub proposals: Arc<dyn ProposalRepository>,
+    pub disputes: Arc<DisputeService>,
     pub importer: Arc<ImporterService>,
     pub logistics: Arc<LogisticsService>,
     pub listing_repo: Option<Arc<ListingRepository>>,
@@ -241,7 +251,30 @@ impl AppState {
         let proposals = Arc::new(InMemoryProposalRepository::new());
         let importer = Arc::new(ImporterService::new());
         let logistics = Arc::new(build_logistics_service());
-        let listing_repo = pool.map(|p| Arc::new(ListingRepository::new(p)));
+        let listing_repo = pool.clone().map(|p| Arc::new(ListingRepository::new(p)));
+
+        let disputes = {
+            let dispute_repo = match pool.clone() {
+                Some(p) => Arc::new(PostgresDisputeRepository::new(p.clone()))
+                    as Arc<dyn apicash_disputes::repository::DisputeRepository>,
+                None => Arc::new(InMemoryDisputeRepository::new())
+                    as Arc<dyn apicash_disputes::repository::DisputeRepository>,
+            };
+            let evidence_repo = match pool.clone() {
+                Some(p) => Arc::new(PostgresEvidenceRepository::new(p))
+                    as Arc<dyn apicash_disputes::repository::EvidenceRepository>,
+                None => Arc::new(InMemoryEvidenceRepository::new())
+                    as Arc<dyn apicash_disputes::repository::EvidenceRepository>,
+            };
+            Arc::new(DisputeService::new(
+                dispute_repo,
+                evidence_repo,
+                custody.clone(),
+                Arc::new(NoopDisputeEventSink),
+                DisputeTimeoutConfig::default(),
+            ))
+        };
+
         tracing::info!(
             fiat_rail = anchor.fiat_rail_name(),
             "anchor service (simulated rail = PIX EMV via Gatebox quando GATEBOX_BASE_URL está definido)",
@@ -254,6 +287,7 @@ impl AppState {
             anchor,
             orders,
             proposals,
+            disputes,
             importer,
             logistics,
             listing_repo,
