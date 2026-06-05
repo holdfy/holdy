@@ -1202,3 +1202,62 @@ pub struct EvidenceBody {
     pub ext:     Option<String>,
     pub content: Option<String>,
 }
+
+/// Trigger IA analysis for a dispute (fire-and-forget from WhatsApp background task).
+/// Returns immediately; analysis runs async.
+#[instrument(skip(state), fields(order_id = %id))]
+pub async fn analyze_dispute(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let stored = state
+        .orders
+        .get(id)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?
+        .ok_or_else(|| ApiError::not_found("order not found"))?;
+
+    // Find dispute for this order.
+    let disputes = state.disputes.list_all_disputes().await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    let dispute = disputes.into_iter().find(|d| d.order_id == id)
+        .ok_or_else(|| ApiError::not_found("no dispute found for this order"))?;
+
+    // Convert amount to cents for the auto-resolve threshold (R$ 2.000 = 200_000 cents).
+    let amount_cents = (stored.order.amount.decimal()
+        * rust_decimal::Decimal::from(100))
+        .to_u64()
+        .unwrap_or(u64::MAX);
+
+    // Get listing photos for comparison (empty if no listing linked).
+    let listing_photos = if let Some(repo) = &state.listing_repo {
+        repo.photos_for_order(id).await
+    } else {
+        vec![]
+    };
+
+    let dispute_id   = dispute.id;
+    let dispute_svc  = state.disputes.clone();
+
+    // Run analysis in background — caller gets immediate 202.
+    tokio::spawn(async move {
+        match dispute_svc.analyze_and_maybe_resolve(dispute_id, amount_cents, listing_photos).await {
+            Ok(result) => tracing::info!(
+                %dispute_id,
+                verdict = ?result.verdict,
+                confidence = result.confidence,
+                "dispute analysis completed"
+            ),
+            Err(e) => tracing::warn!(%dispute_id, error = %e, "dispute analysis failed"),
+        }
+    });
+
+    Ok(Json(serde_json::json!({
+        "dispute_id": dispute_id,
+        "order_id": id,
+        "status": "analysis_started",
+        "message": "Análise de evidências iniciada em background."
+    })))
+}
+
+use rust_decimal::prelude::ToPrimitive;

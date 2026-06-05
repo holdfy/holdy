@@ -59,6 +59,26 @@ impl ListingRepository {
         Ok(row.0)
     }
 
+    /// Retorna as URLs de fotos do anúncio vinculado a um pedido (para análise IA de disputa).
+    pub async fn photos_for_order(&self, order_id: Uuid) -> Vec<String> {
+        let row = sqlx::query("SELECT photos FROM listings WHERE order_id = $1 LIMIT 1")
+            .bind(order_id)
+            .fetch_optional(&self.pool)
+            .await
+            .unwrap_or(None);
+
+        let Some(r) = row else { return vec![]; };
+        let val: serde_json::Value = r.try_get("photos").unwrap_or(serde_json::Value::Null);
+        match val {
+            serde_json::Value::Array(arr) => arr
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .take(3)
+                .collect(),
+            _ => vec![],
+        }
+    }
+
     /// Vincula um listing a um pedido existente.
     pub async fn set_order_id(&self, listing_id: Uuid, order_id: Uuid) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE listings SET order_id = $1 WHERE id = $2")
