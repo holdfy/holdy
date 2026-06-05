@@ -66,6 +66,11 @@ pub enum OrderFlowState {
     DisputeAwaitingDecision {
         order_id: Uuid,
     },
+    /// Vendedor respondeu "contestar" — enviando contra-evidências.
+    DisputeSellerResponding {
+        order_id:       Uuid,
+        evidence_count: u8,
+    },
 }
 
 /// Step within the guided order creation flow.

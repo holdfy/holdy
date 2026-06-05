@@ -273,6 +273,14 @@ pub fn dispute_collect_counter_evidence() -> &'static str {
     "📸 Envie fotos ou documentos que comprovem a entrega do produto (nota fiscal, comprovante de rastreio, etc.). Digite *pronto* quando terminar."
 }
 
+pub fn dispute_resolved_buyer_loss(amount: &str) -> String {
+    format!("⚖️ Disputa encerrada. Após análise das evidências, a decisão foi *favorável ao vendedor*. O valor de R$ {amount} foi liberado. Se discordar, entre em contato com nosso suporte.")
+}
+
+pub fn dispute_resolved_seller_loss(amount: &str) -> String {
+    format!("⚖️ Disputa encerrada. Após análise das evidências, a decisão foi *favorável ao comprador*. O valor de R$ {amount} será reembolsado ao comprador. Se discordar, entre em contato com nosso suporte.")
+}
+
 pub fn cancelled() -> &'static str {
     "Pedido atual cancelado. *Novo pedido* para começar de novo."
 }

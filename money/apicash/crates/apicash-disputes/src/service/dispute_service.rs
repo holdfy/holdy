@@ -284,6 +284,12 @@ impl DisputeService {
                 ));
                 self.repo.update(d.clone()).await?;
                 self.release_custody_after_dispute(d.order_id, dispute_id).await?;
+                // Notifica WhatsApp (fire-and-forget).
+                let verdict_str = result.verdict.to_str().to_string();
+                let order_id = d.order_id;
+                tokio::spawn(async move {
+                    notify_wa_dispute_resolved(order_id, &verdict_str, "").await;
+                });
             }
         } else {
             d.status = DisputeStatus::UnderReview;
@@ -408,5 +414,33 @@ impl DisputeService {
                 tracing::error!(error = %e, dispute_id = %d.id, "auto_resolve_timeout resolve failed");
             }
         }
+    }
+}
+
+/// Notifica o serviço WhatsApp sobre resolução de disputa (fire-and-forget).
+/// Usa `APICASH_WA_INTERNAL_URL` (padrão: http://127.0.0.1:3010).
+async fn notify_wa_dispute_resolved(order_id: Uuid, verdict: &str, amount: &str) {
+    let wa_url = std::env::var("APICASH_WA_INTERNAL_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:3010".to_string());
+    let api_key = std::env::var("APICASH_API_KEY").unwrap_or_default();
+    let body = serde_json::json!({
+        "order_id": order_id,
+        "verdict":  verdict,
+        "amount":   amount,
+    });
+    let client = reqwest::Client::new();
+    match client
+        .post(format!("{wa_url}/internal/dispute-resolved"))
+        .header("x-api-key", api_key)
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() =>
+            tracing::info!(%order_id, verdict, "WA dispute-resolved notified"),
+        Ok(r) =>
+            tracing::warn!(%order_id, status = %r.status(), "WA dispute-resolved non-2xx"),
+        Err(e) =>
+            tracing::warn!(%order_id, error = %e, "WA dispute-resolved http failed"),
     }
 }

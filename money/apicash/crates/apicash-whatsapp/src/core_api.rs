@@ -20,6 +20,8 @@ pub enum CoreApiError {
     Api { status: u16, body: String },
     #[error("JSON: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("{0}")]
+    Other(String),
 }
 
 /// Corpo JSON de `POST /orders` (espelha a API `apicash-core`).
@@ -333,6 +335,43 @@ impl CoreApiClient {
         let k = k.as_deref().filter(|s| !s.is_empty());
         tracing::info!(url_len = url.len(), %user_id, "core_api: POST /internal/listings/import");
         self.post_json_with_api_key("/internal/listings/import", &body, None, k).await
+    }
+
+    /// Retorna o dispute_id para um pedido (None se não houver disputa aberta).
+    pub async fn get_dispute_for_order(&self, order_id: Uuid) -> Result<Option<Uuid>, CoreApiError> {
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        let url = format!("/orders/{order_id}/dispute");
+        let mut req = self.client.get(format!("{}{}", self.base, url))
+            .headers(self.headers(None));
+        if let Some(key) = k { req = req.header("x-api-key", key); }
+        let resp = req.send().await.map_err(CoreApiError::from)?;
+        if resp.status().as_u16() == 404 { return Ok(None); }
+        if !resp.status().is_success() {
+            return Err(CoreApiError::Other(format!("dispute HTTP {}", resp.status())));
+        }
+        let val: serde_json::Value = resp.json().await.map_err(CoreApiError::from)?;
+        let id = val["dispute_id"].as_str()
+            .and_then(|s| Uuid::parse_str(s).ok());
+        Ok(id)
+    }
+
+    /// Registra evidência de mídia já enviada ao MinIO (URL + SHA-256 pre-computados).
+    pub async fn add_dispute_evidence_media(
+        &self,
+        order_id: Uuid,
+        minio_url: &str,
+        sha256: &str,
+        kind: &str,
+    ) -> Result<serde_json::Value, CoreApiError> {
+        let body = serde_json::json!({
+            "kind": kind,
+            "content": minio_url,    // URL pública MinIO
+            "sha256_override": sha256,
+        });
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        self.post_json_with_api_key(&format!("/orders/{order_id}/dispute/evidence"), &body, None, k).await
     }
 
     /// Abre disputa para um pedido.

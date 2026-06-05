@@ -21,7 +21,7 @@ use super::multidevice;
 use crate::conversation_store::ConversationStore;
 use crate::core_api::CoreApiClient;
 use crate::handlers::message_handler::MessageHandler;
-use crate::models::WhatsAppEvent;
+use crate::models::{CloudMediaRef, MediaKind, WhatsAppEvent};
 use crate::outbound::Outbound;
 
 /// Estado compartilhado do webhook Axum (Meta Cloud API — opcional).
@@ -54,8 +54,41 @@ pub fn notification_to_events(payload: &NotificationPayload) -> Vec<WhatsAppEven
                         _ => None,
                     };
 
-                    if let Some(body) = body {
-                        out.push(WhatsAppEvent::new(m.from.clone(), m.id.clone(), body));
+                    // Mídia: Image, Video, Audio — extrair referência para download posterior.
+                    let media = match &m.message_type {
+                        NotificationMessageType::Image => m.image.as_ref().map(|img| CloudMediaRef {
+                            kind:      MediaKind::Image,
+                            media_id:  img.id.clone(),
+                            mime_type: img.mime_type.clone(),
+                            caption:   img.caption.clone(),
+                            sha256:    Some(img.sha256.clone()),
+                        }),
+                        NotificationMessageType::Video => m.video.as_ref().map(|v| CloudMediaRef {
+                            kind:      MediaKind::Video,
+                            media_id:  v.id.clone(),
+                            mime_type: Some(v.mime_type.clone()),
+                            caption:   v.caption.clone(),
+                            sha256:    Some(v.sha256.clone()),
+                        }),
+                        NotificationMessageType::Audio => m.audio.as_ref().map(|a| CloudMediaRef {
+                            kind:      MediaKind::Audio,
+                            media_id:  a.id.clone(),
+                            mime_type: Some(a.mime_type.clone()),
+                            caption:   None,
+                            sha256:    None,
+                        }),
+                        _ => None,
+                    };
+
+                    // Emite evento para texto OU para mídia (usa caption ou body vazio).
+                    let ev_body = body
+                        .or_else(|| media.as_ref().and_then(|m| m.caption.clone()))
+                        .unwrap_or_default();
+
+                    if !ev_body.is_empty() || media.is_some() {
+                        let mut ev = WhatsAppEvent::new(m.from.clone(), m.id.clone(), ev_body);
+                        ev.media = media;
+                        out.push(ev);
                     }
                 }
             }
@@ -226,6 +259,28 @@ async fn internal_tracking_step_notify(
     StatusCode::OK
 }
 
+#[derive(serde::Deserialize)]
+struct DisputeResolvedRequest {
+    order_id:  Uuid,
+    /// "favor_buyer" | "favor_seller" | "split" | "manual"
+    verdict:   String,
+    amount:    String,
+}
+
+async fn internal_dispute_resolved(
+    axum::extract::State(state): axum::extract::State<InternalNotifyState>,
+    headers: HeaderMap,
+    Json(req): Json<DisputeResolvedRequest>,
+) -> StatusCode {
+    if !internal_api_key_ok(&headers, &state.api_key) {
+        return StatusCode::UNAUTHORIZED;
+    }
+    state.handler
+        .notify_dispute_result(req.order_id, &req.verdict, &req.amount)
+        .await;
+    StatusCode::OK
+}
+
 fn internal_notify_routes(state: InternalNotifyState) -> Router {
     Router::new()
         .route(
@@ -239,6 +294,10 @@ fn internal_notify_routes(state: InternalNotifyState) -> Router {
         .route(
             "/internal/tracking-step-notify",
             post(internal_tracking_step_notify),
+        )
+        .route(
+            "/internal/dispute-resolved",
+            post(internal_dispute_resolved),
         )
         .with_state(state)
 }

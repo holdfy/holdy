@@ -363,6 +363,15 @@ pub fn parse_pix_key(raw: &str) -> Option<String> {
     None
 }
 
+/// Vendedor quer contestar uma disputa aberta contra ele.
+pub fn is_contest_dispute(body: &str) -> bool {
+    matches!(
+        normalize_cmd(body).as_str(),
+        "contestar" | "contesto" | "nao concordo" | "não concordo" | "quero contestar"
+            | "abrir defesa" | "defesa" | "minha defesa"
+    )
+}
+
 /// Vendedor quer trocar a chave PIX já registrada.
 pub fn is_pix_change(body: &str) -> bool {
     matches!(
