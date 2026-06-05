@@ -394,6 +394,23 @@ impl MessageHandler {
         }
     }
 
+    /// Notifica o vendedor que uma disputa foi aberta, com prazo de 72h para responder.
+    async fn notify_seller_dispute_opened(&self, order_id: uuid::Uuid, buyer_session: &UserSession) {
+        let Some(parties) = self.payment_registry.get(order_id).await else {
+            tracing::warn!(%order_id, "dispute: seller_peer not found in payment_registry");
+            return;
+        };
+        self.outbound
+            .send_text(&parties.seller_peer, &message_templates::dispute_seller_notify(&parties.amount, 72))
+            .await;
+        tracing::info!(
+            %order_id,
+            seller_peer = %parties.seller_peer,
+            buyer_user  = %buyer_session.user_id,
+            "dispute: seller notified"
+        );
+    }
+
     /// Busca buyer_peer e seller_peer no DB pelo tracking_code (fallback quando o payload não traz telefones).
     async fn lookup_peers_by_tracking_code(&self, tracking_code: &str) -> (Option<String>, Option<String>) {
         let Some(pool) = &self.pg_pool else { return (None, None) };
@@ -1573,6 +1590,9 @@ impl MessageHandler {
 
                 // Chama API para abrir a disputa no backend.
                 let _ = self.core.open_dispute(order_id, &reason_str).await;
+
+                // Notifica o vendedor com prazo de resposta (72h).
+                self.notify_seller_dispute_opened(order_id, &session).await;
 
                 session.state = OrderFlowState::DisputeCollectingEvidence {
                     order_id,
