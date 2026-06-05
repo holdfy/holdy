@@ -1261,3 +1261,94 @@ pub async fn analyze_dispute(
 }
 
 use rust_decimal::prelude::ToPrimitive;
+
+/// Finaliza disputa: marca order como Completed + dispara off-ramp PIX ao ganhador.
+///
+/// Deve ser chamado após `custody.release_funds_override()` (que libera o Soroban).
+/// `verdict`: "favor_buyer" (refund ao comprador) ou "favor_seller" (pagamento ao vendedor).
+#[instrument(skip(state), fields(order_id = %id))]
+pub async fn dispute_complete(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<DisputeCompleteBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let mut stored = state
+        .orders
+        .get(id)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?
+        .ok_or_else(|| ApiError::not_found("order not found"))?;
+
+    // 1. Marca order como Completed.
+    if stored.order.status != OrderStatus::Completed {
+        stored.order.status = OrderStatus::Completed;
+        stored.order.updated_at = Utc::now();
+        state.orders.update(stored.clone()).await.map_err(|e| {
+            ApiError::internal(format!("order completion failed: {e}"))
+        })?;
+        info!(%id, "dispute_complete: order marked Completed");
+    }
+
+    // 2. Determina destinatário do PIX.
+    let favor_seller = matches!(
+        body.verdict.as_str(),
+        "favor_seller" | "release_to_seller"
+    );
+    let recipient_user_id = if favor_seller {
+        stored.order.seller_id
+    } else {
+        stored.order.buyer_id
+    };
+
+    // 3. Busca chave PIX do destinatário (wa_contacts por user_id).
+    let pix_key_db = if let Some(repo) = &state.listing_repo {
+        repo.pix_key_for_user(recipient_user_id).await
+    } else {
+        None
+    };
+
+    let destination = pix_key_db
+        .or_else(|| body.pix_key.clone())
+        .unwrap_or_else(|| "mock+dispute@apicash.dev".into());
+
+    // 4. Off-ramp: BRLx → PIX para o ganhador.
+    match state.anchor.withdraw_to_pix(
+        stored.order.amount,
+        destination.clone(),
+        format!("order:{id}:dispute:offramp"),
+        format!("dispute finalize order:{id}"),
+    ).await {
+        Ok(resp) => {
+            // Persiste o hash do off-ramp.
+            if let Ok(Some(mut s)) = state.orders.get(id).await {
+                s.off_ramp_tx_hash = Some(resp.tx_hash.clone());
+                let _ = state.orders.update(s).await;
+            }
+            info!(%id, tx = %resp.tx_hash, verdict = %body.verdict, "dispute off-ramp OK");
+            Ok(Json(serde_json::json!({
+                "order_id":           id,
+                "verdict":            body.verdict,
+                "off_ramp_tx":        resp.tx_hash,
+                "destination_pix_key": destination,
+                "status":             "completed",
+            })))
+        }
+        Err(e) => {
+            // Rail simulated não faz PIX real — aceita como sucesso com aviso.
+            warn!(%id, error = %e, "dispute off-ramp failed");
+            Ok(Json(serde_json::json!({
+                "order_id": id,
+                "verdict":  body.verdict,
+                "status":   "completed_no_offramp",
+                "warn":     e.to_string(),
+            })))
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct DisputeCompleteBody {
+    pub verdict: String,
+    /// Override para chave PIX (quando não encontrada no wa_contacts).
+    pub pix_key: Option<String>,
+}

@@ -51,16 +51,49 @@ pub async fn resolve_dispute(
         .resolve_dispute(id, body.resolution, body.notes)
         .await?;
 
-    // Notifica comprador e vendedor via WhatsApp (fire-and-forget).
     let verdict = match body.resolution {
         ResolutionType::RefundBuyer     => "favor_buyer",
         ResolutionType::ReleaseToSeller => "favor_seller",
         ResolutionType::Split           => "split",
         ResolutionType::Manual          => "manual",
     };
+
+    // Marca order Completed + dispara off-ramp PIX ao ganhador (fire-and-forget).
+    if matches!(body.resolution, ResolutionType::RefundBuyer | ResolutionType::ReleaseToSeller) {
+        let v = verdict.to_string();
+        tokio::spawn(async move {
+            finalize_dispute_order(order_id, &v, None).await;
+        });
+    }
+
+    // Notifica comprador e vendedor via WhatsApp (fire-and-forget).
     notify_wa_dispute_resolved(order_id, verdict, &dispute.reason).await;
 
     Ok(Json(serde_json::json!({ "ok": true, "dispute_id": id, "verdict": verdict })))
+}
+
+/// Chama `POST /orders/{id}/dispute/complete` no apicash-core.
+/// Marca order como Completed e dispara off-ramp PIX ao ganhador.
+async fn finalize_dispute_order(order_id: Uuid, verdict: &str, pix_key: Option<&str>) {
+    let core_url = std::env::var("APICASH_CORE_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let api_key = std::env::var("APICASH_API_KEY").unwrap_or_default();
+    let body = serde_json::json!({ "verdict": verdict, "pix_key": pix_key });
+    let client = reqwest::Client::new();
+    match client
+        .post(format!("{core_url}/orders/{order_id}/dispute/complete"))
+        .header("x-api-key", &api_key)
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() =>
+            tracing::info!(%order_id, verdict, "dispute_complete: order finalized + off-ramp triggered"),
+        Ok(r) =>
+            tracing::warn!(%order_id, status = %r.status(), "dispute_complete: non-2xx"),
+        Err(e) =>
+            tracing::warn!(%order_id, error = %e, "dispute_complete: http failed"),
+    }
 }
 
 /// Chama `POST /internal/dispute-resolved` no serviço WhatsApp (fire-and-forget).

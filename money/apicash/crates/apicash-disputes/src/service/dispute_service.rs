@@ -284,10 +284,11 @@ impl DisputeService {
                 ));
                 self.repo.update(d.clone()).await?;
                 self.release_custody_after_dispute(d.order_id, dispute_id).await?;
-                // Notifica WhatsApp (fire-and-forget).
+                // Finaliza order + off-ramp + notificação WA (fire-and-forget).
                 let verdict_str = result.verdict.to_str().to_string();
                 let order_id = d.order_id;
                 tokio::spawn(async move {
+                    finalize_dispute_order(order_id, &verdict_str).await;
                     notify_wa_dispute_resolved(order_id, &verdict_str, "").await;
                 });
             }
@@ -414,6 +415,30 @@ impl DisputeService {
                 tracing::error!(error = %e, dispute_id = %d.id, "auto_resolve_timeout resolve failed");
             }
         }
+    }
+}
+
+/// Chama `POST /orders/{id}/dispute/complete` no apicash-core.
+/// Marca order como Completed e dispara off-ramp PIX ao ganhador.
+async fn finalize_dispute_order(order_id: Uuid, verdict: &str) {
+    let core_url = std::env::var("APICASH_CORE_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let api_key = std::env::var("APICASH_API_KEY").unwrap_or_default();
+    let body = serde_json::json!({ "verdict": verdict });
+    let client = reqwest::Client::new();
+    match client
+        .post(format!("{core_url}/orders/{order_id}/dispute/complete"))
+        .header("x-api-key", api_key)
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() =>
+            tracing::info!(%order_id, verdict, "AI auto-resolve: order finalized + off-ramp triggered"),
+        Ok(r) =>
+            tracing::warn!(%order_id, status = %r.status(), "finalize_dispute_order: non-2xx"),
+        Err(e) =>
+            tracing::warn!(%order_id, error = %e, "finalize_dispute_order: http failed"),
     }
 }
 

@@ -59,6 +59,20 @@ impl ListingRepository {
         Ok(row.0)
     }
 
+    /// Retorna a chave PIX registrada no wa_contacts para um user_id.
+    /// Usada pelo off-ramp de disputa para saber para onde enviar o PIX.
+    pub async fn pix_key_for_user(&self, user_id: Uuid) -> Option<String> {
+        let row = sqlx::query(
+            "SELECT pix_key FROM wa_contacts WHERE user_id = $1 LIMIT 1",
+        )
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await
+        .unwrap_or(None)?;
+
+        row.try_get::<Option<String>, _>("pix_key").ok().flatten()
+    }
+
     /// Retorna as URLs de fotos do anúncio vinculado a um pedido (para análise IA de disputa).
     pub async fn photos_for_order(&self, order_id: Uuid) -> Vec<String> {
         let row = sqlx::query("SELECT photos FROM listings WHERE order_id = $1 LIMIT 1")
