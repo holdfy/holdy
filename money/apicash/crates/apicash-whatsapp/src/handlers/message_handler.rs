@@ -394,6 +394,87 @@ impl MessageHandler {
         }
     }
 
+    /// Faz download de mídia da Cloud API e upload para MinIO (bucket disputes/).
+    /// Retorna `(minio_url, sha256, evidence_kind_str, ext)` ou `None` se falhar.
+    async fn upload_dispute_media(
+        &self,
+        dispute_id: uuid::Uuid,
+        media: &crate::models::CloudMediaRef,
+    ) -> Option<(String, String, String, String)> {
+        let bytes = match download_cloud_media(&media.media_id).await {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!(media_id = %media.media_id, error = %e, "dispute: media download failed");
+                return None;
+            }
+        };
+
+        let ext = media.mime_type.as_deref()
+            .and_then(|m| m.split('/').last())
+            .map(|e| e.trim_end_matches(';').split(';').next().unwrap_or(e).to_string())
+            .unwrap_or_else(|| media.kind.default_ext().to_string());
+
+        let store = apicash_disputes::image_store::DisputeImageStore::from_env()?;
+        match store.upload(dispute_id, &ext, &bytes).await {
+            Ok((_key, url, sha256)) => {
+                let kind_str = media.kind.to_evidence_kind().to_string();
+                Some((url, sha256, kind_str, ext))
+            }
+            Err(e) => {
+                tracing::warn!(%dispute_id, error = %e, "dispute: MinIO upload failed");
+                None
+            }
+        }
+    }
+
+    /// Notifica comprador e vendedor quando a disputa é resolvida.
+    /// Chamado via `POST /internal/dispute-resolved` pelo apicash-core.
+    pub async fn notify_dispute_result(
+        &self,
+        order_id: uuid::Uuid,
+        verdict: &str,
+        amount: &str,
+    ) {
+        let Some(parties) = self.payment_registry.get(order_id).await else {
+            tracing::warn!(%order_id, "dispute_result: parties not found in registry");
+            return;
+        };
+
+        let (buyer_msg, seller_msg) = match verdict {
+            "favor_buyer" | "refund_buyer" => (
+                message_templates::dispute_resolved_buyer(amount),
+                message_templates::dispute_resolved_seller_loss(amount),
+            ),
+            "favor_seller" | "release_to_seller" => (
+                message_templates::dispute_resolved_buyer_loss(amount),
+                message_templates::dispute_resolved_seller(amount),
+            ),
+            _ => (
+                format!("✅ Disputa encerrada. O valor de R$ {amount} foi processado conforme a decisão."),
+                format!("✅ Disputa encerrada. O valor de R$ {amount} foi processado conforme a decisão."),
+            ),
+        };
+
+        self.outbound.send_text(&parties.buyer_peer, &buyer_msg).await;
+        self.outbound.send_text(&parties.seller_peer, &seller_msg).await;
+
+        // Reset estados de disputa de ambos.
+        for p in [&parties.buyer_peer, &parties.seller_peer] {
+            let mut s = self.sessions.session_for(p).await;
+            if matches!(s.state,
+                OrderFlowState::DisputeAwaitingDecision { .. }
+                | OrderFlowState::DisputeSellerResponding { .. }
+                | OrderFlowState::DisputeCollectingEvidence { .. }
+            ) {
+                s.reset_flow();
+                s.active_order_id = Some(order_id);
+                self.sessions.update(p, s).await;
+            }
+        }
+
+        tracing::info!(%order_id, verdict, "dispute_result: both parties notified");
+    }
+
     /// Notifica o vendedor que uma disputa foi aberta, com prazo de 72h para responder.
     async fn notify_seller_dispute_opened(&self, order_id: uuid::Uuid, buyer_session: &UserSession) {
         let Some(parties) = self.payment_registry.get(order_id).await else {
@@ -1566,6 +1647,66 @@ impl MessageHandler {
             return Ok(());
         }
 
+        // ─── Vendedor: contestar disputa ──────────────────────────────────────────
+        if order_flow::is_contest_dispute(&ev.body) {
+            // Busca pedido ativo deste vendedor que tem disputa aberta.
+            let dispute_order = self.payment_registry.find_order_for_seller(&peer).await
+                .map(|(oid, _)| oid);
+            if let Some(order_id) = dispute_order {
+                session.state = OrderFlowState::DisputeSellerResponding {
+                    order_id,
+                    evidence_count: 0,
+                };
+                session.touch();
+                self.sessions.update(&peer, session).await;
+                self.outbound
+                    .send_text(&peer, message_templates::dispute_collect_counter_evidence())
+                    .await;
+                return Ok(());
+            }
+        }
+
+        // ─── Vendedor: coleta de contra-evidências ────────────────────────────────
+        if let OrderFlowState::DisputeSellerResponding { order_id, evidence_count } = session.state.clone() {
+            let trimmed = ev.body.trim().to_lowercase();
+            let is_done = trimmed == "pronto" || trimmed == "ok" || trimmed == "enviei" || evidence_count >= 5;
+
+            if is_done && ev.media.is_none() {
+                // Contra-evidências submetidas — re-aciona análise.
+                let core = self.core.clone();
+                tokio::spawn(async move {
+                    let _ = core.trigger_dispute_analysis(order_id).await;
+                });
+                session.state = OrderFlowState::Idle;
+                session.touch();
+                self.sessions.update(&peer, session).await;
+                self.outbound.send_text(&peer, "✅ Contra-evidências registradas. A análise foi atualizada. Você será notificado com o resultado.").await;
+                return Ok(());
+            }
+
+            let new_count = if let Some(ref media_ref) = ev.media {
+                let disputes = self.core.get_dispute_for_order(order_id).await
+                    .ok().flatten();
+                if let Some(dispute_id) = disputes {
+                    if let Some((minio_url, sha256, kind_str, _)) =
+                        self.upload_dispute_media(dispute_id, media_ref).await
+                    {
+                        let _ = self.core.add_dispute_evidence_media(order_id, &minio_url, &sha256, &kind_str).await;
+                    }
+                }
+                evidence_count.saturating_add(1)
+            } else {
+                let _ = self.core.add_dispute_evidence_text(order_id, session.user_id, &ev.body).await;
+                evidence_count.saturating_add(1)
+            };
+
+            session.state = OrderFlowState::DisputeSellerResponding { order_id, evidence_count: new_count };
+            session.touch();
+            self.sessions.update(&peer, session).await;
+            self.outbound.send_text(&peer, &message_templates::dispute_evidence_received(new_count)).await;
+            return Ok(());
+        }
+
         if let Some(order_id) = order_flow::try_dispute_order_id(&session.state, &ev.body) {
             // Abre disputa no backend e inicia coleta de motivo.
             tracing::info!(peer = %peer_hint, %order_id, "whatsapp: disputa iniciada");
@@ -1614,13 +1755,14 @@ impl MessageHandler {
         // ─── Disputa: coleta de evidências (fotos/rastreio/"pronto") ─────────────
         if let OrderFlowState::DisputeCollectingEvidence { order_id, reason, evidence_count } = session.state.clone() {
             let trimmed = ev.body.trim().to_lowercase();
-            if trimmed == "pronto" || trimmed == "ok" || trimmed == "enviei" || evidence_count >= 5 {
+            let is_done = trimmed == "pronto" || trimmed == "ok" || trimmed == "enviei" || evidence_count >= 5;
+
+            if is_done && ev.media.is_none() {
                 // Submete evidências e aciona análise IA em background.
                 let core = self.core.clone();
                 tokio::spawn(async move {
                     let _ = core.trigger_dispute_analysis(order_id).await;
                 });
-
                 session.state = OrderFlowState::DisputeAwaitingDecision { order_id };
                 session.touch();
                 self.sessions.update(&peer, session).await;
@@ -1629,9 +1771,31 @@ impl MessageHandler {
                     .await;
                 return Ok(());
             }
-            // Qualquer texto vira evidência do tipo "message".
-            let _ = self.core.add_dispute_evidence_text(order_id, session.user_id, &ev.body).await;
-            let new_count = evidence_count.saturating_add(1);
+
+            let new_count = if let Some(ref media_ref) = ev.media {
+                // Mídia (foto/vídeo): busca o dispute_id para upload MinIO.
+                let disputes = self.core.get_dispute_for_order(order_id).await
+                    .ok()
+                    .flatten();
+                if let Some(dispute_id) = disputes {
+                    if let Some((minio_url, sha256, kind_str, _ext)) =
+                        self.upload_dispute_media(dispute_id, media_ref).await
+                    {
+                        let _ = self.core.add_dispute_evidence_media(
+                            order_id, &minio_url, &sha256, &kind_str,
+                        ).await;
+                        tracing::info!(%order_id, %dispute_id, kind = %kind_str, "dispute: media evidence added");
+                    } else {
+                        self.outbound.send_text(&peer, "⚠️ Não consegui processar a mídia. Envie novamente ou use 'pronto' para continuar.").await;
+                    }
+                }
+                evidence_count.saturating_add(1)
+            } else {
+                // Texto/rastreio vira evidência.
+                let _ = self.core.add_dispute_evidence_text(order_id, session.user_id, &ev.body).await;
+                evidence_count.saturating_add(1)
+            };
+
             session.state = OrderFlowState::DisputeCollectingEvidence {
                 order_id,
                 reason,
@@ -1639,9 +1803,23 @@ impl MessageHandler {
             };
             session.touch();
             self.sessions.update(&peer, session).await;
-            self.outbound
-                .send_text(&peer, &message_templates::dispute_evidence_received(new_count))
-                .await;
+
+            if new_count >= 5 {
+                // Auto-finaliza após 5 evidências.
+                let core = self.core.clone();
+                tokio::spawn(async move {
+                    let _ = core.trigger_dispute_analysis(order_id).await;
+                });
+                let mut s = self.sessions.session_for(&peer).await;
+                s.state = OrderFlowState::DisputeAwaitingDecision { order_id };
+                s.touch();
+                self.sessions.update(&peer, s).await;
+                self.outbound.send_text(&peer, message_templates::dispute_evidence_submitted()).await;
+            } else {
+                self.outbound
+                    .send_text(&peer, &message_templates::dispute_evidence_received(new_count))
+                    .await;
+            }
             return Ok(());
         }
 
@@ -2085,6 +2263,11 @@ impl MessageHandler {
                 self.sessions.update(&peer, session).await;
                 self.outbound.send_text(&peer, "Sua disputa está em análise. Você será notificado quando houver uma decisão.").await;
             }
+            OrderFlowState::DisputeSellerResponding { order_id, evidence_count } => {
+                session.state = OrderFlowState::DisputeSellerResponding { order_id, evidence_count };
+                self.sessions.update(&peer, session).await;
+                self.outbound.send_text(&peer, "Envie suas contra-evidências ou digite *pronto* para encerrar.").await;
+            }
         }
 
         Ok(())
@@ -2098,4 +2281,44 @@ async fn download_url_bytes(url: &str) -> Result<Vec<u8>, String> {
         return Err(format!("HTTP {}", resp.status()));
     }
     resp.bytes().await.map(|b| b.to_vec()).map_err(|e| e.to_string())
+}
+
+/// Baixa mídia da Cloud API (WhatsApp Business): resolve media_id → URL → bytes.
+/// Requer `WHATSAPP_ACCESS_TOKEN` no ambiente.
+async fn download_cloud_media(media_id: &str) -> Result<Vec<u8>, String> {
+    let token = std::env::var("WHATSAPP_ACCESS_TOKEN")
+        .map_err(|_| "WHATSAPP_ACCESS_TOKEN not set".to_string())?;
+
+    let client = reqwest::Client::new();
+
+    // Passo 1: resolve a URL de download.
+    let meta_url = format!("https://graph.facebook.com/v20.0/{media_id}");
+    let info: serde_json::Value = client
+        .get(&meta_url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("graph API request: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("graph API json: {e}"))?;
+
+    let download_url = info["url"]
+        .as_str()
+        .ok_or_else(|| format!("graph API: no url in response: {info}"))?
+        .to_string();
+
+    // Passo 2: baixa o arquivo.
+    let bytes = client
+        .get(&download_url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("media download: {e}"))?
+        .bytes()
+        .await
+        .map_err(|e| format!("media bytes: {e}"))?
+        .to_vec();
+
+    Ok(bytes)
 }
