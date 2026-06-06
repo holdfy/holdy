@@ -1,5 +1,6 @@
 //! Shared application state: domain services + order persistence.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apicash_anchor::{AnchorService, StellarConfig, StellarNetwork};
@@ -30,6 +31,7 @@ use crate::repository::ListingRepository;
 use apicash_shared::Order;
 use reqwest::Client;
 use sqlx::postgres::PgPoolOptions;
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::order_repository::{InMemoryOrderRepository, OrderRepository, PostgresOrderRepository};
@@ -79,6 +81,8 @@ pub struct AppState {
     pub listing_repo: Option<Arc<ListingRepository>>,
     /// Producer Pulsar para fila de importação async (None se Pulsar não configurado).
     pub event_producer: Option<Arc<tokio::sync::Mutex<EventProducer>>>,
+    /// Códigos de rastreio por order_id (in-memory, MVP — migrar para DB futuramente).
+    pub tracking_codes: Arc<RwLock<HashMap<Uuid, String>>>,
 }
 
 impl AppState {
@@ -307,6 +311,7 @@ impl AppState {
             logistics,
             listing_repo,
             event_producer: None,
+            tracking_codes: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }

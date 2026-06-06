@@ -12,7 +12,7 @@ use axum::response::Redirect;
 use axum::Extension;
 use axum::Json;
 use chrono::Utc;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
@@ -363,6 +363,7 @@ pub async fn create_order(
         soroban_lock_tx_hash: None,
         soroban_mode: Some("pending".to_string()),
         buyer_name: req.buyer_name.clone(),
+        tracking_code: None,
     };
 
     Ok((StatusCode::CREATED, Json(body)))
@@ -382,6 +383,7 @@ pub async fn get_order(
             ApiError::internal("order lookup failed")
         })?
         .ok_or_else(|| ApiError::not_found("order not found"))?;
+    let tracking_code = state.tracking_codes.read().await.get(&id).cloned();
     let o = &s.order;
     Ok(Json(OrderResponse {
         id: o.id,
@@ -405,6 +407,7 @@ pub async fn get_order(
         soroban_lock_tx_hash: s.soroban_lock_tx_hash.clone(),
         soroban_mode: Some(s.soroban_mode.clone()),
         buyer_name: s.buyer_name.clone(),
+        tracking_code,
     }))
 }
 
@@ -425,6 +428,7 @@ pub async fn list_orders(
         error!(error = %e, "list_orders failed");
         ApiError::internal("list orders failed")
     })?;
+    let tracking_map = state.tracking_codes.read().await;
     let items: Vec<serde_json::Value> = orders
         .iter()
         .map(|s| {
@@ -436,6 +440,7 @@ pub async fn list_orders(
                 "status": s.order.status.to_string(),
                 "description": s.description,
                 "pix_br_code": s.pix_br_code,
+                "tracking_code": tracking_map.get(&s.order.id),
                 "created_at": s.order.created_at,
             })
         })
@@ -932,6 +937,7 @@ pub(crate) async fn create_escrow_order_core(
         soroban_lock_tx_hash: None,
         soroban_mode: Some("pending".to_string()),
         buyer_name: None,
+        tracking_code: None,
     })
 }
 
@@ -1351,4 +1357,45 @@ pub struct DisputeCompleteBody {
     pub verdict: String,
     /// Override para chave PIX (quando não encontrada no wa_contacts).
     pub pix_key: Option<String>,
+}
+
+// ── Tracking ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct SetTrackingRequest {
+    pub tracking_code: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SetTrackingResponse {
+    pub order_id: Uuid,
+    pub tracking_code: String,
+}
+
+/// `POST /orders/{id}/tracking` — vendedor registra código de rastreio.
+#[instrument(skip(state), fields(order_id = %id))]
+pub async fn set_tracking(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<JwtClaims>,
+    Path(id): Path<Uuid>,
+    Json(req): Json<SetTrackingRequest>,
+) -> Result<Json<SetTrackingResponse>, ApiError> {
+    let code = req.tracking_code.trim().to_uppercase();
+    if code.is_empty() {
+        return Err(ApiError::bad_request("tracking_code não pode ser vazio"));
+    }
+    // Valida que o pedido existe e pertence ao vendedor autenticado.
+    let stored = state
+        .orders
+        .get(id)
+        .await
+        .map_err(|_| ApiError::internal("order lookup failed"))?
+        .ok_or_else(|| ApiError::not_found("order not found"))?;
+    let user_id = claims.current_user_id();
+    if stored.order.seller_id != user_id {
+        return Err(ApiError::forbidden("somente o vendedor pode registrar rastreio"));
+    }
+    state.tracking_codes.write().await.insert(id, code.clone());
+    info!(order_id = %id, code = %code, "tracking registrado");
+    Ok(Json(SetTrackingResponse { order_id: id, tracking_code: code }))
 }

@@ -29,6 +29,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let auth_routes = Router::new()
         .route("/login", post(auth_handler::login))
         .route("/refresh", post(auth_handler::refresh))
+        .route("/register", post(auth_handler::register))
         .layer(GovernorLayer::new(governor_conf.clone()))
         .with_state(state.clone());
 
@@ -42,6 +43,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             post(order_handler::settle_order_manual),
         )
         .route("/orders/{id}/off-ramp", post(order_handler::order_off_ramp))
+        .route("/orders/{id}/tracking", post(order_handler::set_tracking))
         .route("/orders/{id}/dispute", post(order_handler::open_dispute))
         .route("/orders/{id}/dispute", get(order_handler::get_dispute))
         .route("/orders/{id}/dispute/evidence", post(order_handler::add_dispute_evidence))

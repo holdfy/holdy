@@ -39,4 +39,6 @@ pub struct OrderResponse {
     pub soroban_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub buyer_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tracking_code: Option<String>,
 }
