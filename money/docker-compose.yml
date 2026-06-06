@@ -1,6 +1,6 @@
 # Infraestrutura unificada para projetos em `money/`:
-# - Postgres APICash 5432, Redis 6379, Pulsar 4.x standalone (6650 broker / admin 8080): partilhados por todas as apps
-# - Postgres Gatebox 5433 (base dubai-cash), Redis mesmo cluster acima — sem segundo Pulsar
+# - Postgres único (5432): databases apicash, banco_saczuck, dubai-cash
+# - Redis 6379, Pulsar 4.x standalone (6650 broker / admin 8080): partilhados por todas as apps
 #
 # Uso na raiz desta pasta:
 #   docker compose up -d
@@ -11,7 +11,7 @@
 name: money-infra
 
 services:
-  # --- APICash (nomes curtos: compatíveis com money/runinfra.sh e tooling) ---
+  # --- Postgres único (APICash + Banco + Gatebox) ---
   postgres:
     image: postgres:16-alpine
     container_name: apicash-postgres
@@ -26,6 +26,12 @@ services:
       - apicash_pg_data:/var/lib/postgresql/data
     networks:
       - money_infra
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-apicash} -d ${POSTGRES_DB:-apicash}"]
       interval: 5s
@@ -50,29 +56,49 @@ services:
       timeout: 3s
       retries: 10
 
-  pulsar:
-    image: apachepulsar/pulsar:4.1.3
-    container_name: apicash-pulsar
+  # NATS JetStream — backend alternativo ao Pulsar (~50 MB RAM vs 2 GB).
+  # Para usar: MESSAGING_BACKEND=nats + NATS_URL=nats://127.0.0.1:4222 no .env
+  nats:
+    image: nats:2.10-alpine
+    container_name: apicash-nats
     restart: unless-stopped
-    command: ["/bin/bash", "-c", "bin/pulsar standalone"]
+    command: ["--jetstream", "--store_dir=/data", "-m", "8222"]
     ports:
-      - "${PULSAR_BROKER_PORT:-6650}:6650"
-      - "${PULSAR_ADMIN_PORT:-8080}:8080"
+      - "${NATS_PORT:-4222}:4222"
+      - "${NATS_MONITOR_PORT:-8222}:8222"
     volumes:
-      - apicash_pulsar_data:/pulsar/data
+      - apicash_nats_data:/data
     networks:
       - money_infra
-    depends_on:
-      redis:
-        condition: service_healthy
-    environment:
-      PULSAR_MEM: "-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/admin/v2/clusters || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 15
-      start_period: 90s
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Pulsar (JVM, 2 GB RAM) — descomente quando precisar em produção futura.
+  # Para ativar: MESSAGING_BACKEND=pulsar + APICASH_PULSAR__SERVICE_URL=pulsar://host:6650
+  #
+  # pulsar:
+  #   image: apachepulsar/pulsar:4.1.3
+  #   container_name: apicash-pulsar
+  #   restart: unless-stopped
+  #   command: ["/bin/bash", "-c", "bin/pulsar standalone"]
+  #   ports:
+  #     - "${PULSAR_BROKER_PORT:-6650}:6650"
+  #     - "${PULSAR_ADMIN_PORT:-8080}:8080"
+  #   volumes:
+  #     - apicash_pulsar_data:/pulsar/data
+  #   networks:
+  #     - money_infra
+  #   environment:
+  #     PULSAR_MEM: "-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -sf http://localhost:8080/admin/v2/clusters || exit 1"]
+  #     interval: 15s
+  #     timeout: 10s
+  #     retries: 15
+  #     start_period: 90s
 
   mongodb:
     image: mongo:7
@@ -148,36 +174,6 @@ services:
       postgres:
         condition: service_healthy
 
-  # SQL em db/ corre na primeira inicialização do volume (ordem alfabética: create-table, insert, seed-key-pix).
-  # Bind mount `./gatebox/...`: setup-env.sh ou GATEBOX_DB_HOST_MOUNT.
-  gatebox-postgres:
-    image: postgres:17
-    container_name: gateboxrust_postgres
-    restart: unless-stopped
-    environment:
-      PGPASSWORD: ${GATEBOX_POSTGRES_PASSWORD:-root}
-      POSTGRES_USER: ${GATEBOX_POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${GATEBOX_POSTGRES_PASSWORD:-root}
-      POSTGRES_DB: ${GATEBOX_POSTGRES_DB:-dubai-cash}
-    ports:
-      - "${GATEBOX_POSTGRES_PORT:-5433}:5432"
-    volumes:
-      - gateboxrust_postgres_data:/var/lib/postgresql/data
-      - ${GATEBOX_DB_HOST_MOUNT:-./gatebox/gatebox-rust/db}:/docker-entrypoint-initdb.d:ro
-    networks:
-      - money_infra
-    command:
-      - "postgres"
-      - "-c"
-      - "max_connections=1200"
-      - "-c"
-      - "shared_buffers=256MB"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${GATEBOX_POSTGRES_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 networks:
   money_infra:
     driver: bridge
@@ -186,8 +182,8 @@ networks:
 volumes:
   apicash_pg_data:
   apicash_redis_data:
-  apicash_pulsar_data:
+  apicash_nats_data:
   apicash_pgadmin_data:
   apicash_minio_data:
   apicash_mongodb_data:
-  gateboxrust_postgres_data:
+  # apicash_pulsar_data:  # descomentado junto com o serviço pulsar acima

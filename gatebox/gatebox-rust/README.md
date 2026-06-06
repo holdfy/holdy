@@ -31,7 +31,7 @@ cargo test
 ./runapp.sh start gatebox
 ```
 
-Isto sobe a infra (Postgres Gatebox próprio 5433, Redis e **o mesmo Pulsar** que o APICash em `money/docker-compose.yml`) e arranca Gatebox-Rust via `money/runapp.sh`.
+Isto sobe a infra (Postgres único :5432, Redis e **o mesmo Pulsar** que o APICash em `money/docker-compose.yml`) e arranca Gatebox-Rust via `money/runapp.sh`.
 
 Para **só** a API Rust, com a infra já em execução:
 

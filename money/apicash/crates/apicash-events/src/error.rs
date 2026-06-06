@@ -16,4 +16,10 @@ pub enum EventError {
 
     #[error("IO: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("nats: {0}")]
+    Nats(String),
+
+    #[error("serialization: {0}")]
+    Serialization(String),
 }

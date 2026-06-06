@@ -10,7 +10,7 @@ Um único repositório Git na raiz; configuração partilhada em `money/.env`.
 pos-nearx/
 ├── money/                    # Orquestração: Docker, .env, runapp / runinfra
 │   ├── apicash/              # Workspace Rust (core, admin, frontend Leptos, WhatsApp, Soroban)
-│   ├── docker-compose.yml    # Postgres APICash, Redis, Pulsar, Postgres Gatebox
+│   ├── docker-compose.yml    # Postgres único, Redis, Pulsar
 │   ├── setup-env.sh          # Bootstrap: .env + symlinks + infra
 │   ├── runinfra.sh           # Docker + migrações SQLx
 │   └── runapp.sh             # Apps em host (APICash, Gatebox, backend banco)
@@ -80,8 +80,7 @@ Serviços típicos (ver `docker-compose.yml` e `.env`):
 
 | Serviço | Porta default |
 |---------|----------------|
-| Postgres APICash | 5432 |
-| Postgres Gatebox | 5433 |
+| Postgres (apicash, banco_saczuck, dubai-cash) | 5432 |
 | Redis | 6379 |
 | Pulsar broker | 6650 |
 | Pulsar admin | 8080 |

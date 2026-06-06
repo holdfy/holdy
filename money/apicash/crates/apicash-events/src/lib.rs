@@ -10,7 +10,7 @@ pub mod models;
 pub mod producer;
 pub mod utils;
 
-pub use crate::consumer::{run_importer_consumer, ImporterPort};
+pub use crate::consumer::{run_importer_consumer, run_importer_consumer_nats, ImporterPort};
 pub use crate::error::EventError;
 pub use crate::models::{ApicashEvent, ImportCompletedEvent, ImportRequestedEvent};
 pub use crate::producer::EventProducer;

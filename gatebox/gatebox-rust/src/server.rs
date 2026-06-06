@@ -107,7 +107,7 @@ use gatebox_rust::with_list_accounts;
 use gatebox_rust::with_list_accounts::{WithListAccountsRepositoryImpl, WithListAccountsServiceImpl};
 use gatebox_rust::modules::{admin, backoffice};
 
-use gatebox_rust::core::messaging::{PaymentMessageHandler, PaymentMessageHandlerStub, PulsarPaymentPublisher, RabbitMQPaymentPublisher};
+use gatebox_rust::core::messaging::{NatsConsumer, NatsPaymentPublisher, PaymentMessageHandler, PaymentMessageHandlerStub, PulsarPaymentPublisher, RabbitMQPaymentPublisher};
 use gatebox_rust::core::pix_principal::PixPrincipalServiceAsync;
 use gatebox_rust::core::pulsar::{Config as PulsarConfig, ProducerPool as PulsarProducerPool, ResilientConsumer};
 use gatebox_rust::core::rabbitmq::{ProducerPool as RabbitMQProducerPool, ProducerPoolConfig as RabbitMQProducerPoolConfig, RabbitMQConfig, WorkerPool, WorkerPoolConfig};
@@ -373,9 +373,9 @@ impl App {
             app_log_repo: Some(app_log_repo.clone()),
         };
 
-        // MESSAGING_BACKEND: pulsar (default) ou rabbitmq
+        // MESSAGING_BACKEND: nats (default) | pulsar | rabbitmq | sync
         let messaging_backend = std::env::var("MESSAGING_BACKEND")
-            .unwrap_or_else(|_| "pulsar".to_string())
+            .unwrap_or_else(|_| "nats".to_string())
             .to_lowercase();
         let has_sulcred = std::env::var("PIX_GATEWAY_SULCRED").is_ok();
         let sulcred_client_id = std::env::var("SULCRED_CLIENT_ID").unwrap_or_default();
@@ -580,6 +580,76 @@ impl App {
                 }
             };
             (pix_svc, rabbitmq_worker, pulsar_tx)
+        } else if messaging_backend == "nats" && std::env::var("NATS_URL").is_ok() {
+            let nats_url = std::env::var("NATS_URL").unwrap_or_else(|_| "nats://localhost:4222".to_string());
+            match NatsPaymentPublisher::new(&nats_url).await {
+                Ok(nats_publisher) => {
+                    let publisher = Arc::new(nats_publisher) as Arc<dyn gatebox_rust::core::messaging::PaymentPublisher>;
+                    let async_svc = Arc::new(PixPrincipalServiceAsync::new(
+                        transaction_repo.clone(),
+                        accounts_repo.clone(),
+                        account_rules_repo.clone(),
+                        with_list_accounts_repo.clone(),
+                        fees_repo.clone(),
+                        publisher,
+                        gateway_name.clone(),
+                        default_partners_id,
+                    ));
+                    let handler: Arc<dyn gatebox_rust::core::messaging::MessageHandler> = if has_gateway {
+                        let (gw, cid, csec, gw_name) = if has_seventrust {
+                            (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             seventrust_client_id.clone(), seventrust_client_secret.clone(), "seventrust".to_string())
+                        } else if has_next {
+                            (Arc::new(gatebox_rust::core::gateways::services::NextHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             next_client_id.clone(), next_client_secret.clone(), "next".to_string())
+                        } else {
+                            (Arc::new(gatebox_rust::core::gateways::services::SulcredHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             sulcred_client_id.clone(), sulcred_client_secret.clone(), "sulcred".to_string())
+                        };
+                        let h = PaymentMessageHandler::new(
+                            transaction_repo.clone(),
+                            gw,
+                            cid,
+                            csec,
+                            gw_name,
+                        )
+                        .with_gateway_recorder(gateway_recorder.clone())
+                        .with_gateway_selector(gateway_selector.clone());
+                        Arc::new(h)
+                    } else {
+                        Arc::new(PaymentMessageHandlerStub::new())
+                    };
+                    let (tx, rx) = tokio::sync::oneshot::channel();
+                    let consumer = NatsConsumer::new(&nats_url, handler);
+                    tokio::spawn(async move {
+                        if let Err(e) = consumer.run(rx).await {
+                            tracing::error!("NATS consumer error: {}", e);
+                        }
+                    });
+                    info!("NATS JetStream consumer + publisher started (async SendPix)");
+                    let pix_svc: Arc<dyn gatebox_rust::core::pix_principal::PixPrincipalService> = async_svc;
+                    (pix_svc, None::<WorkerPool>, Some(tx))
+                }
+                Err(e) => {
+                    tracing::warn!("NATS publisher failed to start: {}, falling back to sync", e);
+                    let sync_svc = if has_gateway {
+                        let (gw, cid, csec) = if has_seventrust {
+                            (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             seventrust_client_id, seventrust_client_secret)
+                        } else if has_next {
+                            (Arc::new(gatebox_rust::core::gateways::services::NextHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             next_client_id, next_client_secret)
+                        } else {
+                            (Arc::new(gatebox_rust::core::gateways::services::SulcredHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             sulcred_client_id, sulcred_client_secret)
+                        };
+                        Arc::new(gatebox_rust::core::pix_principal::PixPrincipalServiceImpl::new(gw, cid, csec)) as Arc<dyn gatebox_rust::core::pix_principal::PixPrincipalService>
+                    } else {
+                        Arc::new(gatebox_rust::core::pix_principal::PixPrincipalServiceStub)
+                    };
+                    (sync_svc, None::<WorkerPool>, None)
+                }
+            }
         } else {
             let sync_svc = if has_gateway {
                 let (gw, cid, csec) = if has_seventrust {

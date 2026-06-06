@@ -44,6 +44,8 @@ hmac = "0.12"
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 # Pulsar: mensageria default do projeto (exige protoc: apt-get install protobuf-compiler)
 pulsar = { version = "6", optional = true, default-features = false, features = ["tokio-rustls-runtime"] }
+# NATS JetStream: backend alternativo ao Pulsar (~50 MB RAM vs 2 GB)
+async-nats = "0.38"
 utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7", features = ["axum"] }
 base64 = "0.22"

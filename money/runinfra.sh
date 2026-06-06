@@ -121,16 +121,15 @@ wait_infra() {
   log "waiting for infrastructure health"
   wait_one_container postgres 120
   wait_one_container redis 120
-  wait_one_container pulsar 240
-  wait_one_container gatebox-postgres 180
+  wait_one_container nats 30
 }
 
 gatebox_pg_url() {
   load_env
   local u pw port db
-  u="${GATEBOX_POSTGRES_USER:-postgres}"
-  pw="${GATEBOX_POSTGRES_PASSWORD:-root}"
-  port="${GATEBOX_POSTGRES_PORT:-5433}"
+  u="${POSTGRES_USER:-apicash}"
+  pw="${POSTGRES_PASSWORD:-apicash}"
+  port="${POSTGRES_PORT:-5432}"
   db="${GATEBOX_POSTGRES_DB:-dubai-cash}"
   printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable\n' "${u}" "${pw}" "${MONEY_LAN_HOST:-192.168.86.64}" "${port}" "${db}"
 }
@@ -151,19 +150,19 @@ gatebox_rust_root_with_cargo() {
   return 1
 }
 
-# O compose monta db/*.sql em initdb; volumes antigos podem ter sido criados sem correr esses ficheiros.
+# Schema base Gatebox (db/*.sql) quando a base dubai-cash ainda não tem tabela transaction.
 # As migrações SQLx do crate assumem o schema base (tabela transaction, etc.).
 bootstrap_gatebox_sql_if_needed() {
   load_env
   need_docker
-  local root gbuser gbdb has_tx
+  local root pguser gbdb has_tx
   root="$(gatebox_rust_root_with_cargo 2>/dev/null)" || return 0
   [[ -n "${root:-}" ]] || return 0
-  gbuser="${GATEBOX_POSTGRES_USER:-postgres}"
+  pguser="${POSTGRES_USER:-apicash}"
   gbdb="${GATEBOX_POSTGRES_DB:-dubai-cash}"
 
   has_tx="$(
-    compose_money exec -T gatebox-postgres psql -U "${gbuser}" -d "${gbdb}" -tAc \
+    compose_money exec -T postgres psql -U "${pguser}" -d "${gbdb}" -tAc \
       "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='transaction'" 2>/dev/null | tr -d '[:space:]' || echo 0
   )"
 
@@ -174,12 +173,31 @@ bootstrap_gatebox_sql_if_needed() {
   local f
   for f in "${root}/db/create-table.sql" "${root}/db/insert.sql" "${root}/db/seed-key-pix.sql"; do
     [[ -f "${f}" ]] || continue
-    log "Gatebox Postgres: applying $(basename "${f}") (base schema / seed)"
-    compose_money exec -T gatebox-postgres psql -U "${gbuser}" -d "${gbdb}" -v ON_ERROR_STOP=1 <"${f}" || {
+    log "Gatebox database ${gbdb}: applying $(basename "${f}") (base schema / seed)"
+    compose_money exec -T postgres psql -U "${pguser}" -d "${gbdb}" -v ON_ERROR_STOP=1 <"${f}" || {
       warn "bootstrap gatebox failed on $(basename "${f}")"
       return 1
     }
   done
+}
+
+ensure_gatebox_db() {
+  load_env
+  need_docker
+  local dbname="${GATEBOX_POSTGRES_DB:-dubai-cash}"
+  log "ensuring postgres database for gatebox: ${dbname}"
+  local exists
+  exists="$(
+    compose_money exec -T postgres psql -U "${POSTGRES_USER}" -d postgres -tAc \
+      "SELECT 1 FROM pg_database WHERE datname='${dbname}'" 2>/dev/null | tr -d '[:space:]' || true
+  )"
+  if [ "${exists}" = "1" ]; then
+    log "database ${dbname} already exists"
+    return 0
+  fi
+  compose_money exec -T postgres psql -U "${POSTGRES_USER}" -d postgres -v ON_ERROR_STOP=1 \
+    -c "CREATE DATABASE \"${dbname}\" OWNER ${POSTGRES_USER};"
+  log "created database ${dbname}"
 }
 
 migrate_gatebox_db() {
@@ -195,6 +213,7 @@ migrate_gatebox_db() {
   fi
 
   need_docker
+  ensure_gatebox_db
   bootstrap_gatebox_sql_if_needed || return 1
 
   local durl="${POSTGRESQL_WRITE_URL:-}"
@@ -217,7 +236,7 @@ migrate_gatebox_db() {
 wait_gatebox_apps_hint() {
   load_env
   if root="$(gatebox_rust_root_with_cargo 2>/dev/null)" && [[ -n "${root:-}" ]]; then
-    log "Gatebox Postgres OK — Pulsar partilhado (serviço pulsar); API Rust: ./runapp.sh start gatebox (ou start all)"
+    log "Gatebox database OK (Postgres único) — NATS JetStream (serviço nats); API Rust: ./runapp.sh start gatebox (ou start all)"
   fi
 }
 
@@ -277,12 +296,11 @@ check_redis() {
   compose_money exec -T redis redis-cli ping 2>/dev/null | grep -q PONG
 }
 
-check_pulsar() {
+check_nats() {
   load_env
-  local port="${PULSAR_ADMIN_PORT:-8080}"
-  local host="${MONEY_LAN_HOST:-192.168.86.64}"
+  local port="${NATS_MONITOR_PORT:-8222}"
   command -v curl >/dev/null 2>&1 || return 1
-  curl -sf --max-time 2 "http://${host}:${port}/admin/v2/clusters" >/dev/null
+  curl -sf --max-time 2 "http://127.0.0.1:${port}/healthz" >/dev/null
 }
 
 print_status() {
@@ -305,24 +323,30 @@ print_status() {
     printf '  redis   : fail\n'
   fi
 
-  if check_pulsar; then
-    printf '  pulsar  : ok\n'
+  if check_nats; then
+    printf '  nats    : ok\n'
   else
-    printf '  pulsar  : fail\n'
+    printf '  nats    : fail\n'
   fi
 
-  if compose_money exec -T gatebox-postgres pg_isready -U "${GATEBOX_POSTGRES_USER:-postgres}" >/dev/null 2>&1; then
-    printf '  gatebox-postgres: ok\n'
-  else
-    printf '  gatebox-postgres: fail\n'
-  fi
-
-  printf '\n== Database ==\n'
+  printf '\n== Database (Postgres único :%s) ==\n' "${POSTGRES_PORT:-5432}"
   printf '  DATABASE_URL=%s\n' "${DATABASE_URL}"
   if compose_money exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tAc "select count(*) from information_schema.tables where table_schema = 'public';" >/tmp/apicash_table_count 2>/dev/null; then
-    printf '  public tables=%s\n' "$(tr -d '[:space:]' </tmp/apicash_table_count)"
+    printf '  %s public tables=%s\n' "${POSTGRES_DB:-apicash}" "$(tr -d '[:space:]' </tmp/apicash_table_count)"
   else
-    printf '  public tables=unknown\n'
+    printf '  %s public tables=unknown\n' "${POSTGRES_DB:-apicash}"
+  fi
+  local gbdb="${GATEBOX_POSTGRES_DB:-dubai-cash}"
+  if compose_money exec -T postgres psql -U "${POSTGRES_USER}" -d "${gbdb}" -tAc "select count(*) from information_schema.tables where table_schema = 'public';" >/tmp/gatebox_table_count 2>/dev/null; then
+    printf '  %s public tables=%s\n' "${gbdb}" "$(tr -d '[:space:]' </tmp/gatebox_table_count)"
+  else
+    printf '  %s public tables=unknown\n' "${gbdb}"
+  fi
+  local bancodb="${BANCO_POSTGRES_DB:-banco_saczuck}"
+  if compose_money exec -T postgres psql -U "${POSTGRES_USER}" -d "${bancodb}" -tAc "select count(*) from information_schema.tables where table_schema = 'public';" >/tmp/banco_table_count 2>/dev/null; then
+    printf '  %s public tables=%s\n' "${bancodb}" "$(tr -d '[:space:]' </tmp/banco_table_count)"
+  else
+    printf '  %s public tables=unknown\n' "${bancodb}"
   fi
 }
 

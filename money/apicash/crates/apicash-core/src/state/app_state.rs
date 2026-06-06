@@ -151,7 +151,8 @@ impl AppState {
         );
         state.importer = Arc::new(ImporterService::new_with_redis().await);
 
-        // Pulsar producer + consumer de importação async (opcional)
+        // Mensageria async (importer): Pulsar se APICASH_PULSAR__SERVICE_URL definido,
+        // NATS JetStream se NATS_URL definido. Mutuamente exclusivos.
         if let Ok(pulsar_url) = std::env::var("APICASH_PULSAR__SERVICE_URL") {
             if !pulsar_url.trim().is_empty() {
                 let cfg = PulsarConfig::from_env();
@@ -165,7 +166,6 @@ impl AppState {
                             }
                             Err(e) => tracing::warn!(error = %e, "importer async: falha ao criar producer"),
                         }
-                        // Consumer em background
                         let importer = state.importer.clone();
                         let repo = state.listing_repo.clone();
                         tokio::spawn(async move {
@@ -173,6 +173,21 @@ impl AppState {
                         });
                     }
                     Err(e) => tracing::warn!(error = %e, "importer async: falha ao conectar Pulsar"),
+                }
+            }
+        } else if let Ok(nats_url) = std::env::var("NATS_URL") {
+            if !nats_url.trim().is_empty() {
+                match EventProducer::new_nats(&nats_url, "apicash.events").await {
+                    Ok(producer) => {
+                        state.event_producer = Some(Arc::new(tokio::sync::Mutex::new(producer)));
+                        tracing::info!(%nats_url, "importer async: NATS producer pronto");
+                        let importer = state.importer.clone();
+                        let repo = state.listing_repo.clone();
+                        tokio::spawn(async move {
+                            crate::importer_worker::maybe_spawn_importer_consumer_nats(importer, repo).await;
+                        });
+                    }
+                    Err(e) => tracing::warn!(error = %e, "importer async: falha ao criar NATS producer"),
                 }
             }
         }

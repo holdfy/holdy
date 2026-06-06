@@ -1,5 +1,7 @@
 //! Publicação tipada de eventos de domínio.
+//! Suporta dois backends via enum dispatch: Pulsar (padrão) e NATS JetStream.
 
+use async_nats::jetstream;
 use pulsar::Producer;
 use pulsar::TokioExecutor;
 
@@ -12,12 +14,19 @@ use crate::models::{
     YieldDistributedOnChainEvent,
 };
 
+enum Inner {
+    Pulsar(Producer<TokioExecutor>),
+    Nats { context: jetstream::Context, subject: String },
+}
+
 /// Producer APICash com métodos por tipo de evento.
+/// Seleciona backend (Pulsar ou NATS) internamente — call sites não mudam.
 pub struct EventProducer {
-    producer: Producer<TokioExecutor>,
+    inner: Inner,
 }
 
 impl EventProducer {
+    /// Cria producer Pulsar (comportamento original).
     pub async fn new(client: &crate::utils::PulsarClient, topic: &str) -> Result<Self, EventError> {
         let producer = client
             .inner
@@ -26,14 +35,51 @@ impl EventProducer {
             .with_name("apicash-event-producer")
             .build()
             .await?;
-        tracing::info!(%topic, "event producer ready");
-        Ok(Self { producer })
+        tracing::info!(%topic, "event producer ready (pulsar)");
+        Ok(Self { inner: Inner::Pulsar(producer) })
+    }
+
+    /// Cria producer NATS JetStream.
+    /// Cria o stream `APICASH_EVENTS` se não existir.
+    pub async fn new_nats(nats_url: &str, subject: impl Into<String>) -> Result<Self, EventError> {
+        let client = async_nats::connect(nats_url)
+            .await
+            .map_err(|e| EventError::Nats(e.to_string()))?;
+        let context = jetstream::new(client);
+        let subject = subject.into();
+        context
+            .get_or_create_stream(jetstream::stream::Config {
+                name: "APICASH_EVENTS".to_string(),
+                subjects: vec!["apicash.events".to_string()],
+                retention: jetstream::stream::RetentionPolicy::WorkQueue,
+                max_age: std::time::Duration::from_secs(7 * 24 * 3600),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| EventError::Nats(e.to_string()))?;
+        tracing::info!(%nats_url, %subject, "event producer ready (nats)");
+        Ok(Self { inner: Inner::Nats { context, subject } })
     }
 
     async fn send(&mut self, event: ApicashEvent) -> Result<(), EventError> {
-        tracing::debug!(?event, "pulsar publish");
-        let fut = self.producer.send_non_blocking(event).await?;
-        fut.await?;
+        match &mut self.inner {
+            Inner::Pulsar(producer) => {
+                tracing::debug!(?event, "pulsar publish");
+                let fut = producer.send_non_blocking(event).await?;
+                fut.await?;
+            }
+            Inner::Nats { context, subject } => {
+                tracing::debug!(subject, "nats publish");
+                let payload = serde_json::to_vec(&event)
+                    .map_err(|e| EventError::Serialization(e.to_string()))?;
+                context
+                    .publish(subject.clone(), payload.into())
+                    .await
+                    .map_err(|e| EventError::Nats(e.to_string()))?
+                    .await
+                    .map_err(|e| EventError::Nats(e.to_string()))?;
+            }
+        }
         Ok(())
     }
 

@@ -101,3 +101,33 @@ pub async fn maybe_spawn_importer_consumer(
         }
     });
 }
+
+/// Spawna o consumer NATS JetStream em background. No-op se NATS_URL não estiver configurado.
+pub async fn maybe_spawn_importer_consumer_nats(
+    importer: Arc<ImporterService>,
+    repo: Option<Arc<ListingRepository>>,
+) {
+    let nats_url = match std::env::var("NATS_URL")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+    {
+        Some(u) => u,
+        None => {
+            tracing::debug!("importer_worker: NATS_URL não configurado, fila async desativada");
+            return;
+        }
+    };
+
+    let Some(repo) = repo else {
+        tracing::warn!("importer_worker: ListingRepository indisponível, fila NATS async desativada");
+        return;
+    };
+
+    tokio::spawn(async move {
+        let worker = Arc::new(ImporterWorker { importer, repo });
+        tracing::info!(%nats_url, "importer_worker: consumer NATS iniciado");
+        if let Err(e) = apicash_events::run_importer_consumer_nats(&nats_url, worker).await {
+            tracing::error!(error = %e, "importer_worker: consumer NATS encerrado com erro");
+        }
+    });
+}

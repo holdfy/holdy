@@ -3,7 +3,7 @@
 # Arranque das apps do workspace: APICash (core :3000, admin :3001, frontend :3002, whatsapp :3010),
 # site público Vite (holdy/site :5173), Gatebox Rust (PIX), opcionalmente backend_banco Go.
 # Gatebox: gatebox/gatebox-rust (symlink criado por setup-env.sh para ../gatebox se existir) ou GATEBOX_RUST_DIR.
-# Infra Docker: money/docker-compose.yml (postgres APICash + gatebox-postgres, Redis/Pulsar únicos).
+# Infra Docker: money/docker-compose.yml (Postgres único + Redis/Pulsar partilhados).
 #
 # Integração WhatsApp (B) → apicash-core → âncora → Gatebox PIX EMV:
 #   · APICash: GATEBOX_BASE_URL, APICASH_GATEBOX_ENABLED; gateways PIX (Sulcred/etc.) só no Gatebox — ver gatebox-rust + money/.env partilhado
@@ -119,7 +119,7 @@ SEVENTRUST_PORT="${SEVENTRUST_PORT:-7010}"
 GATEWAY_URL="${GATEWAY_URL:-http://${MONEY_LAN_HOST}:${GB_API_PORT}}"
 WEBHOOK_URL="${WEBHOOK_URL:-http://${MONEY_LAN_HOST}:${GB_API_PORT}}"
 
-# Compose money: um único Pulsar (serviço `pulsar`); gatebox-postgres à parte. scripts/start-infra.sh só se UNIFIED_SKIP_GATEBOX_INFRA=0.
+# Compose money: Postgres único (5432); Pulsar e Redis partilhados. scripts/start-infra.sh só se UNIFIED_SKIP_GATEBOX_INFRA=0.
 UNIFIED_SKIP_GATEBOX_INFRA="${UNIFIED_SKIP_GATEBOX_INFRA:-1}"
 
 log() { printf '[money/runapp] %s\n' "$*" >&2; }
@@ -845,7 +845,7 @@ gb_maybe_start_infra_gatebox() {
   scripts="${root}/scripts/start-infra.sh"
   truthy "${UNIFIED_SKIP_GATEBOX_INFRA:-1}" && return 0
   [[ -x "${scripts}" ]] || [[ -f "${scripts}" ]] || return 0
-  log "UNIFIED_SKIP_GATEBOX_INFRA=0 — executing ${scripts} (compose money: Postgres Gatebox + Pulsar único)"
+  log "UNIFIED_SKIP_GATEBOX_INFRA=0 — executing ${scripts} (compose money: Postgres único + Pulsar)"
   (cd "${root}" && bash "${scripts}") || warn "start-infra Gatebox terminou com erro (ignorando se já há containers)"
 }
 
@@ -934,9 +934,9 @@ gb_start_all() {
     export MONEY_LAN_HOST="${MONEY_LAN_HOST:-192.168.0.10}"
     local gb_p="${GB_API_PORT:-8081}"
     local gbm="${GB_METRICS_PORT:-2112}"
-    local guser="${GATEBOX_POSTGRES_USER:-postgres}"
-    local gpw="${GATEBOX_POSTGRES_PASSWORD:-root}"
-    local gport="${GATEBOX_POSTGRES_PORT:-5433}"
+    local pguser="${POSTGRES_USER:-apicash}"
+    local pgpass="${POSTGRES_PASSWORD:-apicash}"
+    local pgport="${POSTGRES_PORT:-5432}"
     local gdb="${GATEBOX_POSTGRES_DB:-dubai-cash}"
     export PORT="${gb_p}"
     export METRICS_PORT="${gbm}"
@@ -946,7 +946,7 @@ gb_start_all() {
     else
       export PULSAR_URL="${PULSAR_URL:-pulsar://${MONEY_LAN_HOST}:${PULSAR_BROKER_PORT:-6650}}"
     fi
-    export POSTGRESQL_WRITE_URL="${POSTGRESQL_WRITE_URL:-postgres://${guser}:${gpw}@${MONEY_LAN_HOST}:${gport}/${gdb}?sslmode=disable}"
+    export POSTGRESQL_WRITE_URL="${POSTGRESQL_WRITE_URL:-postgres://${pguser}:${pgpass}@${MONEY_LAN_HOST}:${pgport}/${gdb}?sslmode=disable}"
     export POSTGRESQL_READ_URL="${POSTGRESQL_READ_URL:-${POSTGRESQL_WRITE_URL}}"
     export APICASH_WHATSAPP_URL="${APICASH_WHATSAPP_URL:-http://${MONEY_LAN_HOST}:3010}"
     export APICASH_API_KEY="${APICASH_API_KEY:-}"

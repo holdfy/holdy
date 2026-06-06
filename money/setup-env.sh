@@ -24,6 +24,20 @@ if grep -q '^GATEBOX_CUSTOMER_NAME="APICash Platform"$' "${MONEY}/.env" 2>/dev/n
   echo "==> Atualizado GATEBOX_CUSTOMER_NAME para HoldFy Platform."
 fi
 
+# Postgres Gatebox unificado no serviço `postgres` (porta 5432, user POSTGRES_*).
+if grep -qE '5433/dubai-cash|GATEBOX_POSTGRES_PORT=5433' "${MONEY}/.env" 2>/dev/null; then
+  sed -i '/^GATEBOX_POSTGRES_PORT=/d; /^GATEBOX_POSTGRES_USER=/d; /^GATEBOX_POSTGRES_PASSWORD=/d; /^# GATEBOX_DB_HOST_MOUNT=/d' "${MONEY}/.env"
+  sed -i 's|^# Compose money: gatebox-postgres.*|# Compose money: Postgres único (5432). Database Gatebox: dubai-cash.|' "${MONEY}/.env"
+  lan_host="$(grep -E '^MONEY_LAN_HOST=' "${MONEY}/.env" 2>/dev/null | head -1 | cut -d= -f2- || true)"
+  pguser="$(grep -E '^POSTGRES_USER=' "${MONEY}/.env" 2>/dev/null | head -1 | cut -d= -f2- || echo apicash)"
+  pgpass="$(grep -E '^POSTGRES_PASSWORD=' "${MONEY}/.env" 2>/dev/null | head -1 | cut -d= -f2- || echo apicash)"
+  pgport="$(grep -E '^POSTGRES_PORT=' "${MONEY}/.env" 2>/dev/null | head -1 | cut -d= -f2- || echo 5432)"
+  [[ -z "${lan_host}" ]] && lan_host="127.0.0.1"
+  sed -i "s|^POSTGRESQL_WRITE_URL=.*|POSTGRESQL_WRITE_URL=postgres://${pguser}:${pgpass}@${lan_host}:${pgport}/dubai-cash?sslmode=disable|" "${MONEY}/.env"
+  sed -i "s|^POSTGRESQL_READ_URL=.*|POSTGRESQL_READ_URL=postgres://${pguser}:${pgpass}@${lan_host}:${pgport}/dubai-cash?sslmode=disable|" "${MONEY}/.env"
+  echo "==> Atualizado Gatebox DB para Postgres único (${lan_host}:${pgport}/dubai-cash)."
+fi
+
 # Um único .env em money/; symlinks para crates que leem só no CWD.
 ln -sfn "${MONEY}/.env" "${MONEY}/apicash/.env"
 

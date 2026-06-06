@@ -21,7 +21,7 @@ Monorepo with four main areas:
 holdy/
 ├── money/                    # Orchestration: shared .env, Docker, scripts
 │   ├── apicash/              # Rust workspace — 13 crates + Soroban contracts
-│   ├── docker-compose.yml    # Postgres (APICash :5432, Gatebox :5433), Redis, Pulsar
+│   ├── docker-compose.yml    # Postgres único (:5432), Redis, Pulsar
 │   ├── setup-env.sh          # Bootstrap: creates .env, symlinks, starts infra
 │   ├── runinfra.sh           # Docker lifecycle + SQLx migrations
 │   └── runapp.sh             # Starts/stops host processes (APICash, Gatebox, Banco)
@@ -112,7 +112,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 ## Gatebox business rules (gatebox-rust)
 
-Gatebox is a PIX gateway with its own Postgres (port 5433). Key invariants:
+Gatebox is a PIX gateway using the shared Postgres instance (database `dubai-cash` on port 5432). Key invariants:
 
 - **Idempotency**: same `external_id` + `account_id` + `amount` + same calendar day → rejected as duplicate
 - **Balance**: `SUM(CREDIT - DEBIT)` where `status_transaction_id IN (3=AWAITING, 4=COMPLETED)` minus `sec_med` blocked amounts

@@ -86,6 +86,8 @@ soroban-sdk = "23.5"
 
 # Messaging — Apache Pulsar (crate `pulsar`, upstream streamnative/pulsar-rs)
 pulsar = { version = "6.7", default-features = false, features = ["tokio-runtime", "auth-oauth2", "compression"] }
+# Messaging — NATS JetStream (backend alternativo ao Pulsar, ~50 MB RAM vs 2 GB)
+async-nats = "0.38"
 # Transitive via pulsar / whatsapp-cloud-api (native-tls). Vendored avoids libssl-dev + pkg-config on dev hosts.
 openssl = { version = "0.10", features = ["vendored"] }
 
