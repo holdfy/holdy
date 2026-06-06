@@ -6,6 +6,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use tokio::sync::RwLock;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct TxRecord {
     pub id: String,

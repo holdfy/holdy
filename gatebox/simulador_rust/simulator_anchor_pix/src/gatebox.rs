@@ -9,8 +9,6 @@ use tracing::warn;
 #[serde(rename_all = "camelCase")]
 struct GbQrResponse {
     qr_code: Option<String>,
-    #[serde(default)]
-    status_code: i32,
 }
 
 /// Chama `POST {gatebox_base}/api/v1/pix/qrcode` e retorna o payload EMV.
