@@ -154,3 +154,8 @@ Stellar amounts use 7 decimal places (e.g. `5000000` = 0.5 BRLx).
 - `**/.runapp/` (PIDs, logs)
 - `**/target/`, Flutter build artifacts (`build/`, `.dart_tool/`)
 - `*.tar.gz`, `*.pem`, `*.key`
+
+
+## Manter fluxos atualizados
+
+- `site e whatsapp` toda vez que atualizar o fluxo do whatsapp deve-se atualizar o fluxo site. o site esta multilangue e os 3 idiomas devem serem atualizados tambem.
