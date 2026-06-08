@@ -12,7 +12,8 @@ use super::traits::{
     GatewayHttpService, SendPixKeyResponse,
 };
 
-/// Gateway name for cache key (e.g. "sulcred", "seventrust").
+/// Gateway name for cache key (e.g. "blindpay", "sulcred", "seventrust").
+pub fn gateway_name_blindpay() -> &'static str { "blindpay" }
 pub fn gateway_name_sulcred() -> &'static str { "sulcred" }
 pub fn gateway_name_seventrust() -> &'static str { "seventrust" }
 pub fn gateway_name_next() -> &'static str { "next" }

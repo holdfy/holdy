@@ -377,6 +377,7 @@ impl App {
         let messaging_backend = std::env::var("MESSAGING_BACKEND")
             .unwrap_or_else(|_| "nats".to_string())
             .to_lowercase();
+        let has_blindpay = std::env::var("PIX_GATEWAY_BLINDPAY").is_ok();
         let has_sulcred = std::env::var("PIX_GATEWAY_SULCRED").is_ok();
         let sulcred_client_id = std::env::var("SULCRED_CLIENT_ID").unwrap_or_default();
         let sulcred_client_secret = std::env::var("SULCRED_CLIENT_SECRET").unwrap_or_default();
@@ -391,8 +392,10 @@ impl App {
             Arc::new(gatebox_rust::core::gateway_failover::GatewayRecorderImpl::new(write_pool.clone()));
         let gateway_selector: Arc<dyn gatebox_rust::core::gateway_failover::GatewaySelector> =
             Arc::new(gatebox_rust::core::gateway_failover::GatewaySelectorImpl::new(write_pool.clone()));
-        // Prefer SevenTrust > Next > Sulcred
-        let (gateway_name, has_gateway) = if has_seventrust {
+        // Prefer BlindPay > SevenTrust > Next > Sulcred
+        let (gateway_name, has_gateway) = if has_blindpay {
+            ("blindpay".to_string(), true)
+        } else if has_seventrust {
             ("seventrust".to_string(), true)
         } else if has_next {
             ("next".to_string(), true)
@@ -425,7 +428,10 @@ impl App {
             if producer_pool.start().await.is_err() {
                 tracing::warn!("RabbitMQ ProducerPool failed to start");
                 let fallback = if has_gateway {
-                    let (gw, cid, csec) = if has_seventrust {
+                    let (gw, cid, csec) = if has_blindpay {
+                        (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                         String::new(), String::new())
+                    } else if has_seventrust {
                         (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
                          seventrust_client_id, seventrust_client_secret)
                     } else if has_next {
@@ -456,7 +462,10 @@ impl App {
                     default_partners_id,
                 ));
                 let handler: Arc<dyn gatebox_rust::core::messaging::MessageHandler> = if has_gateway {
-                    let (gw, cid, csec, gw_name) = if has_seventrust {
+                    let (gw, cid, csec, gw_name) = if has_blindpay {
+                        (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                         String::new(), String::new(), "blindpay".to_string())
+                    } else if has_seventrust {
                         (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
                          seventrust_client_id.clone(), seventrust_client_secret.clone(), "seventrust".to_string())
                     } else if has_next {
@@ -502,7 +511,10 @@ impl App {
                 if producer_pool.start().await.is_err() {
                     tracing::warn!("Pulsar ProducerPool failed to start");
                     let fallback = if has_gateway {
-                        let (gw, cid, csec) = if has_seventrust {
+                        let (gw, cid, csec) = if has_blindpay {
+                            (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             String::new(), String::new())
+                        } else if has_seventrust {
                             (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
                              seventrust_client_id, seventrust_client_secret)
                         } else if has_next {
@@ -534,7 +546,10 @@ impl App {
                         default_partners_id,
                     ));
                     let handler: Arc<dyn gatebox_rust::core::messaging::MessageHandler> = if has_gateway {
-                    let (gw, cid, csec, gw_name) = if has_seventrust {
+                    let (gw, cid, csec, gw_name) = if has_blindpay {
+                        (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                         String::new(), String::new(), "blindpay".to_string())
+                    } else if has_seventrust {
                         (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
                          seventrust_client_id.clone(), seventrust_client_secret.clone(), "seventrust".to_string())
                     } else if has_next {
@@ -596,7 +611,10 @@ impl App {
                         default_partners_id,
                     ));
                     let handler: Arc<dyn gatebox_rust::core::messaging::MessageHandler> = if has_gateway {
-                        let (gw, cid, csec, gw_name) = if has_seventrust {
+                        let (gw, cid, csec, gw_name) = if has_blindpay {
+                            (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             String::new(), String::new(), "blindpay".to_string())
+                        } else if has_seventrust {
                             (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
                              seventrust_client_id.clone(), seventrust_client_secret.clone(), "seventrust".to_string())
                         } else if has_next {
@@ -633,7 +651,10 @@ impl App {
                 Err(e) => {
                     tracing::warn!("NATS publisher failed to start: {}, falling back to sync", e);
                     let sync_svc = if has_gateway {
-                        let (gw, cid, csec) = if has_seventrust {
+                        let (gw, cid, csec) = if has_blindpay {
+                            (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             String::new(), String::new())
+                        } else if has_seventrust {
                             (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
                              seventrust_client_id, seventrust_client_secret)
                         } else if has_next {
@@ -652,7 +673,10 @@ impl App {
             }
         } else {
             let sync_svc = if has_gateway {
-                let (gw, cid, csec) = if has_seventrust {
+                let (gw, cid, csec) = if has_blindpay {
+                    (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                     String::new(), String::new())
+                } else if has_seventrust {
                     (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
                      seventrust_client_id, seventrust_client_secret)
                 } else if has_next {
