@@ -16,7 +16,7 @@ if [[ -z "${ROOT}" ]] && [[ -f "${MONEY}/.env" ]]; then
 fi
 
 GB_PORT="${GB_API_PORT:-8081}"
-H="${MONEY_LAN_HOST:-192.168.86.64}"
+H="${MONEY_LAN_HOST:-10.20.3.75}"
 BASE="${GATEBOX_BASE_URL:-http://${H}:${GB_PORT}}"
 
 body_json() {

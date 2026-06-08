@@ -618,17 +618,14 @@ runapp_open_startup_browsers() {
   local qr_url="" site_url=""
   ac_load_env
 
+  # Site HoldFy
   if truthy "${RUNAPP_AUTO_SITE:-1}" && site_present && truthy "${RUNAPP_OPEN_SITE_BROWSER:-1}"; then
     site_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
-    if command -v curl >/dev/null 2>&1 && ! curl -fsS --max-time 1 "${site_url}" >/dev/null 2>&1; then
-      warn "site ainda não responde — a subir antes de abrir o browser"
-      RUNAPP_DEFER_BROWSER=1 site_start_all || warn "site não subiu — ver ${SITE_LOG}/vite.log"
-    fi
     if command -v curl >/dev/null 2>&1; then
       local waited=0
       while ! curl -fsS --max-time 1 "${site_url}" >/dev/null 2>&1; do
         if [ "${waited}" -ge 90 ]; then
-          warn "site não respondeu — abri só o QR WhatsApp"
+          warn "site não respondeu — não abri o browser do site"
           site_url=""
           break
         fi
@@ -638,42 +635,44 @@ runapp_open_startup_browsers() {
     fi
   fi
 
+  # QR do WhatsApp (só se ainda não pareado)
   qr_url="$(ac_whatsapp_qr_file_url 2>/dev/null)" || qr_url=""
 
+  # Site + QR (1 aba cada)
   if [ -n "${qr_url}" ] || [ -n "${site_url}" ]; then
-    log "abrindo QR WhatsApp + site no browser (2 abas)"
+    log "abrindo QR WhatsApp + site no browser"
     runapp_open_two_browser_tabs "${qr_url}" "${site_url}"
   fi
 
+  # holdfy-admin — 1 aba (raiz do dashboard)
   if holdfy_admin_present; then
+    sleep 0.4
     local admin_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
-    runapp_open_in_browser "holdfy-admin (dashboard)" "${admin_url}" || true
-    sleep 0.4
-    runapp_open_in_browser "holdfy-admin (pedidos)" "${admin_url}orders" || true
-    sleep 0.4
-    runapp_open_in_browser "holdfy-admin (Stellar/Soroban)" "${admin_url}stellar" || true
+    runapp_open_in_browser "holdfy-admin" "${admin_url}" || true
   fi
+
+  # front-gatebox — 1 aba (login)
   if front_gatebox_present; then
     sleep 0.4
     local fg_base="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${FRONT_GATEBOX_PORT}"
-    log "abrindo GateBox portal"
-    runapp_open_in_browser "GateBox admin" "${fg_base}/#/admin/login" || true
-    sleep 0.4
-    runapp_open_in_browser "GateBox transações HoldFy" "${fg_base}/#/admin/holdfy/transactions" || true
+    runapp_open_in_browser "GateBox" "${fg_base}/#/" || true
   fi
+
+  # Rastreio — 1 aba
   if rastreio_present; then
     sleep 0.4
     local rastreio_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${RASTREIO_PORT}/"
-    runapp_open_in_browser "Rastreio (logistica-holdfy)" "${rastreio_url}trackers" || true
+    runapp_open_in_browser "Rastreio" "${rastreio_url}trackers" || true
   fi
 
+  # dev-dashboard.html — referência dev com status de todos os serviços
   local dev_dash="${MONEY}/../dev-dashboard.html"
   if [ -f "${dev_dash}" ]; then
     sleep 0.4
     local dash_dir
     dash_dir="$(cd "$(dirname "${dev_dash}")" && pwd)"
     local dash_port="${DEV_DASH_PORT:-9090}"
-    # Serve via HTTP so browser CORS allows the health-check fetch() calls.
+    # Serve via HTTP para que o fetch() de health-check funcione (CORS)
     if ! fuser "${dash_port}/tcp" >/dev/null 2>&1; then
       mkdir -p "${MONEY}/.runapp/dev-dash"
       python3 -m http.server "${dash_port}" --directory "${dash_dir}" \

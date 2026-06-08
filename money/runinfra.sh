@@ -29,7 +29,7 @@ load_env() {
   [ -f "${MONEY}/.env" ] && . "${MONEY}/.env"
   set +a
 
-  export MONEY_LAN_HOST="${MONEY_LAN_HOST:-192.168.86.64}"
+  export MONEY_LAN_HOST="${MONEY_LAN_HOST:-10.20.3.75}"
   export POSTGRES_USER="${POSTGRES_USER:-apicash}"
   export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-apicash}"
   export POSTGRES_DB="${POSTGRES_DB:-apicash}"
@@ -131,7 +131,7 @@ gatebox_pg_url() {
   pw="${POSTGRES_PASSWORD:-apicash}"
   port="${POSTGRES_PORT:-5432}"
   db="${GATEBOX_POSTGRES_DB:-dubai-cash}"
-  printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable\n' "${u}" "${pw}" "${MONEY_LAN_HOST:-192.168.86.64}" "${port}" "${db}"
+  printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable\n' "${u}" "${pw}" "${MONEY_LAN_HOST:-10.20.3.75}" "${port}" "${db}"
 }
 
 gatebox_rust_root_with_cargo() {

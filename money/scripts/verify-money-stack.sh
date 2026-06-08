@@ -6,7 +6,7 @@ MONEY="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
 [[ -f "${MONEY}/.env" ]] && set -a && . "${MONEY}/.env" && set +a
 
-H="${MONEY_LAN_HOST:-192.168.86.64}"
+H="${MONEY_LAN_HOST:-10.20.3.75}"
 CORE_PORT="${APICASH_HTTP_PORT:-${API_PORT:-3000}}"
 GB_PORT="${GB_API_PORT:-8081}"
 GB_URL="${GATEBOX_BASE_URL:-http://${H}:${GB_PORT}}"
