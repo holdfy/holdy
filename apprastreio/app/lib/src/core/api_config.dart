@@ -22,7 +22,7 @@ class ApiConfig {
 
   static const String defaultLanHost = String.fromEnvironment(
     'LOGISTICA_API_LAN_HOST',
-    defaultValue: '192.168.86.237',
+    defaultValue: '10.20.3.75',
   );
 
   static void setRuntimeEndpoint({String? host, int? port}) {

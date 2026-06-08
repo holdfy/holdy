@@ -2218,7 +2218,7 @@ impl MessageHandler {
                     // Confirmação explícita → release + off-ramp
                     self.handle_buyer_confirm_receipt(&peer, order_id, &amount, session).await;
                 } else if order_flow::is_confirm_receipt_intent(body) {
-                    // Primeiro toque — pede confirmação explícita
+                    // Primeiro toque ("recebi") — pede confirmação explícita com botões
                     session.state = OrderFlowState::AwaitingConfirmation {
                         order_id,
                         amount: amount.clone(),
@@ -2227,12 +2227,13 @@ impl MessageHandler {
                     session.active_order_id = Some(order_id);
                     self.sessions.update(&peer, session).await;
                     self.outbound
-                        .send_text(&peer, &message_templates::ask_buyer_confirm_receipt(&order_id, &amount))
-                        .await;
-                    self.outbound
-                        .send_interactive_confirm_receipt(&peer, &message_templates::ask_buyer_confirm_receipt(&order_id, &amount))
+                        .send_interactive_confirm_receipt(
+                            &peer,
+                            &message_templates::ask_buyer_confirm_receipt(&order_id, &amount),
+                        )
                         .await;
                 } else {
+                    // Qualquer outra mensagem: lembra o comprador do que precisa fazer, com botões.
                     session.state = OrderFlowState::AwaitingConfirmation {
                         order_id,
                         amount: amount.clone(),
@@ -2241,7 +2242,10 @@ impl MessageHandler {
                     session.active_order_id = Some(order_id);
                     self.sessions.update(&peer, session).await;
                     self.outbound
-                        .send_text(&peer, &message_templates::ask_buyer_confirm_receipt(&order_id, &amount))
+                        .send_interactive_confirm_receipt(
+                            &peer,
+                            &message_templates::ask_buyer_confirm_receipt(&order_id, &amount),
+                        )
                         .await;
                 }
             }

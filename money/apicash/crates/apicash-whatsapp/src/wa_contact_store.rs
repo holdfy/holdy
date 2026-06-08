@@ -93,13 +93,21 @@ pub async fn save_contact(pool: &PgPool, c: &WaContact) {
     .await;
 }
 
-/// Grava ou atualiza só a chave PIX (sem tocar nos outros campos).
+/// Grava ou atualiza só a chave PIX.
+/// Usa UPSERT para garantir que a linha seja criada mesmo que o vendedor
+/// ainda não tenha passado pelo fluxo de documento (sem linha prévia em wa_contacts).
 pub async fn save_pix_key(pool: &PgPool, peer_key: &str, pix_key: &str) {
+    let user_id = crate::session::user_id_for_peer_key(peer_key);
     let _ = sqlx::query(
-        "UPDATE wa_contacts SET pix_key = $1, updated_at = NOW() WHERE peer_key = $2",
+        "INSERT INTO wa_contacts (peer_key, user_id, pix_key)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (peer_key) DO UPDATE SET
+             pix_key    = EXCLUDED.pix_key,
+             updated_at = NOW()",
     )
-    .bind(pix_key)
     .bind(peer_key)
+    .bind(user_id)
+    .bind(pix_key)
     .execute(pool)
     .await;
 }
@@ -122,7 +130,7 @@ pub async fn load_pix_key(pool: &PgPool, peer_key: &str) -> Option<String> {
 pub async fn load_contact(pool: &PgPool, peer_key: &str) -> Option<WaContact> {
     use sqlx::Row;
     let row = sqlx::query(
-        "SELECT peer_key, user_id, name, document, document_type, situation
+        "SELECT peer_key, user_id, name, document, document_type, situation, pix_key
          FROM wa_contacts WHERE peer_key = $1",
     )
     .bind(peer_key)

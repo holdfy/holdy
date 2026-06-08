@@ -444,6 +444,40 @@ pub fn ask_buyer_confirm_receipt(order_id: &uuid::Uuid, amount: &str) -> String 
     )
 }
 
+/// Enviado ao comprador pelo TrackingMonitor quando o rastreio indica ENTREGUE.
+/// Usado como corpo de send_interactive_confirm_receipt — o comprador recebe botões
+/// "Confirmar recebimento" e "Abrir disputa" junto com este texto.
+pub fn tracking_delivered_ask_confirm(
+    order_id: &uuid::Uuid,
+    amount_opt: Option<&str>,
+    code: &str,
+) -> String {
+    let order_short = format!("{:.8}", order_id);
+    let header = if let Some(v) = amount_opt.filter(|v| !v.is_empty()) {
+        format!("🎉 *Seu pedido chegou!*\nRastreio `{code}` · Pedido #{order_short}\n💰 Valor protegido: *R$ {v}*")
+    } else {
+        format!("🎉 *Seu pedido chegou!*\nRastreio `{code}` · Pedido #{order_short}")
+    };
+    format!(
+        "{header}\n\n\
+         Está tudo certo com o produto?\n\n\
+         ✅ Se sim — confirme o recebimento e o pagamento será liberado ao vendedor.\n\
+         ⚠️ Se houver algum problema (produto errado, danificado ou não recebido) — \
+         use *Abrir disputa* antes de confirmar.\n\n\
+         _O dinheiro fica protegido até a sua confirmação._"
+    )
+}
+
+/// Enviado ao vendedor quando o rastreio confirma entrega e o sistema aguarda confirmação do comprador.
+pub fn tracking_delivered_seller_await(code: &str, order_short: &str) -> String {
+    format!(
+        "✅ *Pedido entregue — aguardando confirmação*\n\
+         Pedido #{order_short} · Rastreio `{code}`\n\n\
+         O produto chegou ao comprador. Ele recebeu uma mensagem para confirmar o recebimento ou abrir uma disputa.\n\
+         O pagamento será liberado assim que ele confirmar."
+    )
+}
+
 pub fn buyer_receipt_confirmed(amount: &str) -> String {
     format!("✅ Recebimento confirmado. Liberando *R$ {amount}* ao vendedor (até ~1 min).")
 }

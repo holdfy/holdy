@@ -12,6 +12,7 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::outbound::Outbound;
+use crate::utils::message_templates;
 
 pub struct TrackingMonitor {
     pool: PgPool,
@@ -97,27 +98,67 @@ impl TrackingMonitor {
                     .await?;
 
                     let label = status_label(&info.current_status);
-                    let mut msg = format!(
-                        "📦 *Atualização do seu pedido* (#{:.8})\n\nRastreio: `{}`\nStatus: *{}*",
-                        order_id, code, label
-                    );
-                    if !description.is_empty() {
-                        msg.push_str(&format!("\n_{}_", description));
-                    }
-
-                    // Comprador recebe todo e qualquer status.
-                    self.outbound.send_text(&buyer_peer, &msg).await;
-
-                    // Vendedor recebe apenas status críticos que exigem ação ou atenção.
-                    let notify_seller = matches!(
+                    let is_delivered = matches!(
                         info.current_status,
                         apicash_logistics::TrackingStatus::Delivered
-                            | apicash_logistics::TrackingStatus::ReturnInProgress
-                            | apicash_logistics::TrackingStatus::Returned
-                            | apicash_logistics::TrackingStatus::Exception
                     );
-                    if notify_seller && !seller_peer.is_empty() {
-                        self.outbound.send_text(&seller_peer, &msg).await;
+
+                    if is_delivered {
+                        // Busca o valor do pedido para exibir na mensagem de confirmação.
+                        let amount_opt: Option<String> = sqlx::query_scalar::<_, String>(
+                            "SELECT ROUND(amount, 2)::text FROM orders WHERE id = $1",
+                        )
+                        .bind(order_id)
+                        .fetch_optional(&self.pool)
+                        .await
+                        .ok()
+                        .flatten();
+
+                        // Comprador recebe mensagem interativa com botões Confirmar / Disputa.
+                        let confirm_body = message_templates::tracking_delivered_ask_confirm(
+                            &order_id,
+                            amount_opt.as_deref(),
+                            &code,
+                        );
+                        self.outbound
+                            .send_interactive_confirm_receipt(&buyer_peer, &confirm_body)
+                            .await;
+
+                        // Vendedor recebe aviso de entrega com contexto do próximo passo.
+                        if !seller_peer.is_empty() {
+                            let order_short = format!("{:.8}", order_id);
+                            self.outbound
+                                .send_text(
+                                    &seller_peer,
+                                    &message_templates::tracking_delivered_seller_await(
+                                        &code,
+                                        &order_short,
+                                    ),
+                                )
+                                .await;
+                        }
+                    } else {
+                        // Status não-entregue: atualização genérica ao comprador.
+                        let mut msg = format!(
+                            "📦 *Atualização do seu pedido* (#{:.8})\n\nRastreio: `{}`\nStatus: *{}*",
+                            order_id, code, label
+                        );
+                        if !description.is_empty() {
+                            msg.push_str(&format!("\n_{}_", description));
+                        }
+
+                        self.outbound.send_text(&buyer_peer, &msg).await;
+
+                        // Vendedor recebe apenas retorno, devolução ou problema.
+                        let notify_seller = matches!(
+                            info.current_status,
+                            apicash_logistics::TrackingStatus::ReturnInProgress
+                                | apicash_logistics::TrackingStatus::Returned
+                                | apicash_logistics::TrackingStatus::Exception
+                        );
+                        if notify_seller && !seller_peer.is_empty() {
+                            self.outbound.send_text(&seller_peer, &msg).await;
+                        }
                     }
 
                     info!(
@@ -125,7 +166,7 @@ impl TrackingMonitor {
                         code,
                         old = %last_status,
                         new = %new_status,
-                        seller_notified = notify_seller,
+                        delivered = is_delivered,
                         "tracking_monitor: notificado"
                     );
                 }
