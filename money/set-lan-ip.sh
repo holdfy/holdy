@@ -56,14 +56,26 @@ update_env_file() {
   fi
 
   local changed=0
+  local old_lan=""
 
-  # MONEY_LAN_HOST (se existir)
+  # MONEY_LAN_HOST — lê o valor ANTIGO antes de sobrescrever
   if grep -q '^MONEY_LAN_HOST=' "${env_file}"; then
-    local old_lan
-    old_lan="$(grep '^MONEY_LAN_HOST=' "${env_file}" | cut -d= -f2-)"
+    old_lan="$(grep '^MONEY_LAN_HOST=' "${env_file}" | head -1 | cut -d= -f2-)"
     if [[ "${old_lan}" != "${LAN_IP}" ]]; then
       sed -i "s|^MONEY_LAN_HOST=.*|MONEY_LAN_HOST=${LAN_IP}|" "${env_file}"
       echo "  ${label}: MONEY_LAN_HOST ${old_lan} → ${LAN_IP}"
+      changed=1
+    fi
+  fi
+
+  # Substitui o IP antigo do MONEY_LAN_HOST em TODAS as linhas que não são comentário.
+  # Isso cobre a troca de máquina/rede: se o IP era 10.20.3.75 e agora é 192.168.1.10,
+  # qualquer URL que ainda usasse o IP antigo é corrigida aqui.
+  if [[ -n "${old_lan}" && "${old_lan}" != "${LAN_IP}" \
+        && "${old_lan}" != "127.0.0.1" && "${old_lan}" != "localhost" ]]; then
+    if grep -v '^#' "${env_file}" | grep -qF "${old_lan}"; then
+      sed -i "/^[^#]/s|${old_lan}|${LAN_IP}|g" "${env_file}"
+      echo "  ${label}: ${old_lan} → ${LAN_IP} (IP anterior encontrado nas URLs)"
       changed=1
     fi
   fi
@@ -79,13 +91,23 @@ update_env_file() {
     changed=1
   fi
 
-  # localhost (só em URLs, preserva postgres://user:pass@localhost por ser server-side aceitável)
-  # Aqui substituímos mesmo em postgres:// para consistência com dispositivos externos
+  # localhost
   if grep -v '^#' "${env_file}" | grep -qE "(${url_pattern//\\|/|})localhost"; then
     sed -i "/^[^#]/s|://localhost|://${LAN_IP}|g" "${env_file}"
     echo "  ${label}: localhost → ${LAN_IP} (URLs)"
     changed=1
   fi
+
+  # Substitui qualquer IP privado RFC 1918 restante nas linhas que não são comentário.
+  # Apanha IPs obsoletos de máquinas ou redes anteriores que não eram 127.0.0.1 nem o old_lan.
+  while IFS= read -r stale_ip; do
+    [[ "${stale_ip}" == "${LAN_IP}" ]] && continue
+    sed -i "/^[^#]/s|${stale_ip}|${LAN_IP}|g" "${env_file}"
+    echo "  ${label}: ${stale_ip} → ${LAN_IP} (IP privado obsoleto)"
+    changed=1
+  done < <(grep -v '^#' "${env_file}" \
+    | grep -oE '\b(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3})\b' \
+    | sort -u)
 
   if [[ ${changed} -eq 0 ]]; then
     echo "  ${label}: já actualizado (sem alterações)"

@@ -13,6 +13,65 @@ else
   echo "==> ${MONEY}/.env já existe."
 fi
 
+# Sincroniza todas as URLs de serviços locais com MONEY_LAN_HOST.
+# Resolve o problema de IP hardcoded quando se muda de máquina ou de rede:
+# basta atualizar MONEY_LAN_HOST no .env e reexecutar este script.
+_sync_service_ips() {
+  python3 - "${MONEY}/.env" <<'PYEOF'
+import sys, re
+
+envfile = sys.argv[1]
+ip_re = re.compile(r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b')
+
+with open(envfile) as f:
+    lines = f.readlines()
+
+host = None
+for line in lines:
+    if line.startswith('MONEY_LAN_HOST='):
+        host = line.split('=', 1)[1].strip()
+        break
+
+if not host:
+    sys.exit(0)
+
+# Variáveis cujo IP deve seguir MONEY_LAN_HOST (serviços Docker locais)
+SYNC_VARS = {
+    'DATABASE_URL', 'REDIS_URL', 'NATS_URL',
+    'PULSAR_URL', 'PULSAR_SERVICE_URL', 'PULSAR_ADMIN_URL',
+    'GATEBOX_BASE_URL', 'APICASH_CORE_URL',
+    'PUBLIC_APP_URL', 'ADMIN_API_URL', 'APICASH_ADMIN_API_URL',
+    'APICASH_HTTP_BASE', 'APICASH_ADMIN_HTTP_BASE',
+    'BANCO_DATABASE_URL', 'BANCO_WEBHOOK_URL',
+    'POSTGRESQL_WRITE_URL', 'POSTGRESQL_READ_URL',
+    'SULCRED_OUT_URL', 'SCRAPER_URL',
+    'APICASH_TRACKING_SIMULATOR_URL', 'LOGISTICA_WHATSAPP_NOTIFY_URL',
+}
+
+changed = []
+out = []
+for line in lines:
+    key = line.split('=', 1)[0].strip()
+    if key in SYNC_VARS and not line.startswith('#'):
+        m = ip_re.search(line)
+        if m and m.group(1) != host:
+            old_ip = m.group(1)
+            new_line = line.replace(old_ip, host)
+            out.append(new_line)
+            changed.append(f"  {key}: {old_ip} → {host}")
+            continue
+    out.append(line)
+
+if changed:
+    with open(envfile, 'w') as f:
+        f.writelines(out)
+    print(f"==> IPs de serviços locais sincronizados com MONEY_LAN_HOST={host}:")
+    for c in changed:
+        print(c)
+PYEOF
+}
+_sync_service_ips
+
 # Templates antigos: `KEY=valor com espaços` sem aspas faz o bash tratar a 2.ª palavra como comando ao fazer source.
 if grep -q '^GATEBOX_CUSTOMER_NAME=APICash Platform$' "${MONEY}/.env" 2>/dev/null; then
   sed -i 's/^GATEBOX_CUSTOMER_NAME=APICash Platform$/GATEBOX_CUSTOMER_NAME="HoldFy Platform"/' "${MONEY}/.env"

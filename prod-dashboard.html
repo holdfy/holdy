@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Holdfy — produção (SaveInCloud)</title>
+  <style>
+    :root {
+      --paper: #f6f3ec;
+      --ink: #1a1814;
+      --muted: #5c564c;
+      --line: #d4cfc4;
+      --accent: #9a3412;
+      --accent-soft: #fef3e8;
+      --code-bg: #ebe6dc;
+      --stellar: #3b1d8a;
+      --stellar-soft: #f0ecff;
+      --prod: #166534;
+      --prod-soft: #f0fdf4;
+      --warn: #92400e;
+      --warn-soft: #fffbeb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.55 "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.75rem 4rem; }
+    header {
+      border-bottom: 3px solid var(--prod);
+      padding-bottom: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      margin: 0 0 0.35rem;
+      font: 600 1.85rem/1.2 Georgia, "Times New Roman", serif;
+      letter-spacing: -0.02em;
+    }
+    .prod-badge {
+      display: inline-block;
+      background: var(--prod);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.55rem;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+    .meta { color: var(--muted); font-size: 0.9rem; }
+    h2 {
+      margin: 2.25rem 0 0.75rem;
+      font: 600 1.15rem/1.3 Georgia, serif;
+      color: var(--accent);
+      padding-left: 0.65rem;
+      border-left: 4px solid var(--accent);
+    }
+    h2.prod-h2 {
+      color: var(--prod);
+      border-left-color: var(--prod);
+    }
+    h3 {
+      margin: 1.25rem 0 0.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    p.lead { margin: 0 0 1rem; color: var(--muted); max-width: 72ch; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 1rem;
+      font-size: 0.92rem;
+      background: #fffefb;
+      box-shadow: 0 1px 0 var(--line);
+    }
+    th, td {
+      text-align: left;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th {
+      background: var(--accent-soft);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+    }
+    th.prod-th {
+      background: var(--prod-soft);
+      color: var(--prod);
+    }
+    tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
+    code {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.88em;
+      background: var(--code-bg);
+      padding: 0.1em 0.35em;
+      border-radius: 2px;
+      word-break: break-all;
+    }
+    code.copy {
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    code.copy:hover { background: #d8d0c0; border-color: var(--accent); }
+    a { color: var(--prod); }
+    .badge-pending {
+      display: inline-block;
+      background: var(--warn-soft);
+      border: 1px solid #fcd34d;
+      color: var(--warn);
+      font-size: 0.72rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 3px;
+    }
+    .badge-ok {
+      display: inline-block;
+      background: var(--prod-soft);
+      border: 1px solid #86efac;
+      color: var(--prod);
+      font-size: 0.72rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 3px;
+    }
+    .server-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    .server-card {
+      background: #fffefb;
+      border: 1px solid var(--line);
+      padding: 0.85rem 1rem;
+    }
+    .server-card strong {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .server-card span {
+      font-family: ui-monospace, monospace;
+      font-size: 1.05rem;
+    }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1a1814; color: #f6f3ec;
+      padding: 10px 18px; border-radius: 6px;
+      font-size: 13px;
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.2s ease;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── Health monitor ── */
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 0.6rem;
+      margin: 1rem 0 1.5rem;
+    }
+    .health-card {
+      background: #fffefb;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.65rem 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: border-color 0.2s;
+    }
+    .health-card.ok      { border-left: 4px solid #16a34a; }
+    .health-card.down    { border-left: 4px solid #dc2626; }
+    .health-card.check   { border-left: 4px solid #d97706; }
+    .health-card.pending { border-left: 4px solid #9ca3af; background: #f9fafb; }
+    .health-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .health-card.ok      .health-dot { background: #16a34a; }
+    .health-card.down    .health-dot { background: #dc2626; animation: pulse-red 1s infinite; }
+    .health-card.check   .health-dot { background: #d97706; }
+    .health-card.pending .health-dot { background: #9ca3af; }
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+    .health-info { flex: 1; min-width: 0; }
+    .health-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .health-status { font-size: 0.72rem; color: var(--muted); }
+    .health-link { font-size: 0.7rem; color: var(--prod); text-decoration: none; }
+    .health-link:hover { text-decoration: underline; }
+    #health-ts { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Holdfy <span class="prod-badge">PRODUÇÃO</span></h1>
+      <p class="meta">SaveInCloud · <code>holdfy-dev.sp1.br.saveincloud.net.br</code> · AlmaLinux 9.8 · 6 GB RAM · 9.5 GB disco · clique em <code>código</code> para copiar</p>
+    </header>
+
+    <h2 class="prod-h2">Estado dos serviços</h2>
+    <p id="health-ts">a verificar…</p>
+    <div class="health-grid" id="health-grid">
+      <!-- preenchido pelo JS -->
+    </div>
+
+    <h2 class="prod-h2">Servidor</h2>
+    <div class="server-grid">
+      <div class="server-card"><strong>Domínio</strong><span style="font-size:0.82rem">holdfy-dev.sp1.br.saveincloud.net.br</span></div>
+      <div class="server-card"><strong>SSH acesso</strong><span style="font-size:0.82rem">268389-38415@gate.paas… -p 3022</span></div>
+      <div class="server-card"><strong>OS</strong><span style="font-size:0.85rem">AlmaLinux 9.8</span></div>
+      <div class="server-card"><strong>Binários</strong><span style="font-size:0.85rem">~/holdy/bin/</span></div>
+    </div>
+
+    <h2>Credenciais por aplicação</h2>
+
+    <h3>apicash-core — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3000/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3000</a></code> <span class="badge-ok">UP</span></h3>
+    <table>
+      <thead><tr><th class="prod-th">Tipo</th><th class="prod-th">Utilizador / chave</th><th class="prod-th">Senha / header</th><th class="prod-th">Notas</th></tr></thead>
+      <tbody>
+        <tr><td>JWT login</td><td><code class="copy" onclick="copy(this)">admin</code></td><td><code class="copy" onclick="copy(this)">admin</code></td><td>papel admin · <code>POST /auth/login</code></td></tr>
+        <tr><td>JWT login</td><td><code class="copy" onclick="copy(this)">seller</code></td><td><code class="copy" onclick="copy(this)">seller</code></td><td>papel seller</td></tr>
+        <tr><td>JWT login</td><td><code class="copy" onclick="copy(this)">buyer</code></td><td><code class="copy" onclick="copy(this)">buyer</code></td><td>papel buyer</td></tr>
+        <tr><td>Service API Key</td><td>—</td><td><code class="copy" onclick="copy(this)">change-me-service-key</code></td><td><code>APICASH_API_KEY</code> · header <code>x-api-key</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>apicash-admin-backend — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3001/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3001</a></code> <span class="badge-ok">UP</span></h3>
+    <table>
+      <thead><tr><th class="prod-th">Header</th><th class="prod-th">Valor</th><th class="prod-th">Notas</th></tr></thead>
+      <tbody>
+        <tr><td><code>x-api-key</code></td><td><code class="copy" onclick="copy(this)">change-me-admin-key</code></td><td><code>APICASH_ADMIN_API_KEY</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>apicash-frontend (Leptos SSR) — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3002/" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3002</a></code></h3>
+    <table>
+      <thead><tr><th class="prod-th">Campo</th><th class="prod-th">Valor</th><th class="prod-th">Notas</th></tr></thead>
+      <tbody>
+        <tr><td>Admin API Key</td><td><code class="copy" onclick="copy(this)">change-me-admin-key</code></td><td>Mesmo <code>APICASH_ADMIN_API_KEY</code> · chama admin :3001</td></tr>
+      </tbody>
+    </table>
+
+    <h3>apicash-whatsapp — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3010/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3010</a></code> <span class="badge-ok">UP</span></h3>
+    <p class="lead">QR de pareamento: acesse via SSH e leia o PNG gerado em <code>~/holdy/pids/</code> ou <code>~/holdy/data/</code>. Para novo QR pare e reinicie o serviço.</p>
+    <table>
+      <thead><tr><th class="prod-th">Ação</th><th class="prod-th">Comando</th></tr></thead>
+      <tbody>
+        <tr><td>Ver QR (PNG)</td><td><code class="copy" onclick="copy(this)">ssh 268389-38415@gate.paas.saveincloud.net.br -p 3022 "ls ~/holdy/data/"</code></td></tr>
+        <tr><td>Reiniciar WA</td><td><code class="copy" onclick="copy(this)">ssh 268389-38415@gate.paas.saveincloud.net.br -p 3022 "kill \$(cat ~/holdy/pids/apicash-whatsapp.pid) && sleep 2 && ~/holdy/run.sh"</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Gatebox Rust (PIX) — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:8080</a></code> <span class="badge-ok">UP</span></h3>
+    <p class="lead">Modo health-only (sem Postgres). Adicione nó PostgreSQL no painel Jelastic para habilitar transações PIX completas.</p>
+    <table>
+      <thead><tr><th class="prod-th">Recurso</th><th class="prod-th">URL</th><th class="prod-th">Credenciais</th></tr></thead>
+      <tbody>
+        <tr><td>Health</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health" target="_blank"><code>http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health</code></a></td><td>—</td></tr>
+        <tr><td>API PIX</td><td><code>http://holdfy-dev.sp1.br.saveincloud.net.br:8080/api/v1/</code></td><td><code class="copy" onclick="copy(this)">sandbox-key</code> · header <code>x-api-key</code></td></tr>
+        <tr><td>Métricas</td><td><code>http://holdfy-dev.sp1.br.saveincloud.net.br:2112/metrics</code></td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h3>backend_banco (Go) — <code>http://holdfy-dev.sp1.br.saveincloud.net.br:8091</code> <span class="badge-pending">AGUARDANDO POSTGRES</span></h3>
+    <p class="lead">Precisa de nó PostgreSQL no Jelastic. Após adicionar, atualize <code>BANCO_DATABASE_URL</code> em <code>~/holdy/config/.env</code> e reinicie.</p>
+    <table>
+      <thead><tr><th class="prod-th">Componente</th><th class="prod-th">URL prod</th><th class="prod-th">Credenciais</th></tr></thead>
+      <tbody>
+        <tr><td>backend_banco API</td><td><code>http://holdfy-dev.sp1.br.saveincloud.net.br:8091</code></td><td><code>POST /auth/login</code> com email/senha de conta criada via <code>POST /accounts</code></td></tr>
+        <tr><td>JWT secret</td><td>—</td><td><code class="copy" onclick="copy(this)">change-me-banco-jwt</code> (<code>BANCO_JWT_SECRET</code>)</td></tr>
+        <tr><td>Gatebox API Key</td><td>—</td><td><code class="copy" onclick="copy(this)">sandbox-key</code> (<code>GATEBOX_API_KEY</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Frontends React — pendentes de build para produção</h2>
+    <p class="lead">Os apps React não são servidos em produção ainda. Precisam de <code>npm run build</code> + nginx no servidor ou hospedagem estática externa.</p>
+    <table>
+      <thead><tr><th class="prod-th">App</th><th class="prod-th">Porta dev</th><th class="prod-th">Status prod</th><th class="prod-th">API alvo</th></tr></thead>
+      <tbody>
+        <tr><td>holdfy-admin</td><td><code>:3020</code></td><td><span class="badge-pending">build pendente</span></td><td>apicash-admin-backend :3001</td></tr>
+        <tr><td>front-gatebox</td><td><code>:3030</code></td><td><span class="badge-pending">build pendente</span></td><td>gatebox-rust :8080</td></tr>
+        <tr><td>site HoldFy</td><td><code>:5173</code></td><td><span class="badge-pending">build pendente</span></td><td>apicash-core :3000</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Portas expostas na produção</h2>
+    <table>
+      <thead><tr><th class="prod-th">Porta</th><th class="prod-th">Serviço</th><th class="prod-th">URL externa</th></tr></thead>
+      <tbody>
+        <tr><td>3000</td><td>apicash-core</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3000/health" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:3000</a></td></tr>
+        <tr><td>3001</td><td>apicash-admin-backend</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3001/health" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:3001</a></td></tr>
+        <tr><td>3002</td><td>apicash-frontend (Leptos SSR)</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3002/" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:3002</a></td></tr>
+        <tr><td>3010</td><td>apicash-whatsapp</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3010/health" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:3010</a></td></tr>
+        <tr><td>4222</td><td>NATS JetStream (cliente)</td><td><code>nats://holdfy-dev.sp1.br.saveincloud.net.br:4222</code></td></tr>
+        <tr><td>6379</td><td>Redis</td><td>interno · não exposto</td></tr>
+        <tr><td>8080</td><td>gatebox-rust (PIX API)</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:8080</a></td></tr>
+        <tr><td>8091</td><td>backend_banco</td><td>holdfy-dev.sp1.br.saveincloud.net.br:8091 (aguarda Postgres)</td></tr>
+        <tr><td>2112</td><td>gatebox métricas (Prometheus)</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:2112/metrics" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:2112</a></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Gestão do servidor</h2>
+    <table>
+      <thead><tr><th class="prod-th">Ação</th><th class="prod-th">Comando</th></tr></thead>
+      <tbody>
+        <tr><td>Acesso SSH</td><td><code class="copy" onclick="copy(this)">ssh 268389-38415@gate.paas.saveincloud.net.br -p 3022</code></td></tr>
+        <tr><td>Status serviços</td><td><code class="copy" onclick="copy(this)">ssh 268389-38415@gate.paas.saveincloud.net.br -p 3022 "~/holdy/status.sh"</code></td></tr>
+        <tr><td>Reiniciar tudo</td><td><code class="copy" onclick="copy(this)">ssh 268389-38415@gate.paas.saveincloud.net.br -p 3022 "~/holdy/stop.sh && sleep 2 && ~/holdy/run.sh"</code></td></tr>
+        <tr><td>Ver logs core</td><td><code class="copy" onclick="copy(this)">ssh 268389-38415@gate.paas.saveincloud.net.br -p 3022 "tail -f ~/holdy/logs/apicash-core.log"</code></td></tr>
+        <tr><td>Ver logs WA</td><td><code class="copy" onclick="copy(this)">ssh 268389-38415@gate.paas.saveincloud.net.br -p 3022 "tail -f ~/holdy/logs/apicash-whatsapp.log"</code></td></tr>
+        <tr><td>Deploy novo build</td><td><code class="copy" onclick="copy(this)">cd /home/holdfy/git/holdy/money && ./scripts/deploy-prod.sh</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Próximos passos para produção completa</h2>
+    <table>
+      <thead><tr><th class="prod-th">#</th><th class="prod-th">Ação</th><th class="prod-th">Impacto</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Adicionar nó PostgreSQL no painel Jelastic e atualizar <code>DATABASE_URL</code> em <code>~/holdy/config/.env</code></td><td>Habilita Gatebox PIX completo + backend_banco</td></tr>
+        <tr><td>2</td><td>Build + deploy holdfy-admin, front-gatebox, site (React → dist/ + nginx)</td><td>Dashboards admin acessíveis em produção</td></tr>
+        <tr><td>3</td><td>Parear WhatsApp no servidor de produção</td><td>Bot WhatsApp ativo em prod</td></tr>
+        <tr><td>4</td><td>Configurar domínio DNS apontando para <code>holdfy-dev.sp1.br.saveincloud.net.br</code></td><td>URL amigável para clientes e APIs</td></tr>
+      </tbody>
+    </table>
+
+    <footer>
+      Produção SaveInCloud · IP <code>holdfy-dev.sp1.br.saveincloud.net.br</code> · atualizado pelo script <code>money/scripts/deploy-prod.sh</code>
+    </footer>
+  </div>
+
+  <div id="toast"></div>
+  <script>
+    function copy(el) {
+      const text = el.innerText.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        const t = document.getElementById('toast');
+        t.textContent = 'Copiado: ' + text.slice(0, 40) + (text.length > 40 ? '…' : '');
+        t.classList.add('show');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove('show'), 1800);
+      });
+    }
+
+    // ── Health monitor (auto-refresh 5s) ─────────────────────────────────────
+    const PROD_HOST = 'holdfy-dev.sp1.br.saveincloud.net.br';
+
+    const SERVICES = [
+      { name: 'APICash Core',         url: `http://${PROD_HOST}:3000/health`, link: `http://${PROD_HOST}:3000/health` },
+      { name: 'APICash Admin',        url: `http://${PROD_HOST}:3001/health`, link: `http://${PROD_HOST}:3001/health` },
+      { name: 'APICash Frontend',     url: `http://${PROD_HOST}:3002/`,       link: `http://${PROD_HOST}:3002/` },
+      { name: 'WhatsApp Bot',         url: `http://${PROD_HOST}:3010/health`, link: `http://${PROD_HOST}:3010/health` },
+      { name: 'Gatebox Rust (PIX)',   url: `http://${PROD_HOST}:8080/health`, link: `http://${PROD_HOST}:8080/health` },
+      { name: 'backend_banco',        url: `http://${PROD_HOST}:8091/health`, link: `http://${PROD_HOST}:8091/health` },
+    ];
+
+    // Serviços sem health HTTP (infra interna)
+    const INFRA = [
+      { name: 'NATS JetStream', port: '4222', note: 'cliente nats://' },
+      { name: 'Redis',          port: '6379', note: 'interno, sem HTTP' },
+    ];
+
+    const grid = document.getElementById('health-grid');
+    const ts   = document.getElementById('health-ts');
+
+    SERVICES.forEach((svc, i) => {
+      const card = document.createElement('div');
+      card.className = 'health-card check';
+      card.id = `hc-${i}`;
+      card.innerHTML = `
+        <span class="health-dot"></span>
+        <div class="health-info">
+          <div class="health-name">${svc.name}</div>
+          <div class="health-status" id="hs-${i}">verificando…</div>
+          <a class="health-link" href="${svc.link}" target="_blank">${PROD_HOST}:${new URL(svc.link).port}</a>
+        </div>`;
+      grid.appendChild(card);
+    });
+
+    INFRA.forEach(svc => {
+      const card = document.createElement('div');
+      card.className = 'health-card pending';
+      card.innerHTML = `
+        <span class="health-dot"></span>
+        <div class="health-info">
+          <div class="health-name">${svc.name}</div>
+          <div class="health-status">${svc.note}</div>
+          <span class="health-link">:${svc.port}</span>
+        </div>`;
+      grid.appendChild(card);
+    });
+
+    async function checkOne(svc, i) {
+      const card   = document.getElementById(`hc-${i}`);
+      const status = document.getElementById(`hs-${i}`);
+      try {
+        const t0 = performance.now();
+        await fetch(svc.url, { cache: 'no-store', mode: 'no-cors', signal: AbortSignal.timeout(3000) });
+        const ms = Math.round(performance.now() - t0);
+        card.className = 'health-card ok';
+        status.textContent = `up — ${ms}ms`;
+      } catch {
+        card.className = 'health-card down';
+        status.textContent = 'offline';
+      }
+    }
+
+    async function checkAll() {
+      await Promise.all(SERVICES.map((svc, i) => checkOne(svc, i)));
+      ts.textContent = 'Última verificação: ' + new Date().toLocaleTimeString('pt-BR');
+    }
+
+    checkAll();
+    setInterval(checkAll, 5000);
+  </script>
+</body>
+</html>

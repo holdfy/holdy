@@ -57,9 +57,20 @@ async fn main() {
         )
         .init();
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml.leptos");
-    let conf = get_configuration(Some(path)).expect("ler Cargo.toml.leptos");
-    let options = conf.leptos_options;
+    let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml.leptos");
+    let conf = if std::path::Path::new(toml_path).exists() {
+        get_configuration(Some(toml_path))
+    } else {
+        get_configuration(None)
+    }
+    .expect("ler configuração Leptos");
+    let mut options = conf.leptos_options;
+    // Produção: sobrescreve com LEPTOS_SITE_ADDR se definida (get_configuration(None) usa default :3000)
+    if let Ok(env_addr) = std::env::var("LEPTOS_SITE_ADDR") {
+        if let Ok(parsed) = env_addr.parse::<SocketAddr>() {
+            options.site_addr = parsed;
+        }
+    }
     let addr: SocketAddr = options.site_addr;
 
     let state = LeptosAppState {
