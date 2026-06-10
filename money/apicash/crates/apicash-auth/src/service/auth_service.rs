@@ -272,10 +272,17 @@ impl AuthService {
         Ok(c)
     }
 
+    /// Extrai dígitos de uma string; retorna Some(digits) se tiver 11 (CPF) ou 14 (CNPJ) dígitos.
+    fn normalize_doc(s: &str) -> Option<String> {
+        let d: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
+        if d.len() == 11 || d.len() == 14 { Some(d) } else { None }
+    }
+
     fn resolve_user(&self, username: &str, password: &str) -> Result<UserIdentity, AuthError> {
         // Format: user:pass:role[:document]  — document is CPF (11 digits) or CNPJ (14 digits)
         let spec = std::env::var("APICASH_AUTH_USERS")
             .unwrap_or_else(|_| "admin:admin:admin;seller:seller:seller;buyer:buyer:buyer".into());
+        let username_norm = Self::normalize_doc(username);
         for entry in spec.split(';') {
             let entry = entry.trim();
             if entry.is_empty() {
@@ -286,7 +293,13 @@ impl AuthService {
             let pw = p.next().unwrap_or("").trim();
             let role_s = p.next().unwrap_or("buyer").trim();
             let document = p.next().unwrap_or("").trim().to_string();
-            if u != username || pw != password {
+            // Aceita match exato OU match por dígitos (CPF/CNPJ com ou sem máscara)
+            let username_match = u == username
+                || username_norm
+                    .as_deref()
+                    .map(|n| Self::normalize_doc(u).as_deref() == Some(n))
+                    .unwrap_or(false);
+            if !username_match || pw != password {
                 continue;
             }
             let role = Role::from_str(role_s).map_err(|_| AuthError::InvalidCredentials)?;

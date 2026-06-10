@@ -2,9 +2,7 @@ import { ChevronRight, Plus, Link2, Loader2, Copy, ExternalLink, PackageSearch }
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation } from "@tanstack/react-query";
-import { mockOrders } from "@/lib/mock-data";
-import { getOrderDescription } from "@/lib/mock-i18n";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +21,15 @@ import type { ApiError, ImportedProductDraft, ProposalResponse } from "@/lib/api
 
 const statusFilters = ["ALL", "PENDING", "IN_CUSTODY", "COMPLETED", "CANCELLED"] as const;
 
+// API returns lowercase: map to display keys
+const apiStatusToFilter: Record<string, string> = {
+  pending_funding: "PENDING",
+  in_custody: "IN_CUSTODY",
+  completed: "COMPLETED",
+  cancelled: "CANCELLED",
+  failed: "CANCELLED",
+};
+
 export default function SellerOrders() {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>("ALL");
@@ -34,8 +41,15 @@ export default function SellerOrders() {
   const [importUrl, setImportUrl] = useState("");
   const [importedDraft, setImportedDraft] = useState<ImportedProductDraft | null>(null);
   const [createdProposal, setCreatedProposal] = useState<ProposalResponse | null>(null);
+  const [pixKey, setPixKey] = useState("");
 
-  const filtered = filter === "ALL" ? mockOrders : mockOrders.filter((o) => o.status === filter);
+  const { data: ordersData, isLoading: ordersLoading } = useQuery({
+    queryKey: ["seller-orders"],
+    queryFn: () => api.listOrders("seller"),
+  });
+
+  const orders = ordersData?.orders ?? [];
+  const filtered = filter === "ALL" ? orders : orders.filter((o) => apiStatusToFilter[o.status] === filter);
 
   const filterLabels = useMemo(
     () => ({
@@ -51,15 +65,19 @@ export default function SellerOrders() {
   const proposalMutation = useMutation({
     mutationFn: () =>
       api.createProposal({
-        buyer_id: buyerId.trim(),
+        buyer_id: buyerId.trim() || undefined,
         amount: amount.replace(",", "."),
         description: description.trim() || undefined,
+        seller_pix_key: pixKey.trim() || undefined,
+        listing_id: importedDraft?.listing_id ?? undefined,
       }),
     onSuccess: (data) => {
       setCreatedProposal(data);
       setBuyerId("");
       setAmount("");
       setDescription("");
+      setPixKey("");
+      setImportedDraft(null);
     },
     onError: (err: ApiError) => {
       toast.error(err?.error ?? t("seller.proposalError", "Erro ao criar proposta"));
@@ -84,12 +102,16 @@ export default function SellerOrders() {
   });
 
   const createProposal = () => {
-    if (!buyerId.trim() || !amount.trim()) {
+    if (!amount.trim()) {
       toast.error(t("auth.toastFillFields"));
       return;
     }
     if (isNaN(parseFloat(amount.replace(",", ".")))) {
       toast.error(t("seller.invalidAmount", "Valor inválido"));
+      return;
+    }
+    if (!pixKey.trim()) {
+      toast.error(t("seller.pixKeyRequired", "Informe sua chave PIX para receber o pagamento"));
       return;
     }
     proposalMutation.mutate();
@@ -138,44 +160,55 @@ export default function SellerOrders() {
         ))}
       </div>
 
+      {ordersLoading && (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {filtered.map((order) => (
-          <Link
-            key={order.id}
-            to={`/seller/orders/${order.id}`}
-            className="flex items-center gap-3 bg-card rounded-xl p-4 border border-border hover:border-primary/20 transition"
-          >
-            <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground flex-shrink-0">
-              {order.buyer.split(" ").map((n) => n[0]).join("")}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm truncate">{order.buyer}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {getOrderDescription(order.id, t)} · {order.id}
-              </p>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-sm font-semibold">{formatCurrency(order.amount)}</p>
-              <span
-                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                  order.status === "COMPLETED"
-                    ? "text-secondary bg-secondary/10"
-                    : order.status === "CANCELLED"
-                      ? "text-destructive bg-destructive/10"
-                      : order.status === "PENDING"
-                        ? "text-amber-600 bg-amber-100"
-                        : "text-primary bg-primary/10"
-                }`}
-              >
-                {order.status === "IN_CUSTODY" ? t("status.IN_CUSTODY_BADGE") : t(`status.${order.status}`)}
-              </span>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          </Link>
-        ))}
+        {filtered.map((order) => {
+          const statusKey = apiStatusToFilter[order.status] ?? order.status.toUpperCase();
+          const shortId = order.id.slice(0, 8);
+          const buyerInitials = order.buyer_id.slice(0, 2).toUpperCase();
+          return (
+            <Link
+              key={order.id}
+              to={`/seller/orders/${order.id}`}
+              className="flex items-center gap-3 bg-card rounded-xl p-4 border border-border hover:border-primary/20 transition"
+            >
+              <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground flex-shrink-0">
+                {buyerInitials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">
+                  {order.description ?? t("seller.order", "Pedido")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 font-mono">#{shortId}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-semibold">{formatCurrency(Number(order.amount))}</p>
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    statusKey === "COMPLETED"
+                      ? "text-secondary bg-secondary/10"
+                      : statusKey === "CANCELLED"
+                        ? "text-destructive bg-destructive/10"
+                        : statusKey === "PENDING"
+                          ? "text-amber-600 bg-amber-100"
+                          : "text-primary bg-primary/10"
+                  }`}
+                >
+                  {statusKey === "IN_CUSTODY" ? t("status.IN_CUSTODY_BADGE") : t(`status.${statusKey}`, statusKey)}
+                </span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            </Link>
+          );
+        })}
       </div>
 
-      {filtered.length === 0 && (
+      {!ordersLoading && filtered.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-sm">{t("seller.noOrders")}</p>
         </div>
@@ -216,7 +249,7 @@ export default function SellerOrders() {
           ) : (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label>{t("seller.buyerId", "ID do Comprador (UUID)")}</Label>
+                <Label>{t("seller.buyerId", "ID do Comprador")} <span className="text-muted-foreground text-xs">({t("common.optional", "opcional")})</span></Label>
                 <Input
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                   value={buyerId}
@@ -242,6 +275,26 @@ export default function SellerOrders() {
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label>
+                  {t("seller.pixKey", "Sua Chave PIX")}
+                  <span className="text-destructive text-xs ml-1">*</span>
+                </Label>
+                <Input
+                  placeholder={t("seller.pixKeyPlaceholder", "CPF, e-mail, celular ou chave aleatória")}
+                  value={pixKey}
+                  onChange={(e) => setPixKey(e.target.value)}
+                  autoComplete="off"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("seller.pixKeyHint", "PIX enviado automaticamente após confirmação do comprador.")}
+                </p>
+              </div>
+              {importedDraft && (
+                <div className="bg-secondary/10 rounded-lg p-2.5 text-xs text-secondary font-medium">
+                  {t("seller.listingLinked", "Anúncio importado será vinculado a este pedido.")}
+                </div>
+              )}
             </div>
           )}
 

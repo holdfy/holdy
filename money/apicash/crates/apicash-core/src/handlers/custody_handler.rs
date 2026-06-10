@@ -178,11 +178,41 @@ pub async fn release_custody(
     let mut stored_order = stored_order;
     stored_order.order.status = OrderStatus::Completed;
     stored_order.order.updated_at = Utc::now();
+    let mut completed_order = stored_order.clone();
     state.orders.update(stored_order).await.map_err(|e| {
         error!(error = %e, "order completion persistence failed");
         ApiError::internal("order completion persistence failed")
     })?;
     info!(order_id = %body.order_id, "order marked completed after custody release");
+
+    // Auto off-ramp: se o vendedor registrou chave PIX, disparar transferência imediatamente.
+    if completed_order.off_ramp_tx_hash.is_none() {
+        if let Some(repo) = &state.listing_repo {
+            if let Some(pix_key) = repo.pix_key_for_user(order.seller_id).await {
+                match state
+                    .anchor
+                    .withdraw_to_pix(
+                        order.amount,
+                        pix_key.clone(),
+                        format!("order:{}:offramp:auto", body.order_id),
+                        format!("auto off-ramp order:{}", body.order_id),
+                    )
+                    .await
+                {
+                    Ok(resp) => {
+                        completed_order.off_ramp_tx_hash = Some(resp.tx_hash.clone());
+                        if let Err(e) = state.orders.update(completed_order).await {
+                            warn!(order_id = %body.order_id, error = %e, "off-ramp hash persist failed");
+                        }
+                        info!(order_id = %body.order_id, tx = %resp.tx_hash, "auto off-ramp OK");
+                    }
+                    Err(e) => {
+                        warn!(order_id = %body.order_id, error = %e, "auto off-ramp failed (non-critical — manual off-ramp available)");
+                    }
+                }
+            }
+        }
+    }
 
     Ok(Json(serde_json::json!({
         "custody_id": result.custody_id,

@@ -74,9 +74,11 @@ export interface CreateOrderRequest {
 }
 
 export interface CreateProposalRequest {
-  buyer_id: string;
+  buyer_id?: string;
   amount: string;
   description?: string;
+  seller_pix_key?: string;
+  listing_id?: string;
 }
 
 export interface ReleaseCustodyRequest {
@@ -327,4 +329,30 @@ export const api = {
 
   trackShipment: (code: string) =>
     request<TrackingInfo>(`/logistics/tracking/${encodeURIComponent(code)}`),
+
+  // KYC — Receita Federal lookup (cached 24h server-side)
+  lookupDocument: (document: string) =>
+    request<{ document: string; document_type: string; name: string | null; situation: string | null; source: string }>(
+      `/kyc/document/${encodeURIComponent(document)}`,
+    ),
+
+  // Dispute evidence upload (base64 encoded content)
+  addDisputeEvidence: (orderId: string, kind: string, content: string, ext?: string) =>
+    request<{ evidence_id: string; dispute_id: string; kind: string; message: string }>(
+      `/orders/${orderId}/dispute/evidence`,
+      { method: "POST", body: JSON.stringify({ kind, content, ext }) },
+    ),
+
+  // Profile — chave PIX e WhatsApp
+  updatePixKey: (pixKey: string) =>
+    request<{ user_id: string; pix_key: string; status: string }>(
+      "/profile/pix-key",
+      { method: "PUT", body: JSON.stringify({ pix_key: pixKey }) },
+    ),
+
+  updatePhone: (phone: string) =>
+    request<{ user_id: string; phone: string; status: string }>(
+      "/profile/phone",
+      { method: "PUT", body: JSON.stringify({ phone }) },
+    ),
 };

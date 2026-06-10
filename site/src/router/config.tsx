@@ -17,6 +17,7 @@ import AppTransactionComplete from "@/pages/app/AppTransactionComplete";
 
 import SellerLayout from "@/pages/seller/SellerLayout";
 import SellerDashboard from "@/pages/seller/SellerDashboard";
+import SellerNewProposal from "@/pages/seller/SellerNewProposal";
 import SellerOrders from "@/pages/seller/SellerOrders";
 import SellerDisputes from "@/pages/seller/SellerDisputes";
 import SellerWallet from "@/pages/seller/SellerWallet";
@@ -35,6 +36,7 @@ const routes: RouteObject[] = [
       { path: "wallet", element: <AppWallet /> },
       { path: "profile", element: <AppProfile /> },
       { path: "payment", element: <AppPayment /> },
+      { path: "payment/:proposalId", element: <AppPayment /> },
       { path: "transaction-complete", element: <AppTransactionComplete /> },
     ],
   },
@@ -43,6 +45,7 @@ const routes: RouteObject[] = [
     element: <RequireAuth><SellerLayout /></RequireAuth>,
     children: [
       { index: true, element: <SellerDashboard /> },
+      { path: "new-proposal", element: <SellerNewProposal /> },
       { path: "orders", element: <SellerOrders /> },
       { path: "orders/:id", element: <AppOrderDetail /> },
       { path: "disputes", element: <SellerDisputes /> },

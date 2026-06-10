@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => ({
       "/reputation": { target: "http://localhost:3000", changeOrigin: true },
       "/v1": { target: "http://localhost:3000", changeOrigin: true },
       "/logistics": { target: "http://localhost:3000", changeOrigin: true },
+      "/kyc": { target: "http://localhost:3000", changeOrigin: true },
+      "/profile": { target: "http://localhost:3000", changeOrigin: true },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { proposalApi } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { Layout, Card, Btn, Input, ErrorMsg } from '../../components/Layout'
+import { maskCpfCnpj, stripDoc, validateCpf, validateCnpj } from '../../lib/doc'
 
 export function PropostaPage() {
   const { id } = useParams<{ id: string }>()
@@ -23,9 +24,17 @@ export function PropostaPage() {
 
   async function accept() {
     if (!id) return
-    const doc = cpf.replace(/\D/g, '')
+    const doc = stripDoc(cpf)
+    if (doc.length === 11 && !validateCpf(doc)) {
+      setError('CPF inválido. Verifique os dígitos.')
+      return
+    }
+    if (doc.length === 14 && !validateCnpj(doc)) {
+      setError('CNPJ inválido. Verifique os dígitos.')
+      return
+    }
     if (doc.length !== 11 && doc.length !== 14) {
-      setError('CPF deve ter 11 dígitos ou CNPJ 14 dígitos')
+      setError('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.')
       return
     }
     setAcceptLoading(true); setError(null)
@@ -108,11 +117,11 @@ export function PropostaPage() {
         <Card className="space-y-4">
           <p className="text-sm font-medium text-gray-700">Informe seu CPF ou CNPJ para gerar o PIX:</p>
           <Input
-            label="CPF (11 dígitos) ou CNPJ (14 dígitos)"
+            label="CPF ou CNPJ"
             value={cpf}
-            onChange={e => setCpf(e.target.value.replace(/\D/g, ''))}
+            onChange={e => setCpf(maskCpfCnpj(e.target.value))}
             placeholder="000.000.000-00"
-            maxLength={14}
+            maxLength={18}
             autoFocus
           />
           <ErrorMsg msg={error} />

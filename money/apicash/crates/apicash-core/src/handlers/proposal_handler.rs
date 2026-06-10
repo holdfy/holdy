@@ -30,7 +30,8 @@ const PROPOSAL_TTL_MINUTES: i64 = 60;
 const DEFAULT_CPF_PLACEHOLDER: &str = "52998224725";
 
 /// POST /proposals — seller creates a new proposal for a buyer.
-#[instrument(skip(state, claims, req), fields(buyer_id = %req.buyer_id))]
+/// When `buyer_id` is omitted the proposal is "open" — any authenticated buyer can accept it.
+#[instrument(skip(state, claims, req))]
 pub async fn create_proposal(
     State(state): State<Arc<AppState>>,
     claims: Option<Extension<JwtClaims>>,
@@ -38,25 +39,30 @@ pub async fn create_proposal(
 ) -> Result<(StatusCode, Json<ProposalResponse>), ApiError> {
     req.validate().map_err(ApiError::bad_request)?;
 
-    let seller_id = resolve_seller_id(&state, claims, req.buyer_id)?;
+    let buyer_id = req.buyer_id.unwrap_or(Uuid::nil());
+    let seller_id = resolve_seller_id(&state, claims)?;
 
-    if seller_id == req.buyer_id {
+    if buyer_id != Uuid::nil() && seller_id == buyer_id {
         return Err(ApiError::bad_request(
             "seller and buyer must be different users",
         ));
     }
 
+    let listing_id = req.listing_id;
+    let pix_key = req.seller_pix_key.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+
     let now = Utc::now();
     let proposal = StoredProposal {
         id: Uuid::new_v4(),
         seller_id,
-        buyer_id: req.buyer_id,
+        buyer_id,
         amount: req.amount.trim().to_string(),
         description: req.description.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
         status: ProposalStatus::Pending,
         created_at: now,
         expires_at: now + Duration::minutes(PROPOSAL_TTL_MINUTES),
         order_id: None,
+        listing_id,
     };
 
     let id = proposal.id;
@@ -69,7 +75,16 @@ pub async fn create_proposal(
             ApiError::internal("proposal persistence failed")
         })?;
 
-    info!(%id, %seller_id, buyer_id = %req.buyer_id, "proposal created");
+    // Persist seller PIX key so off-ramp fires automatically after delivery confirmation.
+    if let (Some(key), Some(repo)) = (&pix_key, &state.listing_repo) {
+        if let Err(e) = repo.upsert_pix_key(seller_id, key).await {
+            warn!(%seller_id, error = %e, "failed to save seller pix_key (non-critical)");
+        } else {
+            info!(%seller_id, "seller pix_key saved for auto off-ramp");
+        }
+    }
+
+    info!(%id, %seller_id, %buyer_id, open = buyer_id.is_nil(), "proposal created");
 
     Ok((StatusCode::CREATED, Json(ProposalResponse::from(&proposal))))
 }
@@ -121,7 +136,8 @@ pub async fn accept_proposal(
     } else {
         let actor = require_claims(claims)?;
         let actor_id = actor.current_user_id();
-        if actor_id != proposal.buyer_id {
+        // nil buyer_id = open proposal — any authenticated buyer may accept
+        if !proposal.buyer_id.is_nil() && actor_id != proposal.buyer_id {
             warn!(
                 %actor_id,
                 expected_buyer = %proposal.buyer_id,
@@ -164,6 +180,15 @@ pub async fn accept_proposal(
         error!(error = %e, "proposal update failed");
         ApiError::internal("proposal persistence failed")
     })?;
+
+    // Link imported listing to the newly created order if listing_id was provided.
+    if let (Some(listing_id), Some(repo)) = (proposal.listing_id, &state.listing_repo) {
+        if let Err(e) = repo.set_order_id(listing_id, order.id).await {
+            warn!(%listing_id, order_id = %order.id, error = %e, "listing→order link failed (non-critical)");
+        } else {
+            info!(%listing_id, order_id = %order.id, "listing linked to order");
+        }
+    }
 
     info!(
         proposal_id = %id,
@@ -242,7 +267,6 @@ fn require_claims(claims: Option<Extension<JwtClaims>>) -> Result<JwtClaims, Api
 fn resolve_seller_id(
     state: &AppState,
     claims: Option<Extension<JwtClaims>>,
-    _buyer_id: Uuid,
 ) -> Result<Uuid, ApiError> {
     if state.auth.config().auth_disabled {
         return Ok(Uuid::nil());

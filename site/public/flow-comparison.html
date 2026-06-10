@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Holdfy — Comparativo de Fluxos: WhatsApp vs Site</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f13;color:#e8e8f0;min-height:100vh}
+  header{padding:28px 24px 20px;border-bottom:1px solid #1e1e2e;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  .logo{font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .logo span{color:#6c63ff}
+  .updated{font-size:11px;color:#666;font-family:monospace}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;padding:16px 24px;border-bottom:1px solid #1e1e2e;background:#0a0a10}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot-green{background:#22c55e}.dot-yellow{background:#eab308}.dot-purple{background:#a855f7}.dot-blue{background:#3b82f6}.dot-gray{background:#555;border:1px dashed #888}
+  .columns{display:grid;grid-template-columns:1fr 1fr;gap:0;position:relative}
+  .col-header{padding:14px 20px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+  .col-wa .col-header{background:rgba(168,85,247,.15);border-bottom:2px solid rgba(168,85,247,.4);color:#c084fc}
+  .col-web .col-header{background:rgba(59,130,246,.15);border-bottom:2px solid rgba(59,130,246,.4);color:#60a5fa}
+  .col-wa{border-right:1px solid #1e1e2e}
+  .col-body{padding:12px 16px}
+  .step{border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid transparent;position:relative}
+  .step-num{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+  .step-title{font-size:13px;font-weight:700;margin-bottom:3px}
+  .step-desc{font-size:11.5px;line-height:1.5;color:#999}
+  .step-badge{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;border-radius:20px;margin-top:6px}
+  .c-green{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.2)}.c-green .step-badge{background:rgba(34,197,94,.15);color:#22c55e}
+  .c-yellow{background:rgba(234,179,8,.07);border-color:rgba(234,179,8,.2)}.c-yellow .step-badge{background:rgba(234,179,8,.15);color:#eab308}
+  .c-purple{background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.2)}.c-purple .step-badge{background:rgba(168,85,247,.15);color:#a855f7}
+  .c-blue{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.2)}.c-blue .step-badge{background:rgba(59,130,246,.15);color:#3b82f6}
+  .c-gray{background:rgba(80,80,100,.06);border-color:rgba(120,120,150,.15);border-style:dashed}.c-gray .step-title{color:#666}.c-gray .step-badge{background:rgba(120,120,150,.15);color:#888}
+  .gap-placeholder{border-radius:12px;padding:12px 16px;margin-bottom:10px;border:1px dashed rgba(80,80,100,.15);background:rgba(20,20,30,.3)}
+  .gap-placeholder p{font-size:11px;color:#444;text-align:center;padding:6px 0}
+  .new-badge{background:rgba(34,197,94,.15);color:#4ade80;border-radius:4px;font-size:9px;font-weight:700;padding:1px 5px;vertical-align:middle;margin-left:4px;text-transform:uppercase;letter-spacing:.05em}
+  .phase-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#444;padding:6px 16px 4px;margin-bottom:2px}
+  .summary{padding:32px 24px;border-top:1px solid #1e1e2e;background:#080810}
+  .summary h2{font-size:18px;font-weight:800;margin-bottom:20px;color:#c084fc}
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .summary-card{background:#0f0f1a;border:1px solid #1e1e2e;border-radius:12px;padding:16px}
+  .summary-card h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#666;margin-bottom:10px}
+  .summary-card ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+  .summary-card li{font-size:12px;display:flex;align-items:flex-start;gap:6px;color:#bbb;line-height:1.4}
+  .summary-card li::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px}
+  .s-purple li::before{background:#a855f7}.s-blue li::before{background:#3b82f6}.s-yellow li::before{background:#eab308}.s-green li::before{background:#22c55e}
+  @media(max-width:640px){.columns{grid-template-columns:1fr}.col-wa{border-right:none;border-bottom:1px solid #1e1e2e}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">hold<span>fy</span></div>
+  <div style="font-size:15px;font-weight:600;color:#888">Comparativo: WhatsApp vs Site Web</div>
+  <div class="updated">2026-06-10 · 7 features implementadas nesta sessão</div>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot dot-green"></div>Equivalente</div>
+  <div class="legend-item"><div class="dot dot-yellow"></div>Difere na impl.</div>
+  <div class="legend-item"><div class="dot dot-purple"></div>Exclusivo WhatsApp</div>
+  <div class="legend-item"><div class="dot dot-blue"></div>Exclusivo Site</div>
+  <div class="legend-item"><div class="dot dot-gray"></div>Gap / Não existe</div>
+  <div style="font-size:11px;color:#4ade80;font-weight:700;padding:2px 8px;background:rgba(34,197,94,.12);border-radius:6px">✦ novo = implementado agora</div>
+</div>
+
+<div class="columns">
+  <div class="col-wa">
+    <div class="col-header">📱 WhatsApp (apicash-whatsapp)</div>
+    <div class="col-body">
+
+      <div class="phase-label">FASE 1 — IDENTIDADE</div>
+      <div class="step c-yellow">
+        <div class="step-num">01</div>
+        <div class="step-title">Login / Identidade</div>
+        <div class="step-desc">CPF coletado na primeira mensagem. Lookup automático na Receita Federal (nome + situação via NFS-e). Identificação pelo número de celular.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+
+      <div class="phase-label">FASE 2 — PROPOSTA</div>
+      <div class="step c-yellow">
+        <div class="step-num">02</div>
+        <div class="step-title">Criação de Proposta</div>
+        <div class="step-desc">Wizard conversacional: valor → descrição → CPF do comprador (Receita Federal) → chave PIX do vendedor.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-purple">
+        <div class="step-num">03</div>
+        <div class="step-title">Chave PIX do Vendedor</div>
+        <div class="step-desc">Coletada e validada no fluxo. Usada para off-ramp automático ao final.</div>
+        <span class="step-badge">Exclusivo WA</span>
+      </div>
+      <div class="step c-purple">
+        <div class="step-num">04</div>
+        <div class="step-title">Notificação Push ao Comprador</div>
+        <div class="step-desc">Comprador recebe mensagem WhatsApp com link, valor e instruções.</div>
+        <span class="step-badge">Exclusivo WA</span>
+      </div>
+
+      <div class="phase-label">FASE 3 — ACEITE</div>
+      <div class="step c-yellow">
+        <div class="step-num">05</div>
+        <div class="step-title">Aceite da Proposta</div>
+        <div class="step-desc">Comprador responde "ACEITO". CPF obrigatório e validado na Receita Federal antes de confirmar.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+
+      <div class="phase-label">FASE 4 — PAGAMENTO</div>
+      <div class="step c-yellow">
+        <div class="step-num">06</div>
+        <div class="step-title">Geração do PIX</div>
+        <div class="step-desc">QR Code PNG 512×512 gerado via lib Rust <code>qrcode</code> + código copia-e-cola enviados via chat.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-green">
+        <div class="step-num">07</div>
+        <div class="step-title">Confirmação Automática</div>
+        <div class="step-desc">Webhook PIX → backend confirma → notifica ambas as partes. Zero botão manual.</div>
+        <span class="step-badge">✓ Equivalente</span>
+      </div>
+
+      <div class="phase-label">FASE 5 — CUSTÓDIA E ENTREGA</div>
+      <div class="step c-yellow">
+        <div class="step-num">08</div>
+        <div class="step-title">Score de Risco na Notificação</div>
+        <div class="step-desc">Pagamento confirmado → vendedor recebe mensagem com score 0–1000 e decisão (APROVE/REVISE/BLOQUEIE).</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-yellow">
+        <div class="step-num">09</div>
+        <div class="step-title">Código de Rastreio</div>
+        <div class="step-desc">Vendedor envia código no chat → comprador notificado proativamente a cada evento dos Correios.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-yellow">
+        <div class="step-num">10</div>
+        <div class="step-title">Confirmação de Entrega</div>
+        <div class="step-desc">Comprador responde "recebi" → botões 1/2 no chat. Fluxo guiado, 1 toque.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-purple">
+        <div class="step-num">11</div>
+        <div class="step-title">Off-ramp Automático</div>
+        <div class="step-desc">Após confirmação → PIX transferido diretamente para a chave PIX do vendedor cadastrada.</div>
+        <span class="step-badge">Exclusivo WA</span>
+      </div>
+
+      <div class="phase-label">FASE 6 — DISPUTA</div>
+      <div class="step c-yellow">
+        <div class="step-num">12</div>
+        <div class="step-title">Abertura de Disputa</div>
+        <div class="step-desc">Menu interativo com 5 razões pré-definidas + upload de fotos/vídeos via WhatsApp.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-yellow">
+        <div class="step-num">13</div>
+        <div class="step-title">Evidências</div>
+        <div class="step-desc">Upload de até 5 arquivos via WhatsApp. Salvos no MinIO <code>disputes/</code>.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-yellow">
+        <div class="step-num">14</div>
+        <div class="step-title">Contestação do Vendedor</div>
+        <div class="step-desc">Vendedor contesta no chat + envia contra-evidências. Armazenado como <code>EvidenceParty::Seller</code>.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-purple">
+        <div class="step-num">15</div>
+        <div class="step-title">Resolução por IA</div>
+        <div class="step-desc">OpenAI analisa evidências → veredicto automático + score de confiança. Notifica ambas as partes.</div>
+        <span class="step-badge">Exclusivo WA</span>
+      </div>
+
+      <div class="phase-label">FASE 7 — EXTRAS</div>
+      <div class="step c-purple">
+        <div class="step-num">16</div>
+        <div class="step-title">Rastreio Proativo</div>
+        <div class="step-desc">Job automático verifica Correios e notifica comprador a cada novo evento.</div>
+        <span class="step-badge">Exclusivo WA</span>
+      </div>
+      <div class="step c-green">
+        <div class="step-num">17</div>
+        <div class="step-title">Importação de Listing</div>
+        <div class="step-desc">URL do produto → título, fotos, preço extraídos automaticamente.</div>
+        <span class="step-badge">✓ Equivalente</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="col-web">
+    <div class="col-header">🌐 Site Web (React + APICash)</div>
+    <div class="col-body">
+
+      <div class="phase-label">FASE 1 — IDENTIDADE</div>
+      <div class="step c-yellow">
+        <div class="step-num">01</div>
+        <div class="step-title">Login / Identidade <span class="new-badge">novo</span></div>
+        <div class="step-desc">Login CPF/CNPJ + senha. Máscara e validação de dígitos verificadores (algoritmo Receita Federal). Na aceitação de proposta: <strong>consulta Receita Federal em tempo real</strong> via <code>GET /kyc/document/{doc}</code> com cache 24h no servidor.</div>
+        <span class="step-badge">⚠ Difere — Receita implementada</span>
+      </div>
+
+      <div class="phase-label">FASE 2 — PROPOSTA</div>
+      <div class="step c-yellow">
+        <div class="step-num">02</div>
+        <div class="step-title">Criação de Proposta</div>
+        <div class="step-desc">Formulário: valor + descrição → UUID gerado pelo backend → link compartilhável. Proposta aberta (qualquer comprador autenticado pode aceitar).</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="gap-placeholder"><p>❌ Chave PIX não coletada na proposta<br/><em>Off-ramp disponível via menu separado</em></p></div>
+      <div class="gap-placeholder"><p>❌ Notificação push não disponível<br/><em>Comprador acessa via link compartilhado</em></p></div>
+
+      <div class="phase-label">FASE 3 — ACEITE</div>
+      <div class="step c-yellow">
+        <div class="step-num">05</div>
+        <div class="step-title">Aceite da Proposta <span class="new-badge">novo</span></div>
+        <div class="step-desc">Abre link → <strong>CPF/CNPJ obrigatório</strong> → validação matemática + consulta Receita Federal → exibe nome e situação cadastral confirmados → botão "Aceitar e Gerar PIX".</div>
+        <span class="step-badge">⚠ Difere — CPF obrigatório + Receita</span>
+      </div>
+
+      <div class="phase-label">FASE 4 — PAGAMENTO</div>
+      <div class="step c-yellow">
+        <div class="step-num">06</div>
+        <div class="step-title">QR Code PIX Real <span class="new-badge">novo</span></div>
+        <div class="step-desc"><strong>QR Code real</strong> gerado no browser (lib <code>qrcode</code> JS, 220×220px, fundo branco) + botão copia-e-cola. Substitui o ícone placeholder anterior.</div>
+        <span class="step-badge">⚠ Difere — QR Code real implementado</span>
+      </div>
+      <div class="step c-green">
+        <div class="step-num">07</div>
+        <div class="step-title">Confirmação Automática <span class="new-badge">novo</span></div>
+        <div class="step-desc"><strong>Polling automático a cada 5 segundos</strong>. Quando <code>status = in_custody</code> detectado: toast de confirmação + redirecionamento automático. <strong>Nenhum botão "Já paguei"</strong>.</div>
+        <span class="step-badge">✓ Equivalente — sem botão manual</span>
+      </div>
+
+      <div class="phase-label">FASE 5 — CUSTÓDIA E ENTREGA</div>
+      <div class="step c-yellow">
+        <div class="step-num">08</div>
+        <div class="step-title">Score de Risco na UI <span class="new-badge">novo</span></div>
+        <div class="step-desc">Score 0–1000 + badge colorido no detalhe do pedido: verde (Aprovado ≥650), amarelo (Revisão 200–649), vermelho (Bloqueado &lt;200). Também exibido nas disputas do vendedor.</div>
+        <span class="step-badge">⚠ Difere — agora visível na UI</span>
+      </div>
+      <div class="step c-yellow">
+        <div class="step-num">09</div>
+        <div class="step-title">Código de Rastreio</div>
+        <div class="step-desc">Vendedor informa código via app. Comprador consulta manualmente. Sem push proativo.</div>
+        <span class="step-badge">⚠ Difere — sem proativo</span>
+      </div>
+      <div class="step c-yellow">
+        <div class="step-num">10</div>
+        <div class="step-title">Confirmação de Entrega</div>
+        <div class="step-desc">Botão "Confirmar entrega" → alert dialog → <code>POST /custody/release</code>. Mais cliques, sem guia conversacional.</div>
+        <span class="step-badge">⚠ Difere</span>
+      </div>
+      <div class="step c-blue">
+        <div class="step-num">—</div>
+        <div class="step-title">Off-ramp Manual</div>
+        <div class="step-desc">Vendedor solicita via wallet informando chave PIX. Não automático.</div>
+        <span class="step-badge">Exclusivo Site</span>
+      </div>
+
+      <div class="phase-label">FASE 6 — DISPUTA</div>
+      <div class="step c-yellow">
+        <div class="step-num">12</div>
+        <div class="step-title">Abertura de Disputa <span class="new-badge">novo</span></div>
+        <div class="step-desc">Textarea + <strong>upload de fotos/vídeos</strong> (até 5 arquivos). Abre disputa via <code>POST /orders/{id}/dispute</code> + envia cada arquivo via <code>POST /orders/{id}/dispute/evidence</code>.</div>
+        <span class="step-badge">⚠ Difere — upload implementado</span>
+      </div>
+      <div class="step c-yellow">
+        <div class="step-num">13</div>
+        <div class="step-title">Evidências <span class="new-badge">novo</span></div>
+        <div class="step-desc">FileReader → base64 → <code>{ kind: "photo"|"video", content, ext }</code>. Até 5 arquivos. Backend recebe e armazena (MinIO via disputa).</div>
+        <span class="step-badge">⚠ Difere — base64 vs upload direto</span>
+      </div>
+      <div class="step c-yellow">
+        <div class="step-num">14</div>
+        <div class="step-title">Contestação do Vendedor <span class="new-badge">novo</span></div>
+        <div class="step-desc">SellerDisputes agora faz chamada <strong>real</strong> a <code>POST /orders/{id}/dispute/evidence</code> com <code>kind: "message"</code> + arquivos de contra-evidência. (Era stub antes.)</div>
+        <span class="step-badge">⚠ Difere — API real</span>
+      </div>
+      <div class="gap-placeholder"><p>❌ Resolução por IA não implementada no site<br/><em>Backend executa automaticamente; status atualizado na UI via polling</em></p></div>
+
+      <div class="phase-label">FASE 7 — EXTRAS</div>
+      <div class="gap-placeholder"><p>❌ Rastreio proativo não disponível<br/><em>Lookup manual disponível no pedido</em></p></div>
+      <div class="step c-green">
+        <div class="step-num">17</div>
+        <div class="step-title">Importação de Listing</div>
+        <div class="step-desc">URL → <code>POST /v1/listings/import</code> → título, fotos, preço. Disponível no painel do vendedor.</div>
+        <span class="step-badge">✓ Equivalente</span>
+      </div>
+      <div class="step c-blue">
+        <div class="step-num">—</div>
+        <div class="step-title">Exclusivos Site</div>
+        <div class="step-desc">Histórico de pedidos · Wallet (saldo + custódia) · Estimativa de frete por CEP · Dashboard de métricas · Página de conclusão com recibo</div>
+        <span class="step-badge">Exclusivo Site</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <h2>📊 Resumo — 2026-06-10</h2>
+  <div class="summary-grid">
+    <div class="summary-card s-green">
+      <h3>✅ Implementado nesta sessão (7 features)</h3>
+      <ul>
+        <li>Receita Federal obrigatória no aceite de proposta (nome + situação)</li>
+        <li>QR Code PIX real (lib qrcode JS, 220×220)</li>
+        <li>Polling automático 5s (sem botão "Já paguei")</li>
+        <li>Score de risco visível na UI (pedido + disputas)</li>
+        <li>Upload de evidências de disputa (fotos/vídeos base64)</li>
+        <li>Contestação real do vendedor (API + contra-evidências)</li>
+        <li>Endpoint /kyc/document/{doc} (cache 24h em memória)</li>
+      </ul>
+    </div>
+    <div class="summary-card s-purple">
+      <h3>🟣 Exclusivo WhatsApp (por design)</h3>
+      <ul>
+        <li>Off-ramp automático (chave PIX coletada no início)</li>
+        <li>Notificação push ao comprador</li>
+        <li>Resolução por IA (OpenAI)</li>
+        <li>Rastreio proativo (push a cada evento Correios)</li>
+        <li>Fluxo conversacional guiado</li>
+        <li>Score de risco na notificação de custódia</li>
+      </ul>
+    </div>
+    <div class="summary-card s-blue">
+      <h3>🔵 Exclusivo Site (por design)</h3>
+      <ul>
+        <li>Histórico visual de pedidos</li>
+        <li>Wallet com saldo disponível / em custódia</li>
+        <li>Estimativa de frete por CEP</li>
+        <li>Dashboard de métricas do vendedor</li>
+        <li>Página de conclusão com recibo</li>
+      </ul>
+    </div>
+    <div class="summary-card s-yellow">
+      <h3>⚠ Diferem — aceito como trade-off de canal</h3>
+      <ul>
+        <li>Proposta: WA é push; site é pull (link aberto)</li>
+        <li>Disputa: WA tem 5 razões; site usa texto livre</li>
+        <li>Confirmação: WA é 1 toque; site tem alert dialog</li>
+        <li>Rastreio: WA proativo; site sob demanda</li>
+        <li>Off-ramp: WA automático; site manual</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;padding:16px;background:#0a0a14;border:1px solid rgba(108,99,255,.2);border-radius:12px">
+    <p style="font-size:12px;color:#888;line-height:1.7">
+      <strong style="color:#c084fc">Fluxo core (ambos os canais):</strong>
+      CPF verificado Receita Federal → QR Code PIX → confirmação automática via webhook →
+      custódia Soroban → comprador confirma entrega → liberação → off-ramp PIX.<br/>
+      <span style="color:#555">Os dois canais compartilham o mesmo APICash backend, Postgres, Stellar/Soroban e Gatebox.</span>
+    </p>
+  </div>
+</div>
+
+</body>
+</html>

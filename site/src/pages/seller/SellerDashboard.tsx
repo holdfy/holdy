@@ -1,4 +1,4 @@
-import { Shield, TrendingUp, FileText, AlertTriangle, ChevronRight, DollarSign, ShieldCheck, Loader2 } from "lucide-react";
+import { Shield, TrendingUp, FileText, AlertTriangle, ChevronRight, DollarSign, ShieldCheck, Loader2, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -63,6 +63,15 @@ export default function SellerDashboard() {
         <div className="flex items-center gap-2 text-xs text-secondary">
           <ShieldCheck className="h-4 w-4" />
           <span>{t("common.protectedPayment")}</span>
+        </div>
+        <div className="pt-2">
+          <Link
+            to="/seller/new-proposal"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm font-medium hover:bg-white/20 transition"
+          >
+            <Plus className="h-4 w-4" />
+            {t("buyer.addFunds", "Criar um Pagamento Seguro")}
+          </Link>
         </div>
       </div>
 

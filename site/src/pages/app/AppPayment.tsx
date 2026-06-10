@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, QrCode, Loader2, Truck, ChevronDown, ChevronUp } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, Loader2, Truck, ChevronDown, ChevronUp, CheckCircle2, User } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,10 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, maskCpfCnpj, stripDoc, validateCpf, validateCnpj } from "@/lib/format";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import type { ApiError, ShippingQuote } from "@/lib/api-client";
+import QRCode from "qrcode";
 
 interface PaymentRouteState {
   pixBrCode?: string;
@@ -27,27 +28,74 @@ interface PaymentRouteState {
   proposalId?: string;
 }
 
+interface DocInfo {
+  name: string | null;
+  situation: string | null;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1] ?? result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AppPayment() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { proposalId: proposalIdParam } = useParams<{ proposalId?: string }>();
   const state = (location.state ?? {}) as PaymentRouteState;
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Se já temos um código PIX (veio de aceitação de proposta ou link externo)
   const [pixBrCode, setPixBrCode] = useState<string | null>(state.pixBrCode ?? null);
   const [amount, setAmount] = useState<number>(state.amount ? parseFloat(String(state.amount)) : 0);
   const [orderId, setOrderId] = useState<string | null>(state.orderId ?? null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [isPaid, setIsPaid] = useState(false);
 
-  // Formulário de aceite de proposta
-  const [proposalId, setProposalId] = useState(state.proposalId ?? "");
+  const [proposalId, setProposalId] = useState(proposalIdParam ?? state.proposalId ?? "");
   const [cpf, setCpf] = useState("");
+  const [cpfError, setCpfError] = useState<string | null>(null);
+  const [docInfo, setDocInfo] = useState<DocInfo | null>(null);
+  const [docCheckLoading, setDocCheckLoading] = useState(false);
 
-  // Cotação de frete
   const [freightOpen, setFreightOpen] = useState(false);
   const [cepDestino, setCepDestino] = useState("");
   const [freightQuotes, setFreightQuotes] = useState<ShippingQuote[]>([]);
   const [freightLoading, setFreightLoading] = useState(false);
+
+  // Generate real QR code image whenever pixBrCode changes
+  useEffect(() => {
+    if (!pixBrCode) { setQrDataUrl(null); return; }
+    QRCode.toDataURL(pixBrCode, {
+      width: 220,
+      margin: 2,
+      color: { light: "#ffffff", dark: "#111111" },
+    }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
+  }, [pixBrCode]);
+
+  // Poll order status after proposal acceptance — auto-navigate when paid
+  const { data: polledOrder } = useQuery({
+    queryKey: ["order-payment-poll", orderId],
+    queryFn: () => api.getOrder(orderId!),
+    enabled: !!orderId && !isPaid,
+    refetchInterval: 5000,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (polledOrder?.status === "in_custody" || polledOrder?.status === "completed") {
+      setIsPaid(true);
+      toast.success(t("payment.paymentConfirmed", "Pagamento confirmado! Redirecionando..."));
+      setTimeout(() => navigate(`/buyer/orders/${orderId}`), 1800);
+    }
+  }, [polledOrder?.status, orderId, navigate, t]);
 
   const handleFreightQuote = async () => {
     const cep = cepDestino.replace(/\D/g, "");
@@ -73,8 +121,31 @@ export default function AppPayment() {
     }
   };
 
+  const handleCpfBlur = async () => {
+    const digits = stripDoc(cpf);
+    if (!digits) return;
+    const valid = digits.length === 11 ? validateCpf(digits) : digits.length === 14 ? validateCnpj(digits) : false;
+    if (!valid) {
+      setCpfError(t("payment.invalidCpf", "Documento inválido — verifique os dígitos."));
+      setDocInfo(null);
+      return;
+    }
+    setCpfError(null);
+    setDocCheckLoading(true);
+    try {
+      const result = await api.lookupDocument(digits);
+      setDocInfo({ name: result.name, situation: result.situation });
+    } catch {
+      // soft error — Receita Federal lookup failed; don't block the flow
+      setDocInfo(null);
+    } finally {
+      setDocCheckLoading(false);
+    }
+  };
+
   const acceptMutation = useMutation({
-    mutationFn: () => api.acceptProposal(proposalId.trim(), cpf.trim() || undefined),
+    mutationFn: (cpfDigits: string) =>
+      api.acceptProposal(proposalId.trim(), cpfDigits),
     onSuccess: (data) => {
       setPixBrCode(data.pix_br_code);
       setAmount(parseFloat(data.amount));
@@ -86,19 +157,26 @@ export default function AppPayment() {
     },
   });
 
+  const handleAcceptProposal = () => {
+    const digits = stripDoc(cpf);
+    if (!digits) {
+      setCpfError(t("payment.cpfRequired", "CPF ou CNPJ é obrigatório para verificação."));
+      return;
+    }
+    const valid = digits.length === 11 ? validateCpf(digits) : digits.length === 14 ? validateCnpj(digits) : false;
+    if (!valid) {
+      setCpfError(t("payment.invalidCpf", "Documento inválido — verifique os dígitos."));
+      return;
+    }
+    setCpfError(null);
+    acceptMutation.mutate(digits);
+  };
+
   const copyPixCode = () => {
     if (pixBrCode) {
       navigator.clipboard.writeText(pixBrCode).then(() => {
         toast.success(t("payment.copied"));
       });
-    }
-  };
-
-  const handleConfirmPaid = () => {
-    if (orderId) {
-      navigate(`/buyer/orders/${orderId}`);
-    } else {
-      navigate("/buyer/orders");
     }
   };
 
@@ -122,31 +200,79 @@ export default function AppPayment() {
         <p className="text-sm text-muted-foreground mt-1">{t("payment.helpDesc")}</p>
       </div>
 
-      {/* Etapa 1 — Formulário de proposta (antes do PIX ser gerado) */}
+      {/* Etapa 1 — Formulário (antes do PIX ser gerado) */}
       {!pixBrCode && (
         <div className="bg-card rounded-2xl p-6 border border-border space-y-4">
-          <p className="font-semibold text-sm">{t("payment.enterProposal", "Cole o ID da proposta recebida do vendedor")}</p>
+          <p className="font-semibold text-sm">{t("payment.enterProposal", "Proposta de pagamento seguro")}</p>
+
           <div className="space-y-2">
             <Label htmlFor="proposal-id">{t("payment.proposalId", "ID da Proposta")}</Label>
-            <Input
-              id="proposal-id"
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              value={proposalId}
-              onChange={(e) => setProposalId(e.target.value)}
-              className="font-mono text-sm"
-            />
+            {proposalIdParam ? (
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-xl border border-border">
+                <span className="font-mono text-xs text-muted-foreground truncate flex-1">{proposalId}</span>
+                <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
+                  {t("payment.autoFilled", "automático")}
+                </span>
+              </div>
+            ) : (
+              <Input
+                id="proposal-id"
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                value={proposalId}
+                onChange={(e) => setProposalId(e.target.value)}
+                className="font-mono text-sm"
+              />
+            )}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cpf">{t("payment.cpfOptional", "CPF (opcional — para verificação antifraude)")}</Label>
+
+          {/* CPF/CNPJ obrigatório */}
+          <div className="space-y-1.5">
+            <Label htmlFor="cpf">
+              {t("payment.cpfLabel", "CPF ou CNPJ")}
+              <span className="ml-1 text-destructive text-xs font-semibold">*</span>
+            </Label>
             <Input
               id="cpf"
               placeholder="000.000.000-00"
               value={cpf}
-              onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))}
+              onChange={(e) => {
+                setCpf(maskCpfCnpj(e.target.value));
+                setCpfError(null);
+                setDocInfo(null);
+              }}
+              onBlur={handleCpfBlur}
               inputMode="numeric"
+              maxLength={18}
+              className={cpfError ? "border-destructive" : ""}
             />
+            {cpfError && (
+              <p className="text-xs text-destructive">{cpfError}</p>
+            )}
+            {docCheckLoading && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Consultando Receita Federal…</span>
+              </div>
+            )}
+            {docInfo && !docCheckLoading && (
+              <div className="flex items-start gap-2 bg-secondary/5 border border-secondary/20 rounded-xl p-3">
+                <User className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
+                <div className="text-xs space-y-0.5">
+                  {docInfo.name && (
+                    <p className="font-semibold text-foreground">{docInfo.name}</p>
+                  )}
+                  {docInfo.situation && (
+                    <p className="text-muted-foreground">Situação: {docInfo.situation}</p>
+                  )}
+                  {!docInfo.name && !docInfo.situation && (
+                    <p className="text-muted-foreground">Documento aceito. Receita Federal não retornou dados.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          {/* Cotação de frete — opcional, não bloqueia o fluxo */}
+
+          {/* Cotação de frete — opcional */}
           <div className="border border-border rounded-xl overflow-hidden">
             <button
               type="button"
@@ -206,67 +332,90 @@ export default function AppPayment() {
 
           <Button
             className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
-            onClick={() => acceptMutation.mutate()}
+            onClick={handleAcceptProposal}
             disabled={!proposalId.trim() || acceptMutation.isPending}
           >
-            {acceptMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
+            {acceptMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {t("payment.acceptProposal", "Aceitar Proposta e Gerar PIX")}
           </Button>
         </div>
       )}
 
-      {/* Etapa 2 — Código PIX gerado */}
+      {/* Etapa 2 — PIX gerado + aguardando pagamento automático */}
       {pixBrCode && (
         <>
-          <div className="bg-card rounded-2xl p-6 border border-border text-center space-y-5">
-            <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t("payment.amount")}</p>
-              <p className="text-4xl font-display font-bold mt-1">{formatCurrency(amount)}</p>
+          {isPaid ? (
+            <div className="bg-card rounded-2xl p-6 border border-secondary/30 text-center space-y-3">
+              <CheckCircle2 className="h-12 w-12 text-secondary mx-auto" />
+              <p className="font-display font-bold text-lg text-secondary">
+                {t("payment.paymentConfirmed", "Pagamento confirmado!")}
+              </p>
+              <p className="text-sm text-muted-foreground">Redirecionando para o pedido…</p>
+              <Loader2 className="h-5 w-5 animate-spin text-secondary mx-auto" />
             </div>
+          ) : (
+            <div className="bg-card rounded-2xl p-6 border border-border text-center space-y-5">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t("payment.amount")}</p>
+                <p className="text-4xl font-display font-bold mt-1">{formatCurrency(amount)}</p>
+              </div>
 
-            <div className="mx-auto w-48 h-48 rounded-2xl vault-card flex items-center justify-center">
-              <div className="text-center text-white/80 px-4">
-                <QrCode className="h-16 w-16 mx-auto mb-2 text-white" />
-                <p className="text-[10px] font-mono break-all leading-tight text-white/60">
-                  {pixBrCode.slice(0, 50)}…
-                </p>
+              {/* QR Code real */}
+              <div className="mx-auto w-56 h-56 rounded-2xl bg-white flex items-center justify-center p-2 shadow-sm">
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt="QR Code PIX" className="w-full h-full rounded-xl" />
+                ) : (
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">Escaneie o QR code acima no seu app de pagamento</p>
+
+              <Button
+                className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
+                onClick={copyPixCode}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                {t("payment.copyPaste")}
+              </Button>
+
+              <div className="flex items-center gap-3 bg-muted/50 rounded-xl p-3 text-left">
+                <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-foreground">
+                    {t("payment.waitingPayment", "Aguardando confirmação automática do pagamento")}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {t("payment.autoConfirmDesc", "Você será redirecionado automaticamente após o pagamento ser detectado.")}
+                  </p>
+                </div>
               </div>
             </div>
+          )}
 
-            <Button
-              className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
-              onClick={copyPixCode}
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              {t("payment.copyPaste")}
-            </Button>
+          {!isPaid && (
+            <>
+              <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                  <Clock className="h-5 w-5 text-muted-foreground animate-pulse" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{t("payment.confirm")}</p>
+                  <p className="text-xs text-muted-foreground">{t("payment.helpDesc")}</p>
+                </div>
+              </div>
 
-            <Button variant="outline" className="w-full h-12 rounded-xl" onClick={handleConfirmPaid}>
-              {t("payment.alreadyPaid", "Já paguei — Ver pedido")}
-            </Button>
-          </div>
-
-          <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-              <Clock className="h-5 w-5 text-muted-foreground animate-pulse" />
-            </div>
-            <div>
-              <p className="font-semibold text-sm">{t("payment.confirm")}</p>
-              <p className="text-xs text-muted-foreground">{t("payment.helpDesc")}</p>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
-            <div className="h-10 w-10 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
-              <Lock className="h-5 w-5 text-secondary" />
-            </div>
-            <div>
-              <p className="font-semibold text-sm">{t("order.inCustody")}</p>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("buyer.protectedDesc")}</p>
-            </div>
-          </div>
+              <div className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                  <Lock className="h-5 w-5 text-secondary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{t("order.inCustody")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("buyer.protectedDesc")}</p>
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
 

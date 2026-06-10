@@ -5,15 +5,24 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Seller creates a proposal for a specific buyer + amount.
+/// `buyer_id` is optional — if omitted, a nil UUID is stored and any authenticated
+/// buyer can accept the proposal (open/link-based proposal flow).
 #[derive(Debug, Deserialize)]
 pub struct CreateProposalRequest {
-    /// UUID of the buyer (counterparty).
-    pub buyer_id: Uuid,
+    /// UUID of the buyer (counterparty). Omit for open/link-based proposals.
+    #[serde(default)]
+    pub buyer_id: Option<Uuid>,
     /// Decimal amount string (e.g. "100.50").
     pub amount: String,
     /// Optional item/service description shown to buyer.
     #[serde(default)]
     pub description: Option<String>,
+    /// Seller PIX key — saved in wa_contacts for automatic off-ramp after delivery confirmation.
+    #[serde(default)]
+    pub seller_pix_key: Option<String>,
+    /// Listing UUID from importer — when set, the listing is linked to the order after acceptance.
+    #[serde(default)]
+    pub listing_id: Option<Uuid>,
 }
 
 impl CreateProposalRequest {
@@ -72,6 +81,8 @@ pub struct StoredProposal {
     pub expires_at: DateTime<Utc>,
     /// Filled in when buyer accepts and an order is created.
     pub order_id: Option<Uuid>,
+    /// Listing UUID from importer — linked to the order after acceptance.
+    pub listing_id: Option<Uuid>,
 }
 
 impl StoredProposal {

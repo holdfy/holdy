@@ -2,8 +2,9 @@
 
 use std::sync::Arc;
 
+use apicash_auth::JwtClaims;
 use axum::extract::{Path, State};
-use axum::Json;
+use axum::{Extension, Json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -84,11 +85,16 @@ pub struct ImportJobResponse {
 /// `POST /v1/listings/import/async` — enfileira importação no Pulsar e retorna imediatamente.
 pub async fn import_listing_async(
     State(state): State<Arc<AppState>>,
+    claims: Option<Extension<JwtClaims>>,
     Json(req): Json<ImportRequest>,
 ) -> Result<Json<AsyncImportResponse>, ApiError> {
     if req.url.trim().is_empty() {
         return Err(ApiError::bad_request("url não pode ser vazio"));
     }
+
+    let effective_user_id = claims
+        .map(|Extension(c)| c.current_user_id())
+        .or(req.user_id);
 
     let Some(producer) = &state.event_producer else {
         return Err(ApiError::bad_request(
@@ -103,7 +109,7 @@ pub async fn import_listing_async(
     };
 
     let job_id = repo
-        .create_import_job(&req.url, req.user_id)
+        .create_import_job(&req.url, effective_user_id)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
 
@@ -112,7 +118,7 @@ pub async fn import_listing_async(
         p.publish_import_requested(apicash_events::ImportRequestedEvent {
             job_id,
             url: req.url.clone(),
-            user_id: req.user_id,
+            user_id: effective_user_id,
             requested_at: chrono::Utc::now(),
         })
         .await
@@ -174,11 +180,17 @@ pub struct LinkOrderBody {
 /// `POST /v1/listings/import` — faz scraping da URL e persiste no Postgres.
 pub async fn import_listing(
     State(state): State<Arc<AppState>>,
+    claims: Option<Extension<JwtClaims>>,
     Json(req): Json<ImportRequest>,
 ) -> Result<Json<ImportResponse>, ApiError> {
     if req.url.trim().is_empty() {
         return Err(ApiError::bad_request("url não pode ser vazio"));
     }
+
+    // user_id: JWT tem prioridade (site), fallback para body (WhatsApp via API key)
+    let effective_user_id = claims
+        .map(|Extension(c)| c.current_user_id())
+        .or(req.user_id);
 
     let draft = state
         .importer
@@ -189,9 +201,9 @@ pub async fn import_listing(
     let mut resp = ImportResponse::from(draft.clone());
 
     if let Some(repo) = &state.listing_repo {
-        match repo.save(&draft, req.user_id, None).await {
+        match repo.save(&draft, effective_user_id, None).await {
             Ok(id) => {
-                tracing::info!(listing_id = %id, platform = ?draft.source_platform, "listing saved to postgres");
+                tracing::info!(listing_id = %id, platform = ?draft.source_platform, user_id = ?effective_user_id, "listing saved to postgres");
                 resp.listing_id = Some(id);
             }
             Err(e) => {

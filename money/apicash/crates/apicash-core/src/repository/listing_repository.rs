@@ -102,6 +102,43 @@ impl ListingRepository {
             .await?;
         Ok(())
     }
+
+    /// Salva (ou atualiza) a chave PIX de um usuário do site no wa_contacts.
+    /// Usada pelo off-ramp automático após confirmar entrega.
+    pub async fn upsert_pix_key(&self, user_id: Uuid, pix_key: &str) -> Result<(), sqlx::Error> {
+        let peer_key = format!("web:{user_id}");
+        sqlx::query(
+            r#"
+            INSERT INTO wa_contacts (peer_key, user_id, pix_key)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (peer_key) DO UPDATE SET pix_key = EXCLUDED.pix_key, updated_at = NOW()
+            "#,
+        )
+        .bind(&peer_key)
+        .bind(user_id)
+        .bind(pix_key)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Salva (ou atualiza) o número de WhatsApp de um usuário do site no wa_contacts.
+    pub async fn upsert_phone(&self, user_id: Uuid, phone: &str) -> Result<(), sqlx::Error> {
+        let peer_key = format!("web:{user_id}");
+        sqlx::query(
+            r#"
+            INSERT INTO wa_contacts (peer_key, user_id, phone)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (peer_key) DO UPDATE SET phone = EXCLUDED.phone, updated_at = NOW()
+            "#,
+        )
+        .bind(&peer_key)
+        .bind(user_id)
+        .bind(phone)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
 }
 
 // ─── ImportJob ────────────────────────────────────────────────────────────────

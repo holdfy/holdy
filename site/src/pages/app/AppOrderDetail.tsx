@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { Shield, ArrowLeft, CheckCircle2, HelpCircle, CheckCheck, Loader2 } from "lucide-react";
+import { Shield, ArrowLeft, CheckCircle2, HelpCircle, CheckCheck, Loader2, Paperclip, X, AlertTriangle } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +39,45 @@ function orderStatusStep(status: string): number {
   }
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1] ?? result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function RiskBadge({ score, decision }: { score: number | null; decision: string | null }) {
+  if (score == null) return null;
+  const isApprove = decision === "approve";
+  const isBlock = decision === "block";
+  const colorClass = isApprove
+    ? "text-secondary bg-secondary/10 border-secondary/20"
+    : isBlock
+      ? "text-destructive bg-destructive/10 border-destructive/20"
+      : "text-amber-600 bg-amber-50 border-amber-200";
+  const label = isApprove ? "Aprovado" : isBlock ? "Bloqueado" : "Em revisão";
+
+  return (
+    <div className="bg-card rounded-2xl p-4 border border-border flex items-center justify-between">
+      <div>
+        <p className="text-xs text-muted-foreground font-medium mb-0.5">Score de Risco</p>
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-display font-bold">{score}</span>
+          <span className="text-xs text-muted-foreground">/ 1000</span>
+        </div>
+      </div>
+      <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${colorClass}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export default function AppOrderDetail() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -51,42 +90,20 @@ export default function AppOrderDetail() {
 
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeNote, setDisputeNote] = useState("");
+  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [releaseLoading, setReleaseLoading] = useState(false);
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ["order", id],
     queryFn: () => api.getOrder(id!),
     enabled: !!id,
     retry: 1,
-  });
-
-  const releaseMutation = useMutation({
-    mutationFn: () =>
-      api.releaseCustody({
-        order_id: id!,
-        released_by: user?.id ?? "",
-        idempotency_key: `release-${id}-${Date.now()}`,
-      }),
-    onSuccess: () => {
-      toast.success(t("order.toastDeliveryConfirmed"));
-      navigate(isSeller ? "/seller/orders" : "/buyer/transaction-complete", {
-        state: { orderId: id, amount: order?.amount },
-      });
-    },
-    onError: (err: ApiError) => {
-      toast.error(err?.error ?? t("order.toastReleaseError", "Erro ao liberar pagamento"));
-    },
-  });
-
-  const disputeMutation = useMutation({
-    mutationFn: () => api.openDispute(id!, disputeNote),
-    onSuccess: () => {
-      toast.success(t("order.toastDisputeSent"));
-      setDisputeOpen(false);
-      setDisputeNote("");
-    },
-    onError: (err: ApiError) => {
-      toast.error(err?.error ?? t("order.toastDisputeError", "Erro ao abrir disputa"));
+    // Auto-poll while waiting for payment confirmation
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "pending_funding" ? 5000 : false;
     },
   });
 
@@ -103,17 +120,64 @@ export default function AppOrderDetail() {
 
   const activeStep = order ? orderStatusStep(order.status) : 0;
 
-  const submitDispute = () => {
+  const submitDispute = async () => {
     if (!disputeNote.trim()) {
       toast.error(t("order.toastDisputeEmpty"));
       return;
     }
-    disputeMutation.mutate();
+    setDisputeSubmitting(true);
+    try {
+      await api.openDispute(id!, disputeNote);
+
+      // Upload each evidence file
+      for (const file of disputeFiles) {
+        const base64 = await fileToBase64(file);
+        const kind = file.type.startsWith("video/") ? "video" : "photo";
+        const ext = file.name.split(".").pop();
+        await api.addDisputeEvidence(id!, kind, base64, ext);
+      }
+
+      toast.success(t("order.toastDisputeSent"));
+      setDisputeOpen(false);
+      setDisputeNote("");
+      setDisputeFiles([]);
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      toast.error(apiErr?.error ?? t("order.toastDisputeError", "Erro ao abrir disputa"));
+    } finally {
+      setDisputeSubmitting(false);
+    }
   };
 
-  const confirmDelivery = () => {
+  const confirmDelivery = async () => {
     setConfirmOpen(false);
-    releaseMutation.mutate();
+    setReleaseLoading(true);
+    try {
+      await api.releaseCustody({
+        order_id: id!,
+        released_by: user?.id ?? "",
+        idempotency_key: `release-${id}-${Date.now()}`,
+      });
+      toast.success(t("order.toastDeliveryConfirmed"));
+      navigate(isSeller ? "/seller/orders" : "/buyer/transaction-complete", {
+        state: { orderId: id, amount: order?.amount },
+      });
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      toast.error(apiErr?.error ?? t("order.toastReleaseError", "Erro ao liberar pagamento"));
+    } finally {
+      setReleaseLoading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []).slice(0, 5);
+    setDisputeFiles((prev) => [...prev, ...selected].slice(0, 5));
+    e.target.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    setDisputeFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const displayAmount = order ? parseFloat(order.amount) : 0;
@@ -198,6 +262,9 @@ export default function AppOrderDetail() {
             <CheckCircle2 className="h-6 w-6 text-secondary" />
           </div>
 
+          {/* Score de Risco */}
+          <RiskBadge score={order.risk_score} decision={order.risk_decision} />
+
           <div className="bg-card rounded-2xl p-5 border border-border">
             <h3 className="font-display font-bold text-lg mb-5">{t("order.deliveryProgress")}</h3>
             <div className="space-y-0">
@@ -262,9 +329,9 @@ export default function AppOrderDetail() {
               type="button"
               className="flex-1 h-14 rounded-xl vault-card border-0 text-white text-sm font-semibold hover:opacity-90"
               onClick={() => setConfirmOpen(true)}
-              disabled={!isInCustody || releaseMutation.isPending}
+              disabled={!isInCustody || releaseLoading}
             >
-              {releaseMutation.isPending ? (
+              {releaseLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <CheckCheck className="mr-2 h-4 w-4" />
@@ -277,32 +344,79 @@ export default function AppOrderDetail() {
 
       <div className="h-4" />
 
-      <Dialog open={disputeOpen} onOpenChange={setDisputeOpen}>
+      {/* Dispute dialog com upload de evidências */}
+      <Dialog open={disputeOpen} onOpenChange={(o) => { if (!disputeSubmitting) setDisputeOpen(o); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("order.disputeTitle")}</DialogTitle>
             <DialogDescription>{t("order.disputeDesc")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="dispute-note">{t("common.message")}</Label>
-            <Textarea
-              id="dispute-note"
-              placeholder={t("order.disputePlaceholder")}
-              value={disputeNote}
-              onChange={(e) => setDisputeNote(e.target.value)}
-            />
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="dispute-note">{t("common.message")}</Label>
+              <Textarea
+                id="dispute-note"
+                placeholder={t("order.disputePlaceholder")}
+                value={disputeNote}
+                onChange={(e) => setDisputeNote(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            {/* Upload de evidências */}
+            <div className="space-y-2">
+              <Label>Evidências (opcional — até 5 arquivos)</Label>
+              <label className="flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl p-4 cursor-pointer hover:bg-muted/50 transition text-sm text-muted-foreground">
+                <Paperclip className="h-4 w-4" />
+                <span>Adicionar fotos ou vídeos</span>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                  disabled={disputeFiles.length >= 5}
+                />
+              </label>
+
+              {disputeFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {disputeFiles.map((file, i) => (
+                    <div key={i} className="flex items-center gap-1 bg-muted text-xs px-2 py-1 rounded-full max-w-[160px]">
+                      <span className="truncate">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        className="shrink-0 ml-0.5 text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {disputeFiles.length > 0 && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>As evidências serão enviadas junto com a disputa.</span>
+              </div>
+            )}
           </div>
+
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setDisputeOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setDisputeOpen(false)} disabled={disputeSubmitting}>
               {t("common.cancel")}
             </Button>
             <Button
               type="button"
               className="vault-card border-0 text-white hover:opacity-90"
               onClick={submitDispute}
-              disabled={disputeMutation.isPending}
+              disabled={disputeSubmitting}
             >
-              {disputeMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {disputeSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {t("seller.respond")}
             </Button>
           </DialogFooter>

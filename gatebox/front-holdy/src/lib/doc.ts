@@ -1,16 +1,3 @@
-import i18n from "@/i18n";
-import { LOCALE_NUMBER_FORMAT, type SupportedLocale } from "@/i18n";
-
-export function formatCurrency(amount: number, locale?: string): string {
-  const lng = (locale ?? i18n.language) as SupportedLocale;
-  const fmt = LOCALE_NUMBER_FORMAT[lng] ?? "pt-BR";
-  return new Intl.NumberFormat(fmt, {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
-
 /** Aplica máscara CPF (000.000.000-00) ou CNPJ (00.000.000/0001-00) progressivamente. */
 export function maskCpfCnpj(value: string): string {
   const d = value.replace(/\D/g, "").slice(0, 14);
@@ -27,7 +14,6 @@ export function maskCpfCnpj(value: string): string {
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 }
 
-/** Retorna os dígitos puros de um CPF/CNPJ formatado. */
 export function stripDoc(value: string): string {
   return value.replace(/\D/g, "");
 }

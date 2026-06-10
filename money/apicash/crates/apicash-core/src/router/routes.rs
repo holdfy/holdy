@@ -10,7 +10,7 @@ use tower_governor::GovernorLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::handlers::{
-    auth_handler, custody_handler, importer_handler, logistics_handler, order_handler,
+    auth_handler, custody_handler, importer_handler, kyc_handler, logistics_handler, order_handler,
     payment_handler, proposal_handler, reputation_handler, testnet_handler, webhook_handler,
 };
 use crate::middleware::{auth_middleware, build_x402_layer};
@@ -51,6 +51,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/orders/{id}/dispute/complete", post(order_handler::dispute_complete))
         .route("/risk/score", post(order_handler::calculate_risk_score))
         .route("/reputation/{user_id}", get(reputation_handler::get_reputation))
+        .route("/kyc/document/{document}", get(kyc_handler::lookup_document))
         .route("/logistics/shipping/quote", post(logistics_handler::quote_shipping))
         .route("/logistics/shipping/label", post(logistics_handler::generate_label))
         .route("/logistics/tracking/{code}", get(logistics_handler::track_shipment))
@@ -66,7 +67,14 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route(
             "/proposals/{id}/reject",
             post(proposal_handler::reject_proposal),
-        );
+        )
+        // Profile: chave PIX e WhatsApp do usuário site
+        .route("/profile/pix-key", axum::routing::put(order_handler::update_pix_key))
+        .route("/profile/phone", axum::routing::put(order_handler::update_phone))
+        // Listing import acessível ao site com JWT (mesmo handler do /internal, user_id vem do token)
+        .route("/v1/listings/import", post(importer_handler::import_listing))
+        .route("/v1/listings/import/async", post(importer_handler::import_listing_async))
+        .route("/v1/listings/jobs/{id}", get(importer_handler::get_import_job));
 
     if let Some(x402) = build_x402_layer(state.clone()) {
         protected = protected.layer(x402);

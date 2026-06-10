@@ -5,6 +5,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { maskCpfCnpj, stripDoc, validateCpfOrCnpj } from "@/lib/format";
 import {
   Dialog,
   DialogContent,
@@ -36,14 +37,26 @@ export default function AppLogin() {
   const navigate = useNavigate();
   const { login } = useUserRole();
 
+  const handleUsernameChange = (val: string) => {
+    // Email ou username com letras — sem máscara
+    if (/[a-zA-Z@]/.test(val)) {
+      setUsername(val);
+    } else {
+      setUsername(maskCpfCnpj(val));
+    }
+  };
+
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
       toast.error(t("auth.toastFillFields"));
       return;
     }
+    // Envia dígitos puros se for CPF/CNPJ, senão envia o valor original
+    const digits = stripDoc(username);
+    const loginId = (digits.length === 11 || digits.length === 14) ? digits : username.trim();
     setLoading(true);
     try {
-      await login(username.trim(), password, selectedRole);
+      await login(loginId, password, selectedRole);
       navigate(selectedRole === "seller" ? "/seller" : "/buyer");
     } catch (err) {
       const apiErr = err as ApiError;
@@ -72,9 +85,18 @@ export default function AppLogin() {
       toast.error(t("auth.toastFillFields"));
       return;
     }
+    const docDigits = stripDoc(regEmail);
+    if (!validateCpfOrCnpj(docDigits)) {
+      toast.error(
+        regPersonType === "pj"
+          ? t("auth.invalidCnpj", "CNPJ inválido. Verifique os dígitos.")
+          : t("auth.invalidCpf", "CPF inválido. Verifique os dígitos.")
+      );
+      return;
+    }
     setLoading(true);
     try {
-      await login(regEmail.trim(), regPassword, "buyer");
+      await login(docDigits, regPassword, "buyer");
       toast.success(t("auth.toastAccountCreated"));
       setSignUpOpen(false);
       setRegEmail("");
@@ -139,16 +161,18 @@ export default function AppLogin() {
 
         <div className="space-y-5 flex-1">
           <div>
-            <label className="text-xs font-semibold tracking-wider uppercase text-foreground mb-2 block">{t("auth.emailOrTaxId")}</label>
+            <label className="text-xs font-semibold tracking-wider uppercase text-foreground mb-2 block">{t("auth.cpfCnpjLabel", "CPF ou CNPJ")}</label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={t("auth.credentialsPlaceholder")}
+                placeholder="000.000.000-00"
                 className="h-14 pl-11 rounded-xl bg-muted border-0 text-sm"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => handleUsernameChange(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 autoComplete="username"
+                inputMode="numeric"
+                maxLength={18}
               />
             </div>
           </div>
@@ -349,7 +373,9 @@ export default function AppLogin() {
                 id="reg-email"
                 placeholder={regPersonType === "pj" ? "00.000.000/0001-00" : "000.000.000-00"}
                 value={regEmail}
-                onChange={(e) => setRegEmail(e.target.value)}
+                onChange={(e) => setRegEmail(maskCpfCnpj(e.target.value))}
+                inputMode="numeric"
+                maxLength={18}
               />
             </div>
             <div className="space-y-2">

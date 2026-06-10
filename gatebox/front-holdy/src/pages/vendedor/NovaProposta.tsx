@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { listingApi, proposalApi, type ListingResp } from '../../lib/api'
 import { Layout, Card, Btn, Input, ErrorMsg } from '../../components/Layout'
 import { StepWizard } from '../../components/StepWizard'
+import { maskCpfCnpj, stripDoc, validateCpf, validateCnpj } from '../../lib/doc'
 
 const STEPS = ['Anúncio', 'Valor', 'Seus dados', 'Compartilhar']
 
@@ -47,6 +48,12 @@ export function NovaProposta() {
 
   async function createProposal() {
     if (!amount.trim()) { setError('Informe o valor'); return }
+    if (sellerDoc) {
+      const doc = stripDoc(sellerDoc)
+      if (doc.length === 11 && !validateCpf(doc)) { setError('CPF inválido. Verifique os dígitos.'); return }
+      if (doc.length === 14 && !validateCnpj(doc)) { setError('CNPJ inválido. Verifique os dígitos.'); return }
+      if (doc.length !== 11 && doc.length !== 14) { setError('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.'); return }
+    }
     setLoading(true); setError(null)
     try {
       const p = await proposalApi.create({
@@ -151,9 +158,9 @@ export function NovaProposta() {
           <Input
             label="Seu CPF ou CNPJ"
             value={sellerDoc}
-            onChange={e => setSellerDoc(e.target.value.replace(/\D/g, ''))}
+            onChange={e => setSellerDoc(maskCpfCnpj(e.target.value))}
             placeholder="000.000.000-00"
-            maxLength={14}
+            maxLength={18}
           />
           <Input
             label="Sua chave PIX (para receber)"

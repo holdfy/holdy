@@ -1399,3 +1399,68 @@ pub async fn set_tracking(
     info!(order_id = %id, code = %code, "tracking registrado");
     Ok(Json(SetTrackingResponse { order_id: id, tracking_code: code }))
 }
+
+// ─── Profile endpoints ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct UpdatePixKeyRequest {
+    pub pix_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdatePhoneRequest {
+    pub phone: String,
+}
+
+/// `PUT /profile/pix-key` — salva chave PIX do usuário autenticado para off-ramp automático.
+#[instrument(skip(state, claims))]
+pub async fn update_pix_key(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<JwtClaims>,
+    Json(req): Json<UpdatePixKeyRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let key = req.pix_key.trim().to_string();
+    if key.is_empty() {
+        return Err(ApiError::bad_request("pix_key não pode ser vazio"));
+    }
+    let user_id = claims.current_user_id();
+    let repo = state
+        .listing_repo
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("listing_repo não disponível"))?;
+    repo.upsert_pix_key(user_id, &key)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "upsert_pix_key failed");
+            ApiError::internal("falha ao salvar pix_key")
+        })?;
+    info!(%user_id, "pix_key atualizada");
+    Ok(Json(serde_json::json!({ "user_id": user_id, "pix_key": key, "status": "saved" })))
+}
+
+/// `PUT /profile/phone` — salva número de WhatsApp do usuário autenticado.
+#[instrument(skip(state, claims))]
+pub async fn update_phone(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<JwtClaims>,
+    Json(req): Json<UpdatePhoneRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let phone = req.phone.trim().to_string();
+    if phone.is_empty() {
+        return Err(ApiError::bad_request("phone não pode ser vazio"));
+    }
+    let user_id = claims.current_user_id();
+    let repo = state
+        .listing_repo
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("listing_repo não disponível"))?;
+    repo.upsert_phone(user_id, &phone)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "upsert_phone failed");
+            ApiError::internal("falha ao salvar phone")
+        })?;
+    info!(%user_id, "phone atualizado");
+    Ok(Json(serde_json::json!({ "user_id": user_id, "phone": phone, "status": "saved" })))
+}
+
