@@ -3,8 +3,22 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// URL base do backend Rust LogisticaHoldFy (porta padrão **8092**).
+///
+/// Prioridade:
+/// 1. `LOGISTICA_API_BASE_URL` — URL completa (padrão: SaveInCloud HTTPS).
+///    Para dev local: `--dart-define=LOGISTICA_API_BASE_URL=http://192.168.33.109:8092`
+/// 2. Override em tempo de execução ([setRuntimeEndpoint]).
+/// 3. `LOGISTICA_API_HOST` + `LOGISTICA_API_PORT` compile-time.
+/// 4. Valor por plataforma (Android emulador / desktop / telefone físico na Wi-Fi).
 class ApiConfig {
   ApiConfig._();
+
+  // URL completa — padrão aponta para o servidor SaveInCloud.
+  // Para dev local sobrescreva com --dart-define=LOGISTICA_API_BASE_URL=http://192.168.33.109:8092
+  static const String _dartDefineBaseUrl = String.fromEnvironment(
+    'LOGISTICA_API_BASE_URL',
+    defaultValue: 'https://holdfy-dev.sp1.br.saveincloud.net.br/svc/tracking',
+  );
 
   static const String _dartDefineHost = String.fromEnvironment(
     'LOGISTICA_API_HOST',
@@ -17,6 +31,7 @@ class ApiConfig {
 
   static String? _runtimeHost;
   static int? _runtimePort;
+  static String? _activeUrl;
 
   static const int defaultPort = 8092;
 
@@ -24,6 +39,9 @@ class ApiConfig {
     'LOGISTICA_API_LAN_HOST',
     defaultValue: '192.168.33.109',
   );
+
+  // Usado pelo EndpointStore para apontar para o servidor seleccionado.
+  static void setActiveUrl(String url) => _activeUrl = url;
 
   static void setRuntimeEndpoint({String? host, int? port}) {
     _runtimeHost = host;
@@ -73,10 +91,17 @@ class ApiConfig {
     return defaultLanHost;
   }
 
-  static String get baseUrl => 'http://$host:$port';
+  // Prioridade: endpoint seleccionado pelo utilizador → dart-define → fallback host:port.
+  static String get baseUrl {
+    if (_activeUrl != null && _activeUrl!.isNotEmpty) return _activeUrl!;
+    final fullUrl = _dartDefineBaseUrl.trim();
+    if (fullUrl.isNotEmpty) return fullUrl;
+    return 'http://$host:$port';
+  }
 
   static String get endpointHints =>
-      'Backend Rust LogisticaHoldFy — porta padrão $defaultPort. '
+      'Backend Rust LogisticaHoldFy — padrão: SaveInCloud HTTPS. '
+      'Dev local: --dart-define=LOGISTICA_API_BASE_URL=http://192.168.33.109:8092. '
       'Emulador Android → 10.0.2.2 · Desktop → 127.0.0.1 · '
       'Telefone na Wi‑Fi → IP LAN do PC.';
 }

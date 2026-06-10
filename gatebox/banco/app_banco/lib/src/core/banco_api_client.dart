@@ -19,6 +19,10 @@ class BancoApiClient {
   static const _demoEmail = 'demo@saczuck.bank';
   static const _demoPassword = '12345678';
 
+  Future<Map<String, dynamic>> health() async {
+    return _get('/health');
+  }
+
   Future<Map<String, dynamic>> getMe() async {
     await _ensureSession();
     return _get('/accounts/me');

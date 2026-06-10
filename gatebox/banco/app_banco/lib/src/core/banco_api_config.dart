@@ -8,17 +8,23 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 /// directamente; o backend Go é que usa `GATEBOX_BASE_URL` no servidor para validar PIX.
 ///
 /// Prioridade:
-/// 1. Override em tempo de execução ([setRuntimeEndpoint]) — gravado nas preferências pelo ecrã Setup.
-/// 2. Compile-time: `flutter run --dart-define=BANCO_API_HOST=192.168.1.10 --dart-define=BANCO_API_PORT=8091`
-/// 3. Valor por plataforma:
+/// 1. `BANCO_API_BASE_URL` — URL completa (produção HTTPS via NGINX).
+///    Exemplo: `flutter build apk --dart-define=BANCO_API_BASE_URL=https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco`
+/// 2. Override em tempo de execução ([setRuntimeEndpoint]) — gravado nas preferências pelo ecrã Setup.
+/// 3. Compile-time host+porta: `--dart-define=BANCO_API_HOST=192.168.1.10 --dart-define=BANCO_API_PORT=8091`
+/// 4. Valor por plataforma:
 ///    - **Android emulador**: `10.0.2.2` aponta para o PC host.
-///    - **iOS simulador**: `localhost`.
-///    - **Linux/macOS/Windows** (dev): `127.0.0.1`.
-///    - **Web**: `localhost`.
-///
-/// **Telefone físico** na mesma Wi‑Fi: no ecrã Setup defina o IP do PC (ex.: `192.168.x.x`), não use `localhost`.
+///    - **iOS simulador / Linux / macOS / Windows** (dev): `127.0.0.1`.
+///    - **Telefone físico** na mesma Wi‑Fi: `BANCO_API_LAN_HOST` (default `192.168.33.109`).
 class BancoApiConfig {
   BancoApiConfig._();
+
+  // URL completa — padrão aponta para o servidor SaveInCloud.
+  // Sobrescreva com --dart-define=BANCO_API_BASE_URL=http://192.168.33.109:8091 para dev local.
+  static const String _dartDefineBaseUrl = String.fromEnvironment(
+    'BANCO_API_BASE_URL',
+    defaultValue: 'https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco',
+  );
 
   static const String _dartDefineHost = String.fromEnvironment(
     'BANCO_API_HOST',
@@ -31,6 +37,10 @@ class BancoApiConfig {
 
   static String? _runtimeHost;
   static int? _runtimePort;
+  static String? _activeUrl;
+
+  // Usado pelo EndpointStore para apontar para o servidor seleccionado.
+  static void setActiveUrl(String url) => _activeUrl = url;
 
   static const int defaultPort = 8091;
 
@@ -92,7 +102,13 @@ class BancoApiConfig {
     return defaultLanHost;
   }
 
-  static String get baseUrl => 'http://$host:$port';
+  // Prioridade: endpoint seleccionado → dart-define → fallback host:port.
+  static String get baseUrl {
+    if (_activeUrl != null && _activeUrl!.isNotEmpty) return _activeUrl!;
+    final fullUrl = _dartDefineBaseUrl.trim();
+    if (fullUrl.isNotEmpty) return fullUrl;
+    return 'http://$host:$port';
+  }
 
   static String get endpointHints =>
       'Host/porta = API do Banco Go (defeito porta $defaultPort). '

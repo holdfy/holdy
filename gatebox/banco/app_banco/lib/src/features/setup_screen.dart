@@ -1,13 +1,12 @@
+import 'package:app_banco/src/core/banco_api_client.dart';
+import 'package:app_banco/src/core/banco_api_config.dart';
+import 'package:app_banco/src/core/endpoint_store.dart';
 import 'package:flutter/material.dart';
-import 'package:logistica_holdfy/src/core/api_client.dart';
-import 'package:logistica_holdfy/src/core/api_config.dart';
-import 'package:logistica_holdfy/src/core/endpoint_store.dart';
-import 'package:logistica_holdfy/src/theme.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key, required this.api});
 
-  final ApiClient api;
+  final BancoApiClient api;
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -43,7 +42,7 @@ class _SetupScreenState extends State<SetupScreen> {
       (e) => e.id == id,
       orElse: () => EndpointStore.builtIn,
     );
-    ApiConfig.setActiveUrl(ep.url);
+    BancoApiConfig.setActiveUrl(ep.url);
     setState(() {
       _activeId = id;
       _testResult = null;
@@ -53,14 +52,13 @@ class _SetupScreenState extends State<SetupScreen> {
   Future<void> _testActive() async {
     setState(() {
       _testing = true;
-      _testResult = 'A testar ${ApiConfig.baseUrl}/health …';
+      _testResult = 'A testar ${BancoApiConfig.baseUrl}/health …';
     });
     try {
-      final data = await widget.api.health();
+      final result = await widget.api.health();
       if (!mounted) return;
       setState(() {
-        _testResult =
-            '✓  ${data['service']} v${data['version']} — ${data['status']}';
+        _testResult = '✓  ${result['service'] ?? 'ok'} — ${result['status'] ?? 'healthy'}';
       });
     } catch (e) {
       if (!mounted) return;
@@ -176,6 +174,8 @@ class _SetupScreenState extends State<SetupScreen> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
     final activeEp = _endpoints.firstWhere(
       (e) => e.id == _activeId,
       orElse: () => EndpointStore.builtIn,
@@ -196,20 +196,20 @@ class _SetupScreenState extends State<SetupScreen> {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: holdfyAccent.withAlpha(25),
+                color: accent.withAlpha(25),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: holdfyAccent.withAlpha(80)),
+                border: Border.all(color: accent.withAlpha(80)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    Icon(Icons.wifi_tethering, color: holdfyAccent, size: 18),
+                    Icon(Icons.wifi_tethering, color: accent, size: 18),
                     const SizedBox(width: 8),
                     Text(
                       'Activo: ${activeEp.name}',
                       style: TextStyle(
-                        color: holdfyAccent,
+                        color: accent,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -221,7 +221,6 @@ class _SetupScreenState extends State<SetupScreen> {
                     style: const TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 12,
-                      color: Color(0xFFCBD5E1),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -236,9 +235,8 @@ class _SetupScreenState extends State<SetupScreen> {
                         : const Icon(Icons.health_and_safety_outlined, size: 16),
                     label: Text(_testing ? 'A testar…' : 'Testar conexão'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: holdfyAccent,
-                      side: BorderSide(color: holdfyAccent.withAlpha(120)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       textStyle: const TextStyle(fontSize: 13),
                     ),
                   ),
@@ -249,8 +247,8 @@ class _SetupScreenState extends State<SetupScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         color: _testResult!.startsWith('✓')
-                            ? Colors.greenAccent
-                            : Colors.redAccent,
+                            ? Colors.green
+                            : Colors.red,
                       ),
                     ),
                   ],
@@ -266,7 +264,7 @@ class _SetupScreenState extends State<SetupScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.white38,
+                color: theme.colorScheme.onSurface.withAlpha(90),
                 letterSpacing: 1.2,
               ),
             ),
@@ -302,19 +300,19 @@ class _EndpointTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       leading: Radio<bool>(
         value: true,
         groupValue: isActive,
         onChanged: (_) => onSelect(),
-        activeColor: holdfyAccent,
       ),
       title: Text(
         ep.name,
         style: TextStyle(
           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          color: isActive ? holdfyAccent : null,
+          color: isActive ? accent : null,
         ),
       ),
       subtitle: Text(
@@ -326,7 +324,7 @@ class _EndpointTile extends StatelessWidget {
       trailing: ep.builtIn
           ? const Tooltip(
               message: 'Servidor padrão — não pode ser removido',
-              child: Icon(Icons.lock_outline, size: 18, color: Colors.white30),
+              child: Icon(Icons.lock_outline, size: 18),
             )
           : Row(
               mainAxisSize: MainAxisSize.min,

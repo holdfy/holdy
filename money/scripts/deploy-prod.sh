@@ -139,20 +139,47 @@ ssh_run 'bash -s' <<'STOPREMOTE'
 ~/holdy/stop.sh 2>/dev/null || true
 STOPREMOTE
 
-echo "  Instalando binários e reiniciando..."
-ssh_run 'bash -s' <<'INSTALLREMOTE'
+echo "  Instalando binários e aplicando configuração de produção..."
+ssh_run 'bash -s' <<INSTALLREMOTE
 set -e
-mkdir -p "$HOME/holdy/bin" "$HOME/holdy/config"
-tar -xzf /tmp/holdy-bins.tar.gz -C "$HOME/holdy/bin/"
-chmod +x "$HOME/holdy/bin"/apicash-core \
-         "$HOME/holdy/bin"/apicash-admin-backend \
-         "$HOME/holdy/bin"/apicash-frontend \
-         "$HOME/holdy/bin"/apicash-whatsapp \
-         "$HOME/holdy/bin"/gatebox-rust \
-         "$HOME/holdy/bin"/backend_banco
+mkdir -p "\$HOME/holdy/bin" "\$HOME/holdy/config"
+tar -xzf /tmp/holdy-bins.tar.gz -C "\$HOME/holdy/bin/"
+chmod +x "\$HOME/holdy/bin"/apicash-core \\
+         "\$HOME/holdy/bin"/apicash-admin-backend \\
+         "\$HOME/holdy/bin"/apicash-frontend \\
+         "\$HOME/holdy/bin"/apicash-whatsapp \\
+         "\$HOME/holdy/bin"/gatebox-rust \\
+         "\$HOME/holdy/bin"/backend_banco
 rm -f /tmp/holdy-bins.tar.gz
 echo "  Binários instalados."
-echo ""
+
+# ── Patch .env para valores de produção (HTTPS + IPs internos) ───────────────
+ENV_FILE="\$HOME/holdy/money/.env"
+if [ -f "\$ENV_FILE" ]; then
+  sed -i \\
+    -e 's|PUBLIC_APP_URL=.*|PUBLIC_APP_URL=https://${PROD_HOST}|' \\
+    -e 's|APICASH_HTTP_BASE=http://192[.0-9]*:[0-9]*|APICASH_HTTP_BASE=https://${PROD_HOST}/svc/core|' \\
+    -e 's|APICASH_ADMIN_HTTP_BASE=http://192[.0-9]*:[0-9]*|APICASH_ADMIN_HTTP_BASE=https://${PROD_HOST}/svc/admin|' \\
+    -e 's|APICASH_CORE_URL=http://192[.0-9]*:[0-9]*|APICASH_CORE_URL=http://127.0.0.1:3000|' \\
+    -e 's|ADMIN_API_URL=http://192[.0-9]*:[0-9]*|ADMIN_API_URL=http://127.0.0.1:3001|' \\
+    -e 's|APICASH_ADMIN_API_URL=http://192[.0-9]*:[0-9]*|APICASH_ADMIN_API_URL=http://127.0.0.1:3001|' \\
+    -e 's|GATEBOX_BASE_URL=http://192[.0-9]*:[0-9]*|GATEBOX_BASE_URL=http://127.0.0.1:8081|' \\
+    -e 's|BANCO_WEBHOOK_URL=http://192[.0-9]*:[0-9]*/|BANCO_WEBHOOK_URL=http://127.0.0.1:8081/|' \\
+    -e 's|LOGISTICA_WHATSAPP_NOTIFY_URL=http://192[.0-9]*:[0-9]*/|LOGISTICA_WHATSAPP_NOTIFY_URL=http://127.0.0.1:3010/|' \\
+    -e 's|SCRAPER_URL=http://192[.0-9]*:[0-9]*|SCRAPER_URL=http://127.0.0.1:4000|' \\
+    -e 's|SULCRED_OUT_URL=http://192[.0-9]*:[0-9]*|SULCRED_OUT_URL=http://127.0.0.1:7020|' \\
+    -e 's|APICASH_TRACKING_SIMULATOR_URL=http://192[.0-9]*:[0-9]*|APICASH_TRACKING_SIMULATOR_URL=http://127.0.0.1:8092|' \\
+    -e 's|DATABASE_URL=postgresql://[^@]*@192[.0-9]*:[0-9]*/|DATABASE_URL=postgresql://apicash:apicash@10.100.85.142:5432/|' \\
+    -e 's|BANCO_DATABASE_URL=postgresql://[^@]*@192[.0-9]*:[0-9]*/|BANCO_DATABASE_URL=postgresql://apicash:apicash@10.100.85.142:5432/|' \\
+    -e 's|POSTGRESQL_WRITE_URL=postgres://[^@]*@192[.0-9]*:[0-9]*/|POSTGRESQL_WRITE_URL=postgres://apicash:apicash@10.100.85.142:5432/|' \\
+    -e 's|POSTGRESQL_READ_URL=postgres://[^@]*@192[.0-9]*:[0-9]*/|POSTGRESQL_READ_URL=postgres://apicash:apicash@10.100.85.142:5432/|' \\
+    -e 's|REDIS_URL=redis://192[.0-9]*:[0-9]*/|REDIS_URL=redis://127.0.0.1:6379/|' \\
+    "\$ENV_FILE"
+  echo "  .env produção atualizado (HTTPS + IPs internos)."
+else
+  echo "  AVISO: \$ENV_FILE não encontrado — crie antes de iniciar."
+fi
+
 ~/holdy/run.sh
 INSTALLREMOTE
 
@@ -197,10 +224,12 @@ if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
   echo "  (sem DISPLAY — abra manualmente)"
   echo "  prod-dashboard : http://127.0.0.1:${PROD_DASH_PORT}/prod-dashboard.html"
   echo "  QR WhatsApp    : http://127.0.0.1:${PROD_DASH_PORT}/whatsapp_qrcode/pair.html"
-  echo "  APICash Core   : http://${PROD_IP}:3000/health"
-  echo "  Leptos Frontend: http://${PROD_IP}:3002/"
-  echo "  WhatsApp       : http://${PROD_IP}:3010/health"
-  echo "  Gatebox PIX    : http://${PROD_IP}:8080/health"
+  echo "  HoldFy Site    : https://${PROD_HOST}/"
+  echo "  APICash Core   : https://${PROD_HOST}/svc/core/health"
+  echo "  APICash Admin  : https://${PROD_HOST}/svc/admin/health"
+  echo "  WhatsApp health: https://${PROD_HOST}/svc/whatsapp/health"
+  echo "  Gatebox PIX    : https://${PROD_HOST}/svc/gatebox/health"
+  echo "  backend_banco  : https://${PROD_HOST}/svc/banco/health"
   _fetch_prod_qr || true
   exit 0
 fi
@@ -215,12 +244,16 @@ if _fetch_prod_qr; then
 fi
 sleep 0.4
 
-_open_url "APICash Core"        "http://${PROD_IP}:3000/health"
+_open_url "HoldFy Site"         "https://${PROD_HOST}/"
 sleep 0.4
-_open_url "APICash Frontend"    "http://${PROD_IP}:3002/"
+_open_url "APICash Core"        "https://${PROD_HOST}/svc/core/health"
 sleep 0.4
-_open_url "WhatsApp health"     "http://${PROD_IP}:3010/health"
+_open_url "APICash Admin"       "https://${PROD_HOST}/svc/admin/health"
 sleep 0.4
-_open_url "Gatebox PIX"         "http://${PROD_IP}:8080/health"
+_open_url "WhatsApp health"     "https://${PROD_HOST}/svc/whatsapp/health"
+sleep 0.4
+_open_url "Gatebox PIX"         "https://${PROD_HOST}/svc/gatebox/health"
+sleep 0.4
+_open_url "backend_banco"       "https://${PROD_HOST}/svc/banco/health"
 echo ""
 echo "  prod-dashboard: http://127.0.0.1:${PROD_DASH_PORT}/prod-dashboard.html"

@@ -233,7 +233,7 @@
 
     <h2>Credenciais por aplicação</h2>
 
-    <h3>apicash-core — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3000/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3000</a></code> <span class="badge-ok">UP</span></h3>
+    <h3>apicash-core — <code><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/core/health" target="_blank">https://holdfy-dev.sp1.br.saveincloud.net.br/svc/core</a></code> <span class="badge-ok">UP</span></h3>
     <table>
       <thead><tr><th class="prod-th">Tipo</th><th class="prod-th">Utilizador / chave</th><th class="prod-th">Senha / header</th><th class="prod-th">Notas</th></tr></thead>
       <tbody>
@@ -244,7 +244,7 @@
       </tbody>
     </table>
 
-    <h3>apicash-admin-backend — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3001/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3001</a></code> <span class="badge-ok">UP</span></h3>
+    <h3>apicash-admin-backend — <code><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/admin/health" target="_blank">https://holdfy-dev.sp1.br.saveincloud.net.br/svc/admin</a></code> <span class="badge-ok">UP</span></h3>
     <table>
       <thead><tr><th class="prod-th">Header</th><th class="prod-th">Valor</th><th class="prod-th">Notas</th></tr></thead>
       <tbody>
@@ -252,7 +252,7 @@
       </tbody>
     </table>
 
-    <h3>apicash-frontend (Leptos SSR) — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3002/" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3002</a></code></h3>
+    <h3>apicash-frontend (Leptos SSR) — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3002/" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3002</a></code> <small style="font-weight:normal;color:#888">(porta direta)</small></h3>
     <table>
       <thead><tr><th class="prod-th">Campo</th><th class="prod-th">Valor</th><th class="prod-th">Notas</th></tr></thead>
       <tbody>
@@ -260,7 +260,7 @@
       </tbody>
     </table>
 
-    <h3>apicash-whatsapp — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3010/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:3010</a></code> <span class="badge-ok">UP</span></h3>
+    <h3>apicash-whatsapp — <code><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/whatsapp/health" target="_blank">https://holdfy-dev.sp1.br.saveincloud.net.br/svc/whatsapp</a></code> <span class="badge-ok">UP</span> <small style="font-weight:normal;color:#888">(NGINX → :3010)</small></h3>
     <p class="lead">QR de pareamento: acesse via SSH e leia o PNG gerado em <code>~/holdy/pids/</code> ou <code>~/holdy/data/</code>. Para novo QR pare e reinicie o serviço.</p>
     <table>
       <thead><tr><th class="prod-th">Ação</th><th class="prod-th">Comando</th></tr></thead>
@@ -270,52 +270,64 @@
       </tbody>
     </table>
 
-    <h3>Gatebox Rust (PIX) — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:8080</a></code> <span class="badge-ok">UP</span></h3>
+    <h3>Gatebox Rust (PIX) — <code><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox/health" target="_blank">https://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox</a></code> <span class="badge-ok">UP</span></h3>
     <p class="lead">Modo health-only (sem Postgres). Adicione nó PostgreSQL no painel Jelastic para habilitar transações PIX completas.</p>
     <table>
       <thead><tr><th class="prod-th">Recurso</th><th class="prod-th">URL</th><th class="prod-th">Credenciais</th></tr></thead>
       <tbody>
-        <tr><td>Health</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health" target="_blank"><code>http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health</code></a></td><td>—</td></tr>
-        <tr><td>API PIX</td><td><code>http://holdfy-dev.sp1.br.saveincloud.net.br:8080/api/v1/</code></td><td><code class="copy" onclick="copy(this)">sandbox-key</code> · header <code>x-api-key</code></td></tr>
-        <tr><td>Métricas</td><td><code>http://holdfy-dev.sp1.br.saveincloud.net.br:2112/metrics</code></td><td>—</td></tr>
+        <tr><td>Health</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox/health" target="_blank"><code>https://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox/health</code></a></td><td>—</td></tr>
+        <tr><td>API PIX</td><td><code>https://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox/api/v1/</code></td><td><code class="copy" onclick="copy(this)">sandbox-key</code> · header <code>x-api-key</code></td></tr>
+        <tr><td>Métricas</td><td><code>http://holdfy-dev.sp1.br.saveincloud.net.br:2112/metrics</code></td><td>— (interno)</td></tr>
       </tbody>
     </table>
 
-    <h3>backend_banco (Go) — <code>http://holdfy-dev.sp1.br.saveincloud.net.br:8091</code> <span class="badge-pending">AGUARDANDO POSTGRES</span></h3>
+    <h3>backend_banco (Go) — <code><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco/" target="_blank">https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco</a></code> <span class="badge-pending">AGUARDANDO POSTGRES</span></h3>
     <p class="lead">Precisa de nó PostgreSQL no Jelastic. Após adicionar, atualize <code>BANCO_DATABASE_URL</code> em <code>~/holdy/config/.env</code> e reinicie.</p>
     <table>
       <thead><tr><th class="prod-th">Componente</th><th class="prod-th">URL prod</th><th class="prod-th">Credenciais</th></tr></thead>
       <tbody>
-        <tr><td>backend_banco API</td><td><code>http://holdfy-dev.sp1.br.saveincloud.net.br:8091</code></td><td><code>POST /auth/login</code> com email/senha de conta criada via <code>POST /accounts</code></td></tr>
+        <tr><td>backend_banco API (HTTPS)</td><td><code>https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco/</code></td><td><code>POST /auth/login</code> com email/senha de conta criada via <code>POST /accounts</code></td></tr>
         <tr><td>JWT secret</td><td>—</td><td><code class="copy" onclick="copy(this)">change-me-banco-jwt</code> (<code>BANCO_JWT_SECRET</code>)</td></tr>
         <tr><td>Gatebox API Key</td><td>—</td><td><code class="copy" onclick="copy(this)">sandbox-key</code> (<code>GATEBOX_API_KEY</code>)</td></tr>
       </tbody>
     </table>
 
-    <h2>Frontends React — pendentes de build para produção</h2>
-    <p class="lead">Os apps React não são servidos em produção ainda. Precisam de <code>npm run build</code> + nginx no servidor ou hospedagem estática externa.</p>
+    <h2>Frontends React — HTTPS via NGINX</h2>
+    <p class="lead">Servidos via NGINX (porta 443, TLS). O NGINX faz proxy reverso para cada serviço interno.</p>
     <table>
-      <thead><tr><th class="prod-th">App</th><th class="prod-th">Porta dev</th><th class="prod-th">Status prod</th><th class="prod-th">API alvo</th></tr></thead>
+      <thead><tr><th class="prod-th">App</th><th class="prod-th">URL HTTPS (NGINX)</th><th class="prod-th">Porta interna</th></tr></thead>
       <tbody>
-        <tr><td>holdfy-admin</td><td><code>:3020</code></td><td><span class="badge-pending">build pendente</span></td><td>apicash-admin-backend :3001</td></tr>
-        <tr><td>front-gatebox</td><td><code>:3030</code></td><td><span class="badge-pending">build pendente</span></td><td>gatebox-rust :8080</td></tr>
-        <tr><td>site HoldFy</td><td><code>:5173</code></td><td><span class="badge-pending">build pendente</span></td><td>apicash-core :3000</td></tr>
+        <tr><td>Site HoldFy (React)</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/" target="_blank"><code>https://holdfy-dev.sp1.br.saveincloud.net.br/</code></a></td><td><code>:5173</code> dev / dist nginx</td></tr>
+        <tr><td>apicash-core API</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/core/health" target="_blank"><code>https://…/svc/core/</code></a></td><td><code>:3000</code></td></tr>
+        <tr><td>apicash-admin API</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/admin/health" target="_blank"><code>https://…/svc/admin/</code></a></td><td><code>:3001</code></td></tr>
+        <tr><td>Gatebox PIX API</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox/health" target="_blank"><code>https://…/svc/gatebox/</code></a></td><td><code>:8080</code></td></tr>
+        <tr><td>backend_banco</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco/" target="_blank"><code>https://…/svc/banco/</code></a></td><td><code>:8091</code></td></tr>
+        <tr><td>WhatsApp webhook</td><td><code>https://…/svc/whatsapp/</code> (Meta callback)</td><td><code>:3010</code></td></tr>
       </tbody>
     </table>
 
-    <h2>Portas expostas na produção</h2>
+    <h2>Roteamento NGINX (referência)</h2>
+    <p class="lead">Configurar em <code>/etc/nginx/conf.d/holdfy.conf</code> no nó NGINX (268387):</p>
+    <pre style="background:#1e1e1e;color:#d4d4d4;padding:1rem;border-radius:8px;font-size:0.8rem;overflow:auto">location /svc/core/    { proxy_pass http://10.100.85.143:3000/; }
+location /svc/admin/   { proxy_pass http://10.100.85.143:3001/; }
+location /svc/whatsapp/{ proxy_pass http://10.100.85.143:3010/; }
+location /svc/gatebox/ { proxy_pass http://10.100.85.143:8080/; }
+location /svc/banco/   { proxy_pass http://10.100.85.143:8091/; }
+location /             { try_files $uri /index.html; root /path/to/site/dist; }</pre>
+
+    <h2>Portas internas (serviço ↔ serviço no App Server 268389)</h2>
     <table>
-      <thead><tr><th class="prod-th">Porta</th><th class="prod-th">Serviço</th><th class="prod-th">URL externa</th></tr></thead>
+      <thead><tr><th class="prod-th">Porta</th><th class="prod-th">Serviço</th><th class="prod-th">Acesso externo via NGINX</th></tr></thead>
       <tbody>
-        <tr><td>3000</td><td>apicash-core</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3000/health" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:3000</a></td></tr>
-        <tr><td>3001</td><td>apicash-admin-backend</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3001/health" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:3001</a></td></tr>
-        <tr><td>3002</td><td>apicash-frontend (Leptos SSR)</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3002/" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:3002</a></td></tr>
-        <tr><td>3010</td><td>apicash-whatsapp</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:3010/health" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:3010</a></td></tr>
-        <tr><td>4222</td><td>NATS JetStream (cliente)</td><td><code>nats://holdfy-dev.sp1.br.saveincloud.net.br:4222</code></td></tr>
+        <tr><td>3000</td><td>apicash-core</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/core/health" target="_blank">https://…/svc/core/health</a></td></tr>
+        <tr><td>3001</td><td>apicash-admin-backend</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/admin/health" target="_blank">https://…/svc/admin/health</a></td></tr>
+        <tr><td>3002</td><td>apicash-frontend (Leptos SSR)</td><td>interno (não via NGINX por padrão)</td></tr>
+        <tr><td>3010</td><td>apicash-whatsapp</td><td>https://…/svc/whatsapp/ (webhook Meta)</td></tr>
+        <tr><td>4222</td><td>NATS JetStream</td><td>interno · <code>nats://127.0.0.1:4222</code></td></tr>
         <tr><td>6379</td><td>Redis</td><td>interno · não exposto</td></tr>
-        <tr><td>8080</td><td>gatebox-rust (PIX API)</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:8080</a></td></tr>
-        <tr><td>8091</td><td>backend_banco</td><td>holdfy-dev.sp1.br.saveincloud.net.br:8091 (aguarda Postgres)</td></tr>
-        <tr><td>2112</td><td>gatebox métricas (Prometheus)</td><td><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:2112/metrics" target="_blank">holdfy-dev.sp1.br.saveincloud.net.br:2112</a></td></tr>
+        <tr><td>8080</td><td>gatebox-rust (PIX API)</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox/health" target="_blank">https://…/svc/gatebox/health</a></td></tr>
+        <tr><td>8091</td><td>backend_banco</td><td><a href="https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco/" target="_blank">https://…/svc/banco/</a></td></tr>
+        <tr><td>2112</td><td>gatebox métricas (Prometheus)</td><td>interno · <code>http://127.0.0.1:2112/metrics</code></td></tr>
       </tbody>
     </table>
 
@@ -332,19 +344,31 @@
       </tbody>
     </table>
 
+    <h2>App Flutter Banco — build produção</h2>
+    <p class="lead">O app Flutter usa <code>BANCO_API_BASE_URL</code> para HTTPS. Para local usa o IP LAN automaticamente.</p>
+    <table>
+      <thead><tr><th class="prod-th">Ambiente</th><th class="prod-th">Comando de build</th></tr></thead>
+      <tbody>
+        <tr><td>Produção (HTTPS NGINX)</td><td><code class="copy" onclick="copy(this)">flutter build apk --dart-define=BANCO_API_BASE_URL=https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco</code></td></tr>
+        <tr><td>Dev local (IP LAN)</td><td><code>flutter run</code> — usa <code>192.168.33.109:8091</code> automaticamente</td></tr>
+        <tr><td>Dev LAN personalizado</td><td><code class="copy" onclick="copy(this)">flutter run --dart-define=BANCO_API_LAN_HOST=192.168.X.X</code></td></tr>
+      </tbody>
+    </table>
+
     <h2>Próximos passos para produção completa</h2>
     <table>
       <thead><tr><th class="prod-th">#</th><th class="prod-th">Ação</th><th class="prod-th">Impacto</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>Adicionar nó PostgreSQL no painel Jelastic e atualizar <code>DATABASE_URL</code> em <code>~/holdy/config/.env</code></td><td>Habilita Gatebox PIX completo + backend_banco</td></tr>
-        <tr><td>2</td><td>Build + deploy holdfy-admin, front-gatebox, site (React → dist/ + nginx)</td><td>Dashboards admin acessíveis em produção</td></tr>
-        <tr><td>3</td><td>Parear WhatsApp no servidor de produção</td><td>Bot WhatsApp ativo em prod</td></tr>
-        <tr><td>4</td><td>Configurar domínio DNS apontando para <code>holdfy-dev.sp1.br.saveincloud.net.br</code></td><td>URL amigável para clientes e APIs</td></tr>
+        <tr><td>1</td><td>Configurar rotas NGINX no nó 268387 (<code>/svc/core/</code>, <code>/svc/admin/</code>, <code>/svc/gatebox/</code>, <code>/svc/banco/</code>, <code>/svc/whatsapp/</code>) — ver bloco "Roteamento NGINX" acima</td><td>Habilita HTTPS para todos os serviços via domínio</td></tr>
+        <tr><td>2</td><td>Executar <code>./scripts/deploy-prod.sh</code> — aplica patch automático de URLs no <code>.env</code> do servidor</td><td><code>PUBLIC_APP_URL</code> e service-to-service corrigidos para HTTPS + IPs internos</td></tr>
+        <tr><td>3</td><td>Build + deploy do site React (<code>npm run build</code> → <code>dist/</code> no NGINX)</td><td>Site HoldFy acessível em <code>https://holdfy-dev.sp1.br.saveincloud.net.br/</code></td></tr>
+        <tr><td>4</td><td>Build app Flutter Banco com <code>BANCO_API_BASE_URL=https://…/svc/banco</code></td><td>App móvel conecta ao servidor via HTTPS</td></tr>
+        <tr><td>5</td><td>Parear WhatsApp no servidor de produção</td><td>Bot WhatsApp ativo em prod</td></tr>
       </tbody>
     </table>
 
     <footer>
-      Produção SaveInCloud · IP <code>holdfy-dev.sp1.br.saveincloud.net.br</code> · atualizado pelo script <code>money/scripts/deploy-prod.sh</code>
+      Produção SaveInCloud · <a href="https://holdfy-dev.sp1.br.saveincloud.net.br/" target="_blank" style="color:#8b5cf6">https://holdfy-dev.sp1.br.saveincloud.net.br</a> · deploy: <code>money/scripts/deploy-prod.sh</code>
     </footer>
   </div>
 
@@ -363,14 +387,15 @@
 
     // ── Health monitor (auto-refresh 5s) ─────────────────────────────────────
     const PROD_HOST = 'holdfy-dev.sp1.br.saveincloud.net.br';
+    const H = `https://${PROD_HOST}`;
 
     const SERVICES = [
-      { name: 'APICash Core',         url: `http://${PROD_HOST}:3000/health`, link: `http://${PROD_HOST}:3000/health` },
-      { name: 'APICash Admin',        url: `http://${PROD_HOST}:3001/health`, link: `http://${PROD_HOST}:3001/health` },
-      { name: 'APICash Frontend',     url: `http://${PROD_HOST}:3002/`,       link: `http://${PROD_HOST}:3002/` },
-      { name: 'WhatsApp Bot',         url: `http://${PROD_HOST}:3010/health`, link: `http://${PROD_HOST}:3010/health` },
-      { name: 'Gatebox Rust (PIX)',   url: `http://${PROD_HOST}:8080/health`, link: `http://${PROD_HOST}:8080/health` },
-      { name: 'backend_banco',        url: `http://${PROD_HOST}:8091/health`, link: `http://${PROD_HOST}:8091/health` },
+      { name: 'HoldFy Site',          url: `${H}/`,                       link: `${H}/` },
+      { name: 'APICash Core',         url: `${H}/svc/core/health`,        link: `${H}/svc/core/health` },
+      { name: 'APICash Admin',        url: `${H}/svc/admin/health`,       link: `${H}/svc/admin/health` },
+      { name: 'WhatsApp Bot',         url: `${H}/svc/whatsapp/health`,    link: `${H}/svc/whatsapp/health` },
+      { name: 'Gatebox Rust (PIX)',   url: `${H}/svc/gatebox/health`,     link: `${H}/svc/gatebox/health` },
+      { name: 'backend_banco',        url: `${H}/svc/banco/health`,       link: `${H}/svc/banco/health` },
     ];
 
     // Serviços sem health HTTP (infra interna)
@@ -391,7 +416,7 @@
         <div class="health-info">
           <div class="health-name">${svc.name}</div>
           <div class="health-status" id="hs-${i}">verificando…</div>
-          <a class="health-link" href="${svc.link}" target="_blank">${PROD_HOST}:${new URL(svc.link).port}</a>
+          <a class="health-link" href="${svc.link}" target="_blank">${new URL(svc.link).pathname.replace(/\/$/, '') || '/'}</a>
         </div>`;
       grid.appendChild(card);
     });

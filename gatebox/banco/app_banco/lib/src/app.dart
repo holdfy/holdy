@@ -8,6 +8,7 @@ import 'package:app_banco/src/features/account_card_pay_screen.dart';
 import 'package:app_banco/src/features/account_link_pay_screen.dart';
 import 'package:app_banco/src/features/account_qr_pay_screen.dart';
 import 'package:app_banco/src/features/screens.dart';
+import 'package:app_banco/src/features/setup_screen.dart';
 import 'package:flutter/material.dart';
 
 class BancoSaczuckApp extends StatefulWidget {
@@ -54,7 +55,7 @@ class _BancoSaczuckAppState extends State<BancoSaczuckApp> {
             ),
             LinkTabScreen(account: _selectedAccount, api: api),
             CardTabScreen(account: _selectedAccount),
-            SimulationScreen(api: api),
+            SetupScreen(api: api),
           ],
         ),
         bottomNavigationBar: NavigationBar(
