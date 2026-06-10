@@ -19,6 +19,11 @@ DEPLOY_DIR=/tmp/holdy-deploy
 MUSL_LINKER="${HOME}/.local/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
 MUSL_TARGET="x86_64-unknown-linux-musl"
 
+SITE_DIR="${HOLDY_ROOT}/site"
+HOLDFY_ADMIN_DIR="${HOLDY_ROOT}/holdfy-admin"
+FRONT_GATEBOX_DIR="${HOLDY_ROOT}/gatebox/front-gatebox"
+FRONT_HOLDY_DIR="${HOLDY_ROOT}/gatebox/front-holdy"
+
 ssh_run() { ssh -p "$SSH_PORT" -o ConnectTimeout=30 -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=10 "$SERVER" "$@"; }
 
 _BROWSER=""
@@ -64,7 +69,7 @@ echo "╚═══════════════════════�
 echo ""
 
 # ── 1. Build APICash (Rust, musl) ─────────────────────────────────────────────
-echo "[1/5] Build APICash (Rust → musl)..."
+echo "[1/6] Build APICash (Rust → musl)..."
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="${MUSL_LINKER}"
 
 (
@@ -79,9 +84,18 @@ export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="${MUSL_LINKER}"
 
 echo "  APICash OK"
 
+# ── 1b. Build WASM/JS (Leptos hydration — gnu target, para wasm32) ────────────
+echo ""
+echo "[1b/6] Build Leptos WASM/JS..."
+(
+  cd "${APICASH}"
+  cargo leptos build --release 2>&1 | tail -5
+)
+echo "  WASM OK"
+
 # ── 2. Build Gatebox (Rust, musl) ─────────────────────────────────────────────
 echo ""
-echo "[2/5] Build Gatebox (Rust → musl)..."
+echo "[2/6] Build Gatebox (Rust → musl)..."
 (
   cd "${GATEBOX}"
   cargo build --release --target "${MUSL_TARGET}"
@@ -90,7 +104,7 @@ echo "  Gatebox OK"
 
 # ── 3. Build backend_banco (Go, linux/amd64) ──────────────────────────────────
 echo ""
-echo "[3/5] Build backend_banco (Go → linux/amd64)..."
+echo "[3/6] Build backend_banco (Go → linux/amd64)..."
 mkdir -p "${DEPLOY_DIR}"
 (
   cd "${BANCO_BE}"
@@ -98,9 +112,45 @@ mkdir -p "${DEPLOY_DIR}"
 )
 echo "  backend_banco OK"
 
+# ── 3b. Build site React (holdy/site) ─────────────────────────────────────────
+echo ""
+echo "[3b/6] Build site HoldFy (React → /site/)..."
+(
+  cd "${SITE_DIR}"
+  bun run build 2>&1 | tail -3
+)
+echo "  site OK"
+
+# ── 3c. Build holdfy-admin (React) ────────────────────────────────────────────
+echo ""
+echo "[3c/6] Build holdfy-admin (React → /holdfy-admin/)..."
+(
+  cd "${HOLDFY_ADMIN_DIR}"
+  bun run build 2>&1 | tail -3
+)
+echo "  holdfy-admin OK"
+
+# ── 3d. Build front-gatebox (React) ───────────────────────────────────────────
+echo ""
+echo "[3d/6] Build front-gatebox (React → /front-gatebox/)..."
+(
+  cd "${FRONT_GATEBOX_DIR}"
+  bun run build 2>&1 | tail -3
+)
+echo "  front-gatebox OK"
+
+# ── 3e. Build front-holdy (React — vendedor/comprador) ────────────────────────
+echo ""
+echo "[3e/6] Build front-holdy (React → /front-holdy/)..."
+(
+  cd "${FRONT_HOLDY_DIR}"
+  bun run build 2>&1 | tail -3
+)
+echo "  front-holdy OK"
+
 # ── 4. Strip + empacotar ──────────────────────────────────────────────────────
 echo ""
-echo "[4/5] Strip + pacote..."
+echo "[4/6] Strip + pacote..."
 
 APICASH_T="${APICASH}/target/${MUSL_TARGET}/release"
 GATEBOX_T="${GATEBOX}/target/${MUSL_TARGET}/release"
@@ -120,7 +170,7 @@ ls -lh "${DEPLOY_DIR}"/ | awk 'NR>1 {printf "  %-30s %s\n", $NF, $5}'
 
 # ── 5. Upload → stop → install → start → browser ─────────────────────────────
 echo ""
-echo "[5/5] Deploy no servidor..."
+echo "[5/6] Deploy no servidor..."
 
 echo "  Empacotando binários..."
 TAR_PKG="${DEPLOY_DIR}/holdy-bins.tar.gz"
@@ -128,10 +178,36 @@ tar -czf "${TAR_PKG}" -C "${DEPLOY_DIR}" \
   apicash-core apicash-admin-backend apicash-frontend apicash-whatsapp gatebox-rust backend_banco
 printf "  pacote: "; ls -lh "${TAR_PKG}" | awk '{print $5}'
 
-echo "  Enviando pacote único (1 conexão SCP)..."
+echo "  Enviando binários..."
 scp -P "${SSH_PORT}" -o ConnectTimeout=60 -o ServerAliveInterval=30 \
   "${TAR_PKG}" "${SERVER}:/tmp/holdy-bins.tar.gz"
-echo "  enviado."
+
+echo "  Enviando assets WASM/JS (Leptos pkg/)..."
+PKG_DIR="${APICASH}/target/site/pkg"
+scp -P "${SSH_PORT}" -o ConnectTimeout=30 \
+  "${PKG_DIR}/apicash_frontend.wasm" \
+  "${PKG_DIR}/apicash_frontend.js" \
+  "${SERVER}:/home/jelastic/pkg/"
+echo "  assets enviados."
+
+echo "  Enviando site React (holdy/site → /home/jelastic/site-dist/)..."
+ssh_run "mkdir -p /home/jelastic/site-dist /home/jelastic/holdfy-admin-dist"
+scp -P "${SSH_PORT}" -r -q "${SITE_DIR}/dist/." "${SERVER}:/home/jelastic/site-dist/"
+echo "  site enviado."
+
+echo "  Enviando holdfy-admin (React → /home/jelastic/holdfy-admin-dist/)..."
+scp -P "${SSH_PORT}" -r -q "${HOLDFY_ADMIN_DIR}/dist/." "${SERVER}:/home/jelastic/holdfy-admin-dist/"
+echo "  holdfy-admin enviado."
+
+echo "  Enviando front-gatebox (React → /home/jelastic/front-gatebox-dist/)..."
+ssh_run "mkdir -p /home/jelastic/front-gatebox-dist"
+scp -P "${SSH_PORT}" -r -q "${FRONT_GATEBOX_DIR}/build/." "${SERVER}:/home/jelastic/front-gatebox-dist/"
+echo "  front-gatebox enviado."
+
+echo "  Enviando front-holdy (React → /home/jelastic/front-holdy-dist/)..."
+ssh_run "mkdir -p /home/jelastic/front-holdy-dist"
+scp -P "${SSH_PORT}" -r -q "${FRONT_HOLDY_DIR}/dist/." "${SERVER}:/home/jelastic/front-holdy-dist/"
+echo "  front-holdy enviado."
 
 echo ""
 echo "  Parando stack..."
@@ -155,6 +231,36 @@ echo "  Binários instalados."
 echo ""
 ~/holdy/run.sh
 INSTALLREMOTE
+
+echo ""
+echo "[6/6] Aguardando serviços ficarem prontos..."
+_wait_ready() {
+  local url="$1" label="$2" waited=0
+  printf "  aguardando %-25s " "${label}…"
+  while true; do
+    code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 "${url}" 2>/dev/null)
+    if [[ "${code}" == "200" ]]; then
+      echo "✓ (${waited}s)"
+      return 0
+    fi
+    if [[ "${waited}" -ge 60 ]]; then
+      echo "TIMEOUT (último: ${code})"
+      return 1
+    fi
+    sleep 2; waited=$((waited+2)); printf "."
+  done
+}
+
+_wait_ready "http://${PROD_HOST}/"                    "frontend"      || true
+_wait_ready "http://${PROD_HOST}/"                    "site"          || true
+_wait_ready "http://${PROD_HOST}/holdfy-admin/"       "holdfy-admin"  || true
+_wait_ready "http://${PROD_HOST}/front-gatebox/"      "front-gatebox" || true
+_wait_ready "http://${PROD_HOST}/front-holdy/"        "front-holdy"   || true
+_wait_ready "http://${PROD_HOST}/svc/core/health"     "apicash-core"  || true
+_wait_ready "http://${PROD_HOST}/svc/admin/health"    "apicash-admin" || true
+_wait_ready "http://${PROD_HOST}/svc/gatebox/health"  "gatebox"       || true
+_wait_ready "http://${PROD_HOST}/svc/banco/health"    "backend_banco" || true
+_wait_ready "http://${PROD_HOST}/svc/whatsapp/health" "whatsapp"      || true
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
@@ -190,37 +296,50 @@ _fetch_prod_qr() {
   return 1
 }
 
-# ── Abrir browser ─────────────────────────────────────────────────────────────
+# ── Abrir browser (mesmas páginas que runapp.sh, mas apontando para o servidor) ──
 _serve_prod_dash
 
 if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
   echo "  (sem DISPLAY — abra manualmente)"
   echo "  prod-dashboard : http://127.0.0.1:${PROD_DASH_PORT}/prod-dashboard.html"
   echo "  QR WhatsApp    : http://127.0.0.1:${PROD_DASH_PORT}/whatsapp_qrcode/pair.html"
-  echo "  APICash Core   : http://${PROD_IP}:3000/health"
-  echo "  Leptos Frontend: http://${PROD_IP}:3002/"
-  echo "  WhatsApp       : http://${PROD_IP}:3010/health"
-  echo "  Gatebox PIX    : http://${PROD_IP}:8080/health"
+  echo "  Site HoldFy    : http://${PROD_HOST}/"
+  echo "  holdfy-admin   : http://${PROD_HOST}/holdfy-admin/"
+  echo "  front-gatebox  : http://${PROD_HOST}/front-gatebox/"
+  echo "  front-holdy    : http://${PROD_HOST}/front-holdy/"
   _fetch_prod_qr || true
   exit 0
 fi
 
-_open_url "prod-dashboard"      "http://127.0.0.1:${PROD_DASH_PORT}/prod-dashboard.html"
+# 1. prod-dashboard (equivalente ao dev-dashboard.html do runapp.sh)
+_open_url "prod-dashboard"    "http://127.0.0.1:${PROD_DASH_PORT}/prod-dashboard.html"
 sleep 0.5
 
-# QR do WhatsApp — mesmo mecanismo do runapp.sh (pair.html local com PNG do servidor)
+# 2. QR WhatsApp (igual ao runapp.sh)
 if _fetch_prod_qr; then
   sleep 0.4
-  _open_url "QR WhatsApp"  "http://127.0.0.1:${PROD_DASH_PORT}/whatsapp_qrcode/pair.html"
+  _open_url "QR WhatsApp"     "http://127.0.0.1:${PROD_DASH_PORT}/whatsapp_qrcode/pair.html"
 fi
 sleep 0.4
 
-_open_url "APICash Core"        "http://${PROD_IP}:3000/health"
+# 3. Site HoldFy (equivalente ao http://127.0.0.1:5173/ do runapp.sh)
+_open_url "Site HoldFy"       "http://${PROD_HOST}/"
 sleep 0.4
-_open_url "APICash Frontend"    "http://${PROD_IP}:3002/"
+
+# 4. holdfy-admin (equivalente ao http://127.0.0.1:3020/ do runapp.sh)
+_open_url "holdfy-admin"      "http://${PROD_HOST}/holdfy-admin/"
 sleep 0.4
-_open_url "WhatsApp health"     "http://${PROD_IP}:3010/health"
+
+# 5. front-gatebox (equivalente ao http://127.0.0.1:3030/#/ do runapp.sh)
+_open_url "front-gatebox"     "http://${PROD_HOST}/front-gatebox/"
 sleep 0.4
-_open_url "Gatebox PIX"         "http://${PROD_IP}:8080/health"
+
+# 6. front-holdy (vendedor/comprador)
+_open_url "front-holdy"       "http://${PROD_HOST}/front-holdy/"
+
 echo ""
-echo "  prod-dashboard: http://127.0.0.1:${PROD_DASH_PORT}/prod-dashboard.html"
+echo "  prod-dashboard : http://127.0.0.1:${PROD_DASH_PORT}/prod-dashboard.html"
+echo "  Site HoldFy    : http://${PROD_HOST}/"
+echo "  holdfy-admin   : http://${PROD_HOST}/holdfy-admin/"
+echo "  front-gatebox  : http://${PROD_HOST}/front-gatebox/"
+echo "  front-holdy    : http://${PROD_HOST}/front-holdy/"

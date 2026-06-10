@@ -1,7 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  base: mode === "production" ? "/holdfy-admin/" : "/",
   plugins: [react()],
   server: {
     port: 3010,
@@ -10,4 +11,4 @@ export default defineConfig({
       "/health": { target: "http://localhost:3001", changeOrigin: true },
     },
   },
-});
+}));

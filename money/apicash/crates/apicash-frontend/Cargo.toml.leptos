@@ -3,7 +3,7 @@
 
 [package.metadata.leptos]
 output-name = "apicash_frontend"
-site-root = "."
+site-root = "target/site"
 site-pkg-dir = "pkg"
 site-addr = "0.0.0.0:3002"
 env = "DEV"

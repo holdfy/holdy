@@ -248,7 +248,7 @@
     <table>
       <thead><tr><th class="prod-th">Header</th><th class="prod-th">Valor</th><th class="prod-th">Notas</th></tr></thead>
       <tbody>
-        <tr><td><code>x-api-key</code></td><td><code class="copy" onclick="copy(this)">change-me-admin-key</code></td><td><code>APICASH_ADMIN_API_KEY</code></td></tr>
+        <tr><td><code>Authorization</code></td><td><code class="copy" onclick="copy(this)">Bearer 0844925c9c9fa4ba5e9dc00ab3ed5a7e133a80ea17a67d05e0a09e933ae2f3cf</code></td><td><code>APICASH_ADMIN_API_KEY</code></td></tr>
       </tbody>
     </table>
 
@@ -256,7 +256,7 @@
     <table>
       <thead><tr><th class="prod-th">Campo</th><th class="prod-th">Valor</th><th class="prod-th">Notas</th></tr></thead>
       <tbody>
-        <tr><td>Admin API Key</td><td><code class="copy" onclick="copy(this)">change-me-admin-key</code></td><td>Mesmo <code>APICASH_ADMIN_API_KEY</code> · chama admin :3001</td></tr>
+        <tr><td>Admin API Key</td><td><code class="copy" onclick="copy(this)">0844925c9c9fa4ba5e9dc00ab3ed5a7e133a80ea17a67d05e0a09e933ae2f3cf</code></td><td>Header <code>Authorization: Bearer &lt;key&gt;</code> · chama admin :3001</td></tr>
       </tbody>
     </table>
 
@@ -270,8 +270,8 @@
       </tbody>
     </table>
 
-    <h3>Gatebox Rust (PIX) — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br:8080/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br:8080</a></code> <span class="badge-ok">UP</span></h3>
-    <p class="lead">Modo health-only (sem Postgres). Adicione nó PostgreSQL no painel Jelastic para habilitar transações PIX completas.</p>
+    <h3>Gatebox Rust (PIX) — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br/svc/gatebox/health</a></code> <span class="badge-ok">UP</span></h3>
+    <p class="lead">Conectado ao PostgreSQL (nó 268388 · <code>dubai-cash</code>). PIX totalmente operacional.</p>
     <table>
       <thead><tr><th class="prod-th">Recurso</th><th class="prod-th">URL</th><th class="prod-th">Credenciais</th></tr></thead>
       <tbody>
@@ -281,8 +281,8 @@
       </tbody>
     </table>
 
-    <h3>backend_banco (Go) — <code>http://holdfy-dev.sp1.br.saveincloud.net.br:8091</code> <span class="badge-pending">AGUARDANDO POSTGRES</span></h3>
-    <p class="lead">Precisa de nó PostgreSQL no Jelastic. Após adicionar, atualize <code>BANCO_DATABASE_URL</code> em <code>~/holdy/config/.env</code> e reinicie.</p>
+    <h3>backend_banco (Go) — <code><a href="http://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco/health" target="_blank">http://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco/health</a></code> <span class="badge-ok">UP</span></h3>
+    <p class="lead">Conectado ao PostgreSQL (nó 268388 · <code>banco_saczuck</code>). API operacional.</p>
     <table>
       <thead><tr><th class="prod-th">Componente</th><th class="prod-th">URL prod</th><th class="prod-th">Credenciais</th></tr></thead>
       <tbody>
@@ -363,14 +363,15 @@
 
     // ── Health monitor (auto-refresh 5s) ─────────────────────────────────────
     const PROD_HOST = 'holdfy-dev.sp1.br.saveincloud.net.br';
+    const BASE = `http://${PROD_HOST}`;
 
     const SERVICES = [
-      { name: 'APICash Core',         url: `http://${PROD_HOST}:3000/health`, link: `http://${PROD_HOST}:3000/health` },
-      { name: 'APICash Admin',        url: `http://${PROD_HOST}:3001/health`, link: `http://${PROD_HOST}:3001/health` },
-      { name: 'APICash Frontend',     url: `http://${PROD_HOST}:3002/`,       link: `http://${PROD_HOST}:3002/` },
-      { name: 'WhatsApp Bot',         url: `http://${PROD_HOST}:3010/health`, link: `http://${PROD_HOST}:3010/health` },
-      { name: 'Gatebox Rust (PIX)',   url: `http://${PROD_HOST}:8080/health`, link: `http://${PROD_HOST}:8080/health` },
-      { name: 'backend_banco',        url: `http://${PROD_HOST}:8091/health`, link: `http://${PROD_HOST}:8091/health` },
+      { name: 'APICash Core',       url: `${BASE}/svc/core/health`,     link: `${BASE}/svc/core/health` },
+      { name: 'APICash Admin',      url: `${BASE}/svc/admin/health`,    link: `${BASE}/svc/admin/health` },
+      { name: 'APICash Frontend',   url: `${BASE}/`,                    link: `${BASE}/` },
+      { name: 'WhatsApp Bot',       url: `${BASE}/svc/whatsapp/health`, link: `${BASE}/svc/whatsapp/health` },
+      { name: 'Gatebox Rust (PIX)', url: `${BASE}/svc/gatebox/health`,  link: `${BASE}/svc/gatebox/health` },
+      { name: 'backend_banco',      url: `${BASE}/svc/banco/health`,    link: `${BASE}/svc/banco/health` },
     ];
 
     // Serviços sem health HTTP (infra interna)

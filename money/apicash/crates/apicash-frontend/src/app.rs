@@ -36,10 +36,8 @@ pub fn App() -> impl IntoView {
         <I18nProvider>
             <AuthProvider>
                 <Router>
-                    <Routes fallback=|| {
-                        view! { <p class="ap-muted"><T key=MsgKey::PageNotFound /></p> }
-                    }>
-                        <ParentRoute path=path!("") view=Layout>
+                    <Routes fallback=|| view! { <p class="ap-muted">"404"</p> }>
+                        <ParentRoute path=path!("/admin") view=Layout>
                             <Route path=path!("") view=DashboardPage />
                             <Route path=path!("orders") view=OrdersPage />
                             <Route path=path!("disputes") view=DisputesPage />
