@@ -307,7 +307,12 @@
     "proposalError": "Error creating proposal",
     "amountRequired": "Enter the proposal amount",
     "invalidAmount": "Invalid amount",
-    "newProposal": "New Proposal"
+    "newProposal": "New Proposal",
+    "listingUrl": "Listing URL",
+    "listingUrlPlaceholder": "Paste link (OLX, Mercado Livre, Instagram...)",
+    "listingUrlHint": "Title and price will be filled automatically.",
+    "importingListing": "Importing listing...",
+    "listingImported": "Listing imported!"
   },
   "order": {
     "protectedPayment": "Payment held",

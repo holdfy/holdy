@@ -307,7 +307,12 @@
     "proposalError": "Erro ao criar proposta",
     "amountRequired": "Informe o valor da proposta",
     "invalidAmount": "Valor inválido",
-    "newProposal": "Nova Proposta"
+    "newProposal": "Nova Proposta",
+    "listingUrl": "Link do Anúncio",
+    "listingUrlPlaceholder": "Cole o link (OLX, Mercado Livre, Instagram...)",
+    "listingUrlHint": "Título e valor serão preenchidos automaticamente.",
+    "importingListing": "Importando anúncio...",
+    "listingImported": "Anúncio importado!"
   },
   "order": {
     "protectedPayment": "Pagamento retido",

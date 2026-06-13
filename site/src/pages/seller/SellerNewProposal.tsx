@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Copy, Check, Shield, Loader2 } from "lucide-react";
+import { ArrowLeft, Copy, Check, Shield, Loader2, Link2, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
@@ -16,16 +16,45 @@ export default function SellerNewProposal() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [pixKey, setPixKey] = useState("");
+  const [listingUrl, setListingUrl] = useState("");
+  const [listingId, setListingId] = useState<string | undefined>(undefined);
+  const [listingImported, setListingImported] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [proposalLink, setProposalLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      api.createProposal({
+    mutationFn: async () => {
+      let resolvedListingId = listingId;
+
+      // Import listing if URL provided and not yet imported
+      if (listingUrl.trim() && !resolvedListingId) {
+        setIsImporting(true);
+        try {
+          const imported = await api.importListing(listingUrl.trim());
+          resolvedListingId = imported.listing_id ?? undefined;
+          if (!amount.trim() && imported.price_suggested) {
+            setAmount(imported.price_suggested);
+          }
+          if (!description.trim() && imported.title) {
+            setDescription(imported.title);
+          }
+          setListingId(resolvedListingId);
+          setListingImported(true);
+        } catch {
+          toast.error(t("seller.importError", "Erro ao importar produto"));
+        } finally {
+          setIsImporting(false);
+        }
+      }
+
+      return api.createProposal({
         amount: amount.trim().replace(",", "."),
         description: description.trim() || undefined,
         seller_pix_key: pixKey.trim() || undefined,
-      }),
+        listing_id: resolvedListingId,
+      });
+    },
     onSuccess: (data) => {
       const link = `${window.location.origin}/buyer/payment/${data.id}`;
       setProposalLink(link);
@@ -62,6 +91,11 @@ export default function SellerNewProposal() {
     createMutation.mutate();
   };
 
+  const isPending = createMutation.isPending || isImporting;
+  const pendingLabel = isImporting
+    ? t("seller.importingListing", "Importando anúncio...")
+    : t("buyer.addFunds", "Criar um Pagamento Seguro");
+
   return (
     <div className="px-5 pt-6 space-y-5 max-w-lg mx-auto md:px-0 md:pt-0">
       <div className="flex items-center gap-3">
@@ -83,6 +117,34 @@ export default function SellerNewProposal() {
 
       {!proposalLink ? (
         <div className="bg-card rounded-2xl p-6 border border-border space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="listingUrl">
+              {t("seller.listingUrl", "Link do Anúncio")}
+              <span className="text-muted-foreground text-xs ml-1">({t("common.optional", "opcional")})</span>
+            </Label>
+            <div className="relative">
+              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="listingUrl"
+                placeholder={t("seller.listingUrlPlaceholder", "Cole o link (OLX, Mercado Livre, Instagram...)")}
+                value={listingUrl}
+                onChange={(e) => {
+                  setListingUrl(e.target.value);
+                  setListingId(undefined);
+                  setListingImported(false);
+                }}
+                className="pl-9"
+                autoComplete="off"
+              />
+              {listingImported && (
+                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("seller.listingUrlHint", "Título e valor serão preenchidos automaticamente.")}
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="amount">{t("seller.amount", "Valor (R$)")}</Label>
             <Input
@@ -135,12 +197,13 @@ export default function SellerNewProposal() {
           <Button
             className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
             onClick={handleCreate}
-            disabled={createMutation.isPending}
+            disabled={isPending}
           >
-            {createMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            {t("buyer.addFunds", "Criar um Pagamento Seguro")}
+            {isPending ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" />{pendingLabel}</>
+            ) : (
+              t("buyer.addFunds", "Criar um Pagamento Seguro")
+            )}
           </Button>
         </div>
       ) : (
@@ -179,6 +242,9 @@ export default function SellerNewProposal() {
               setAmount("");
               setDescription("");
               setPixKey("");
+              setListingUrl("");
+              setListingId(undefined);
+              setListingImported(false);
             }}
           >
             {t("seller.newProposal", "Criar outra proposta")}

@@ -306,6 +306,11 @@
     "amountRequired": "Ingresa el monto de la propuesta",
     "invalidAmount": "Monto inválido",
     "newProposal": "Nueva Propuesta",
+    "listingUrl": "Enlace del Anuncio",
+    "listingUrlPlaceholder": "Pega el enlace (OLX, Mercado Libre, Instagram...)",
+    "listingUrlHint": "El título y precio se rellenarán automáticamente.",
+    "importingListing": "Importando anuncio...",
+    "listingImported": "¡Anuncio importado!",
     "noDisputesDesc": "Tu cuenta está al día. Sin disputas abiertas.",
     "noDisputes": "Sin disputas"
   },
