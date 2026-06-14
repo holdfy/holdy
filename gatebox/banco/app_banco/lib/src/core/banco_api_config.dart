@@ -48,7 +48,7 @@ class BancoApiConfig {
   /// Sobrescreva com `--dart-define=BANCO_API_LAN_HOST=…` ou no ecrã Setup.
   static const String defaultLanHost = String.fromEnvironment(
     'BANCO_API_LAN_HOST',
-    defaultValue: '192.168.33.109',
+    defaultValue: '192.168.86.237',
   );
 
   /// Sobrescreve host/porta até ao próximo [clearRuntimeEndpoint] ou restart sem prefs.

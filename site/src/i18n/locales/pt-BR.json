@@ -231,7 +231,7 @@
   },
   "buyer": {
     "totalBalance": "Saldo total protegido",
-    "addFunds": "Criar um Pagamento Seguro",
+    "addFunds": "Fazer um Holdfy",
     "withdraw": "Sacar",
     "last30Days": "Últimos 30 dias",
     "pixAdded": "PIX adicionado ao saldo",

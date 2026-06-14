@@ -37,7 +37,7 @@ class ApiConfig {
 
   static const String defaultLanHost = String.fromEnvironment(
     'LOGISTICA_API_LAN_HOST',
-    defaultValue: '192.168.33.109',
+    defaultValue: '192.168.86.237',
   );
 
   // Usado pelo EndpointStore para apontar para o servidor seleccionado.
