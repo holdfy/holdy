@@ -311,6 +311,7 @@
     "listingUrlHint": "El título y precio se rellenarán automáticamente.",
     "importingListing": "Importando anuncio...",
     "listingImported": "¡Anuncio importado!",
+    "previewBtn": "Vista previa",
     "noDisputesDesc": "Tu cuenta está al día. Sin disputas abiertas.",
     "noDisputes": "Sin disputas"
   },
@@ -338,7 +339,17 @@
     "disputePlaceholder": "Describe el problema...",
     "toastDisputeEmpty": "Describe el problema brevemente",
     "toastDisputeSent": "Disputa enviada. Nuestro equipo hará seguimiento.",
-    "toastDeliveryConfirmed": "Entrega confirmada."
+    "toastDeliveryConfirmed": "Entrega confirmada.",
+    "disputeCard": "Disputa en curso",
+    "disputeStatusOpen": "Abierta",
+    "disputeStatusReview": "En revisión por IA",
+    "disputeStatusResolved": "Resuelta",
+    "disputeStatusClosed": "Cerrada",
+    "aiVerdictBuyer": "La IA decidió a favor del comprador",
+    "aiVerdictSeller": "La IA decidió a favor del vendedor",
+    "aiVerdictInconclusive": "IA no concluyente — revisión manual en curso",
+    "aiConfidence": "Confianza del análisis",
+    "resolutionNotes": "Notas de resolución"
   },
   "payment": {
     "title": "Agregar fondos vía PIX",

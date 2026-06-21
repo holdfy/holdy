@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatCurrency, maskCpfCnpj, stripDoc, validateCpf, validateCnpj } from "@/lib/format";
+import { formatCurrency, maskCpfCnpj, maskPhone, stripDoc, validateCpf, validateCnpj } from "@/lib/format";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import type { ApiError, ShippingQuote } from "@/lib/api-client";
@@ -64,6 +64,7 @@ export default function AppPayment() {
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [docInfo, setDocInfo] = useState<DocInfo | null>(null);
   const [docCheckLoading, setDocCheckLoading] = useState(false);
+  const [buyerPhone, setBuyerPhone] = useState("");
 
   const [freightOpen, setFreightOpen] = useState(false);
   const [cepDestino, setCepDestino] = useState("");
@@ -79,6 +80,15 @@ export default function AppPayment() {
       color: { light: "#ffffff", dark: "#111111" },
     }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [pixBrCode]);
+
+  // Fetch proposal details to show product image (soft failure — buyer may not be authed)
+  const { data: proposalData } = useQuery({
+    queryKey: ["proposal-preview", proposalIdParam],
+    queryFn: () => api.getProposal(proposalIdParam!),
+    enabled: !!proposalIdParam && !pixBrCode,
+    retry: false,
+    staleTime: 60_000,
+  });
 
   // Poll order status after proposal acceptance — auto-navigate when paid
   const { data: polledOrder } = useQuery({
@@ -145,7 +155,7 @@ export default function AppPayment() {
 
   const acceptMutation = useMutation({
     mutationFn: (cpfDigits: string) =>
-      api.acceptProposal(proposalId.trim(), cpfDigits),
+      api.acceptProposal(proposalId.trim(), cpfDigits, buyerPhone.replace(/\D/g, "") || undefined),
     onSuccess: (data) => {
       setPixBrCode(data.pix_br_code);
       setAmount(parseFloat(data.amount));
@@ -199,6 +209,25 @@ export default function AppPayment() {
         <h1 className="font-display text-2xl font-bold">{t("payment.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">{t("payment.helpDesc")}</p>
       </div>
+
+      {/* Produto vinculado à proposta */}
+      {!pixBrCode && proposalData?.listing_photo && (
+        <div className="bg-card rounded-2xl overflow-hidden border border-border">
+          <img
+            src={proposalData.listing_photo}
+            alt={proposalData.description ?? t("payment.productAlt", "Produto")}
+            className="w-full h-48 object-cover"
+          />
+          {proposalData.description && (
+            <div className="px-4 py-3">
+              <p className="text-sm font-semibold line-clamp-2 text-foreground">{proposalData.description}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                R$ {parseFloat(proposalData.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Etapa 1 — Formulário (antes do PIX ser gerado) */}
       {!pixBrCode && (
@@ -270,6 +299,25 @@ export default function AppPayment() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* WhatsApp do comprador — notificações de rastreio */}
+          <div className="space-y-1.5">
+            <Label htmlFor="buyer-phone" className="flex items-center gap-1.5">
+              <span>WhatsApp</span>
+              <span className="text-muted-foreground text-xs">({t("common.optional", "opcional")})</span>
+            </Label>
+            <Input
+              id="buyer-phone"
+              placeholder="(41) 99999-0000"
+              value={buyerPhone}
+              onChange={(e) => setBuyerPhone(maskPhone(e.target.value))}
+              type="tel"
+              inputMode="numeric"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("payment.whatsappHint", "Receba atualizações de rastreio da entrega pelo WhatsApp.")}
+            </p>
           </div>
 
           {/* Cotação de frete — opcional */}

@@ -18,6 +18,19 @@ export function stripDoc(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+/** Aplica máscara de telefone brasileiro: (XX) XXXX-XXXX ou (XX) XXXXX-XXXX */
+export function maskPhone(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 10) {
+    return d
+      .replace(/^(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d{1,4})$/, "$1-$2");
+  }
+  return d
+    .replace(/^(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d{1,4})$/, "$1-$2");
+}
+
 // Algoritmo oficial Receita Federal — pesos explícitos conforme documentação
 export function validateCpf(digits: string): boolean {
   if (digits.length !== 11) return false;

@@ -10,6 +10,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ReputationBadge } from "@/components/ReputationBadge";
 import { tokenStore, api } from "@/lib/api-client";
 import type { ApiError } from "@/lib/api-client";
+import { maskPhone } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -117,7 +118,7 @@ export default function SellerProfile() {
                   id="seller-phone"
                   placeholder={t("profile.phonePlaceholder", "+55 11 99999-9999")}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(maskPhone(e.target.value))}
                   type="tel"
                   className="flex-1"
                 />

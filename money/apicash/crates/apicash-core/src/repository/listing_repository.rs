@@ -59,6 +59,40 @@ impl ListingRepository {
         Ok(row.0)
     }
 
+    /// Retorna dados completos de um listing por id.
+    pub async fn get_listing(&self, listing_id: Uuid) -> Result<Option<ListingRow>, sqlx::Error> {
+        use sqlx::Row;
+        let row = sqlx::query(
+            r#"SELECT id, source_url, source_platform, extractor_used, title, description,
+                      price_suggested::text, guarantee, condition, location,
+                      seller_name, seller_rating, photos
+               FROM listings WHERE id = $1"#,
+        )
+        .bind(listing_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let Some(r) = row else { return Ok(None) };
+        let photos: Vec<String> = r
+            .try_get::<serde_json::Value, _>("photos")
+            .ok()
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+
+        Ok(Some(ListingRow {
+            id: r.try_get("id").unwrap_or(listing_id),
+            source_url: r.try_get("source_url").unwrap_or_default(),
+            source_platform: r.try_get("source_platform").unwrap_or_default(),
+            extractor_used: r.try_get("extractor_used").unwrap_or_default(),
+            title: r.try_get("title").unwrap_or_default(),
+            description: r.try_get("description").ok().flatten(),
+            price_suggested: r.try_get("price_suggested").ok().flatten(),
+            seller_name: r.try_get("seller_name").ok().flatten(),
+            seller_rating: r.try_get("seller_rating").ok().flatten(),
+            photos,
+        }))
+    }
+
     /// Retorna a chave PIX registrada no wa_contacts para um user_id.
     /// Usada pelo off-ramp de disputa para saber para onde enviar o PIX.
     pub async fn pix_key_for_user(&self, user_id: Uuid) -> Option<String> {
@@ -122,6 +156,17 @@ impl ListingRepository {
         Ok(())
     }
 
+    /// Recupera o número de WhatsApp de um usuário do site (peer_key = `web:{user_id}`).
+    pub async fn get_phone(&self, user_id: Uuid) -> Result<Option<String>, sqlx::Error> {
+        let row: Option<(String,)> = sqlx::query_as(
+            "SELECT phone FROM wa_contacts WHERE peer_key = $1",
+        )
+        .bind(format!("web:{user_id}"))
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|(phone,)| phone))
+    }
+
     /// Salva (ou atualiza) o número de WhatsApp de um usuário do site no wa_contacts.
     pub async fn upsert_phone(&self, user_id: Uuid, phone: &str) -> Result<(), sqlx::Error> {
         let peer_key = format!("web:{user_id}");
@@ -139,6 +184,22 @@ impl ListingRepository {
         .await?;
         Ok(())
     }
+}
+
+// ─── ListingRow ──────────────────────────────────────────────────────────────
+
+#[derive(Debug)]
+pub struct ListingRow {
+    pub id: Uuid,
+    pub source_url: String,
+    pub source_platform: String,
+    pub extractor_used: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub price_suggested: Option<String>,
+    pub seller_name: Option<String>,
+    pub seller_rating: Option<String>,
+    pub photos: Vec<String>,
 }
 
 // ─── ImportJob ────────────────────────────────────────────────────────────────

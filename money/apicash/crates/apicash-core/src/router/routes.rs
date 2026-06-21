@@ -103,6 +103,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/internal/listings/import", post(importer_handler::import_listing))
         .route("/internal/listings/import/async", post(importer_handler::import_listing_async))
         .route("/internal/listings/jobs/{id}", get(importer_handler::get_import_job))
+        .route("/internal/listings/import/async", post(importer_handler::import_listing_async))
         .route("/internal/listings/{id}/order", axum::routing::patch(importer_handler::link_listing_to_order))
         .layer(GovernorLayer::new(governor_conf.clone()))
         .with_state(state.clone());

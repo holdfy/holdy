@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use apicash_importer::ProductDraft;
 
+use crate::activity_store::spawn_record_import;
 use crate::error::ApiError;
 use crate::state::AppState;
 
@@ -80,6 +81,9 @@ pub struct ImportJobResponse {
     pub error_msg: Option<String>,
     pub queued_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
+    /// Dados completos do listing (preenchido quando `status == "done"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listing: Option<ImportResponse>,
 }
 
 /// `POST /v1/listings/import/async` — enfileira importação no Pulsar e retorna imediatamente.
@@ -147,6 +151,37 @@ pub async fn get_import_job(
         .map_err(|e| ApiError::internal(e.to_string()))?
         .ok_or_else(|| ApiError::not_found("job não encontrado"))?;
 
+    // Inclui dados do listing quando concluído
+    let listing = if job.status == "done" {
+        if let Some(lid) = job.listing_id {
+            repo.get_listing(lid)
+                .await
+                .ok()
+                .flatten()
+                .map(|l| ImportResponse {
+                    listing_id: Some(lid),
+                    title: l.title,
+                    description: l.description,
+                    price_suggested: l.price_suggested,
+                    photos: l.photos,
+                    source_url: l.source_url,
+                    source_platform: l.source_platform,
+                    extractor_used: l.extractor_used,
+                    guarantee: None,
+                    condition: None,
+                    location: None,
+                    seller_name: l.seller_name,
+                    seller_rating: l.seller_rating,
+                    raw_attributes: serde_json::Value::Object(Default::default()),
+                    video_url: None,
+                })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     Ok(Json(ImportJobResponse {
         job_id: job.id.to_string(),
         status: job.status,
@@ -154,6 +189,7 @@ pub async fn get_import_job(
         error_msg: job.error_msg,
         queued_at: job.queued_at,
         completed_at: job.completed_at,
+        listing,
     }))
 }
 
@@ -211,6 +247,18 @@ pub async fn import_listing(
             }
         }
     }
+
+    // Log no MongoDB — paridade com WhatsApp (wa_messages registra a URL inbound).
+    spawn_record_import(
+        state.activity_store.clone(),
+        effective_user_id,
+        resp.listing_id,
+        &resp.title,
+        &resp.source_platform,
+        resp.photos.len(),
+        resp.price_suggested.clone(),
+        &req.url,
+    );
 
     Ok(Json(resp))
 }

@@ -159,3 +159,6 @@ Stellar amounts use 7 decimal places (e.g. `5000000` = 0.5 BRLx).
 ## Manter fluxos atualizados
 
 - `site e whatsapp` toda vez que atualizar o fluxo do whatsapp deve-se atualizar o fluxo site. o site esta multilangue e os 3 idiomas devem serem atualizados tambem.
+
+- `matenter as funcionalidades do whatsapp` jamais alerar uma funcionalidade que o whatsapp utilize do codigo para atender a fluxo web ou de apis, so fazer isso se for um pedido explicito.
+

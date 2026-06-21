@@ -312,7 +312,8 @@
     "listingUrlPlaceholder": "Paste link (OLX, Mercado Livre, Instagram...)",
     "listingUrlHint": "Title and price will be filled automatically.",
     "importingListing": "Importing listing...",
-    "listingImported": "Listing imported!"
+    "listingImported": "Listing imported!",
+    "previewBtn": "Preview"
   },
   "order": {
     "protectedPayment": "Payment held",
@@ -338,7 +339,17 @@
     "disputePlaceholder": "Describe the issue...",
     "toastDisputeEmpty": "Describe the issue briefly",
     "toastDisputeSent": "Your dispute was submitted. Our team will follow up.",
-    "toastDeliveryConfirmed": "Delivery confirmed."
+    "toastDeliveryConfirmed": "Delivery confirmed.",
+    "disputeCard": "Dispute in progress",
+    "disputeStatusOpen": "Open",
+    "disputeStatusReview": "Under AI review",
+    "disputeStatusResolved": "Resolved",
+    "disputeStatusClosed": "Closed",
+    "aiVerdictBuyer": "AI decided in favor of the buyer",
+    "aiVerdictSeller": "AI decided in favor of the seller",
+    "aiVerdictInconclusive": "AI inconclusive — manual review in progress",
+    "aiConfidence": "Analysis confidence",
+    "resolutionNotes": "Resolution notes"
   },
   "payment": {
     "title": "Add funds via PIX",

@@ -41,6 +41,27 @@ impl DocumentValidator for LocalDocumentValidator {
     }
 }
 
+// ─── Public sync helpers ──────────────────────────────────────────────────────
+
+/// Validates a CPF string (digits only, length 11) using the Receita Federal algorithm.
+pub fn validate_cpf(digits: &str) -> bool {
+    cpf_valid(digits)
+}
+
+/// Validates a CNPJ string (digits only, length 14) using the Receita Federal algorithm.
+pub fn validate_cnpj(digits: &str) -> bool {
+    cnpj_valid(digits)
+}
+
+/// Validates CPF (11 digits) or CNPJ (14 digits).
+pub fn validate_document(digits: &str) -> bool {
+    match digits.len() {
+        11 => cpf_valid(digits),
+        14 => cnpj_valid(digits),
+        _ => false,
+    }
+}
+
 // ─── CPF ─────────────────────────────────────────────────────────────────────
 
 fn cpf_valid(digits: &str) -> bool {

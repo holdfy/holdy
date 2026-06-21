@@ -312,7 +312,8 @@
     "listingUrlPlaceholder": "Cole o link (OLX, Mercado Livre, Instagram...)",
     "listingUrlHint": "Título e valor serão preenchidos automaticamente.",
     "importingListing": "Importando anúncio...",
-    "listingImported": "Anúncio importado!"
+    "listingImported": "Anúncio importado!",
+    "previewBtn": "Pré-visualizar"
   },
   "order": {
     "protectedPayment": "Pagamento retido",
@@ -338,7 +339,17 @@
     "disputePlaceholder": "Descreva o problema...",
     "toastDisputeEmpty": "Descreva o problema brevemente",
     "toastDisputeSent": "Disputa enviada. Nossa equipe entrará em contato.",
-    "toastDeliveryConfirmed": "Entrega confirmada."
+    "toastDeliveryConfirmed": "Entrega confirmada.",
+    "disputeCard": "Disputa em andamento",
+    "disputeStatusOpen": "Aberta",
+    "disputeStatusReview": "Em análise pela IA",
+    "disputeStatusResolved": "Resolvida",
+    "disputeStatusClosed": "Encerrada",
+    "aiVerdictBuyer": "IA decidiu a favor do comprador",
+    "aiVerdictSeller": "IA decidiu a favor do vendedor",
+    "aiVerdictInconclusive": "IA inconclusiva — revisão manual em andamento",
+    "aiConfidence": "Confiança da análise",
+    "resolutionNotes": "Notas da resolução"
   },
   "payment": {
     "title": "Adicionar fundos via PIX",

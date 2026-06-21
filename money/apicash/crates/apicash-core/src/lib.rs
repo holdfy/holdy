@@ -6,6 +6,7 @@
 //! emit structured `tracing` logs with `user_id`, `order_id`, `action`, `success`, and `timestamp`,
 //! enabling end-to-end attribution ("who did what") across services.
 
+pub mod activity_store;
 pub mod config;
 pub mod dto;
 pub mod error;

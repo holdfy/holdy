@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Shield, ArrowLeft, CheckCircle2, HelpCircle, CheckCheck, Loader2, Paperclip, X, AlertTriangle } from "lucide-react";
+import { Shield, ArrowLeft, CheckCircle2, HelpCircle, CheckCheck, Loader2, Paperclip, X, AlertTriangle, PackageSearch, Bot } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,8 @@ import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import { useUserRole } from "@/contexts/UserRoleContext";
-import type { ApiError } from "@/lib/api-client";
+import type { ApiError, TrackingInfo, DisputeResponse } from "@/lib/api-client";
+import { TrackingCard } from "@/components/TrackingCard";
 
 function orderStatusStep(status: string): number {
   switch (status) {
@@ -49,6 +51,80 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function DisputeCard({ dispute, isSeller }: { dispute: DisputeResponse; isSeller: boolean }) {
+  const { t } = useTranslation();
+  const statusLabel: Record<string, string> = {
+    open: t("order.disputeStatusOpen", "Aberta"),
+    under_review: t("order.disputeStatusReview", "Em análise pela IA"),
+    resolved: t("order.disputeStatusResolved", "Resolvida"),
+    closed: t("order.disputeStatusClosed", "Encerrada"),
+  };
+
+  const statusColor: Record<string, string> = {
+    open: "text-destructive bg-destructive/10 border-destructive/20",
+    under_review: "text-amber-600 bg-amber-50 border-amber-200",
+    resolved: "text-secondary bg-secondary/10 border-secondary/20",
+    closed: "text-muted-foreground bg-muted border-border",
+  };
+
+  const verdictLabel = (v: string | null) => {
+    if (v === "favor_buyer") return t("order.aiVerdictBuyer", "IA decidiu a favor do comprador");
+    if (v === "favor_seller") return t("order.aiVerdictSeller", "IA decidiu a favor do vendedor");
+    if (v === "inconclusive") return t("order.aiVerdictInconclusive", "IA inconclusiva — revisão manual em andamento");
+    return null;
+  };
+
+  const verdictColor = (v: string | null) => {
+    if (v === "favor_buyer") return isSeller ? "text-destructive" : "text-secondary";
+    if (v === "favor_seller") return isSeller ? "text-secondary" : "text-destructive";
+    return "text-amber-600";
+  };
+
+  return (
+    <div className="bg-card rounded-2xl p-5 border border-border space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-destructive" />
+          <p className="font-semibold text-sm">{t("order.disputeCard", "Disputa em andamento")}</p>
+        </div>
+        <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${statusColor[dispute.status] ?? statusColor.closed}`}>
+          {statusLabel[dispute.status] ?? dispute.status}
+        </span>
+      </div>
+
+      {dispute.ai_verdict && (
+        <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-3">
+          <Bot className={`h-5 w-5 shrink-0 mt-0.5 ${verdictColor(dispute.ai_verdict)}`} />
+          <div className="space-y-1">
+            <p className={`text-sm font-semibold ${verdictColor(dispute.ai_verdict)}`}>
+              {verdictLabel(dispute.ai_verdict)}
+            </p>
+            {dispute.ai_confidence != null && (
+              <p className="text-xs text-muted-foreground">
+                {t("order.aiConfidence", "Confiança da análise")}: {Math.round(dispute.ai_confidence * 100)}%
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {dispute.status === "under_review" && !dispute.ai_verdict && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>{t("order.disputeStatusReview", "Em análise pela IA")}</span>
+        </div>
+      )}
+
+      {dispute.resolution_notes && (
+        <div className="text-xs text-muted-foreground border-t border-border pt-3">
+          <p className="font-semibold text-foreground mb-0.5">{t("order.resolutionNotes", "Notas da resolução")}</p>
+          <p>{dispute.resolution_notes}</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function RiskBadge({ score, decision }: { score: number | null; decision: string | null }) {
@@ -94,6 +170,27 @@ export default function AppOrderDetail() {
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [releaseLoading, setReleaseLoading] = useState(false);
+  const [trackingInput, setTrackingInput] = useState("");
+  const [trackingResult, setTrackingResult] = useState<TrackingInfo | null>(null);
+
+  const setTrackingMutation = useMutation({
+    mutationFn: (code: string) => api.setTracking(id!, code),
+    onSuccess: (data) => {
+      toast.success("Código de rastreio registrado!");
+      setTrackingInput("");
+      // fetch tracking info right away
+      api.trackShipment(data.tracking_code)
+        .then(setTrackingResult)
+        .catch(() => {});
+    },
+    onError: (err: ApiError) => toast.error(err?.error ?? "Erro ao registrar rastreio"),
+  });
+
+  const fetchTrackingMutation = useMutation({
+    mutationFn: (code: string) => api.trackShipment(code),
+    onSuccess: setTrackingResult,
+    onError: () => toast.error("Código não encontrado ou serviço indisponível"),
+  });
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ["order", id],
@@ -104,6 +201,26 @@ export default function AppOrderDetail() {
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === "pending_funding" ? 5000 : false;
+    },
+  });
+
+  // Busca disputa — 404 significa que não há disputa; falha silenciosa
+  const { data: dispute } = useQuery<DisputeResponse | null>({
+    queryKey: ["dispute", id],
+    queryFn: async () => {
+      try {
+        return await api.getDispute(id!);
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!id && !!order,
+    retry: false,
+    staleTime: 30_000,
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      // Atualiza a cada 10s enquanto a disputa está em análise
+      return d?.status === "open" || d?.status === "under_review" ? 10_000 : false;
     },
   });
 
@@ -265,6 +382,75 @@ export default function AppOrderDetail() {
           {/* Score de Risco */}
           <RiskBadge score={order.risk_score} decision={order.risk_decision} />
 
+          {/* Rastreio */}
+          {isSeller && isInCustody && (
+            <div className="bg-card rounded-2xl p-5 border border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <PackageSearch className="h-5 w-5 text-primary" />
+                <p className="font-semibold text-sm">Informar código de rastreio</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Após postar o produto, informe o código para o comprador acompanhar a entrega.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex.: AA123456789BR"
+                  value={trackingInput}
+                  onChange={(e) => setTrackingInput(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && trackingInput.trim() && setTrackingMutation.mutate(trackingInput.trim())}
+                  className="font-mono uppercase flex-1"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => setTrackingMutation.mutate(trackingInput.trim())}
+                  disabled={!trackingInput.trim() || setTrackingMutation.isPending}
+                  className="vault-card border-0 text-white hover:opacity-90 shrink-0"
+                >
+                  {setTrackingMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {order.tracking_code && (
+            <div className="bg-card rounded-2xl p-5 border border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <PackageSearch className="h-5 w-5 text-primary" />
+                  <p className="font-semibold text-sm">Rastreio da encomenda</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchTrackingMutation.mutate(order.tracking_code!)}
+                  disabled={fetchTrackingMutation.isPending}
+                >
+                  {fetchTrackingMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Atualizar"}
+                </Button>
+              </div>
+              {!trackingResult && !fetchTrackingMutation.isPending && (
+                <div className="flex items-center gap-2">
+                  <p className="font-mono text-sm font-semibold">{order.tracking_code}</p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs h-7 px-2"
+                    onClick={() => fetchTrackingMutation.mutate(order.tracking_code!)}
+                  >
+                    Ver status
+                  </Button>
+                </div>
+              )}
+              {fetchTrackingMutation.isPending && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Consultando transportadora…
+                </div>
+              )}
+              {trackingResult && <TrackingCard info={trackingResult} />}
+            </div>
+          )}
+
           <div className="bg-card rounded-2xl p-5 border border-border">
             <h3 className="font-display font-bold text-lg mb-5">{t("order.deliveryProgress")}</h3>
             <div className="space-y-0">
@@ -314,13 +500,18 @@ export default function AppOrderDetail() {
             </div>
           </div>
 
+          {/* Card de disputa com veredito da IA */}
+          {dispute && (
+            <DisputeCard dispute={dispute} isSeller={isSeller} />
+          )}
+
           <div className="flex gap-3">
             <Button
               type="button"
               variant="outline"
               className="flex-1 h-14 rounded-xl text-sm font-semibold"
               onClick={() => setDisputeOpen(true)}
-              disabled={!isInCustody}
+              disabled={!isInCustody || !!dispute}
             >
               <HelpCircle className="mr-2 h-4 w-4" />
               {t("order.openDispute")}

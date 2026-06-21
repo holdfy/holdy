@@ -27,8 +27,10 @@ use apicash_disputes::{
 };
 use apicash_importer::ImporterService;
 use apicash_logistics::LogisticsService;
+use crate::activity_store::WebActivityStore;
 use crate::repository::ListingRepository;
 use apicash_shared::Order;
+use redis::aio::ConnectionManager as RedisConnectionManager;
 use reqwest::Client;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::RwLock;
@@ -83,8 +85,14 @@ pub struct AppState {
     pub listing_repo: Option<Arc<ListingRepository>>,
     /// Producer Pulsar para fila de importação async (None se Pulsar não configurado).
     pub event_producer: Option<Arc<tokio::sync::Mutex<EventProducer>>>,
-    /// Códigos de rastreio por order_id (in-memory, MVP — migrar para DB futuramente).
+    /// Códigos de rastreio por order_id (in-memory cache — persiste também em order_tracking_status quando pool disponível).
     pub tracking_codes: Arc<RwLock<HashMap<Uuid, String>>>,
+    /// Pool Postgres compartilhado (Some quando APICASH_ORDERS_PG ou APICASH_CUSTODY_PG estiver habilitado).
+    pub pool: Option<sqlx::PgPool>,
+    /// Auditoria web no MongoDB — paridade com ConversationStore do canal WhatsApp.
+    pub activity_store: Arc<WebActivityStore>,
+    /// Cache Redis para consultas NFS-e (TTL 24h). Compartilhado com canal WhatsApp via mesma chave.
+    pub kyc_redis: Option<RedisConnectionManager>,
 }
 
 impl AppState {
@@ -156,6 +164,8 @@ impl AppState {
             pool,
         );
         state.importer = Arc::new(ImporterService::new_with_redis().await);
+        state.activity_store = WebActivityStore::from_env().await;
+        state.kyc_redis = build_kyc_redis().await;
 
         // Mensageria async (importer): Pulsar se APICASH_PULSAR__SERVICE_URL definido,
         // NATS JetStream se NATS_URL definido. Mutuamente exclusivos.
@@ -317,6 +327,9 @@ impl AppState {
             listing_repo,
             event_producer: None,
             tracking_codes: Arc::new(RwLock::new(HashMap::new())),
+            pool,
+            activity_store: WebActivityStore::noop(),
+            kyc_redis: None,
         }
     }
 }
@@ -344,6 +357,26 @@ fn env_enabled(name: &str) -> bool {
     std::env::var(name)
         .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
         .unwrap_or(false)
+}
+
+async fn build_kyc_redis() -> Option<RedisConnectionManager> {
+    let url = std::env::var("REDIS_URL").ok().filter(|s| !s.trim().is_empty())?;
+    match redis::Client::open(url.trim().to_string()) {
+        Ok(client) => match RedisConnectionManager::new(client).await {
+            Ok(conn) => {
+                tracing::info!("kyc_redis: Redis iniciado (cache NFS-e TTL 24h)");
+                Some(conn)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "kyc_redis: falha ao conectar Redis");
+                None
+            }
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "kyc_redis: REDIS_URL inválido");
+            None
+        }
+    }
 }
 
 fn build_logistics_service() -> LogisticsService {

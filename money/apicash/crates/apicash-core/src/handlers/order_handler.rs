@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
+use crate::activity_store::{WebOrderEventKind, spawn_record_order_event};
 use crate::dto::{CreateOrderRequest, OrderResponse, RiskScoreRequest};
 use crate::error::ApiError;
 use crate::state::{AppState, StoredOrder};
@@ -365,6 +366,16 @@ pub async fn create_order(
         buyer_name: req.buyer_name.clone(),
         tracking_code: None,
     };
+
+    // Log web order creation event to MongoDB (fire-and-forget, paridade com WhatsApp).
+    spawn_record_order_event(
+        state.activity_store.clone(),
+        Some(request_user_id),
+        order.id,
+        &order.amount.to_string(),
+        None,
+        WebOrderEventKind::OrderCreated,
+    );
 
     Ok((StatusCode::CREATED, Json(body)))
 }
@@ -1027,6 +1038,16 @@ pub async fn open_dispute(
         "dispute opened"
     );
 
+    // Log disputa ao MongoDB (fire-and-forget, paridade com WhatsApp SummaryTrigger::DisputeOpened).
+    spawn_record_order_event(
+        state.activity_store.clone(),
+        Some(actor_id),
+        id,
+        &stored.order.amount.to_string(),
+        None,
+        WebOrderEventKind::DisputeOpened,
+    );
+
     Ok(Json(serde_json::json!({
         "dispute_id": dispute.id,
         "order_id": id,
@@ -1234,6 +1255,7 @@ pub async fn analyze_dispute(
         * rust_decimal::Decimal::from(100))
         .to_u64()
         .unwrap_or(u64::MAX);
+    let amount_str = stored.order.amount.to_string();
 
     // Get listing photos for comparison (empty if no listing linked).
     let listing_photos = if let Some(repo) = &state.listing_repo {
@@ -1247,7 +1269,7 @@ pub async fn analyze_dispute(
 
     // Run analysis in background — caller gets immediate 202.
     tokio::spawn(async move {
-        match dispute_svc.analyze_and_maybe_resolve(dispute_id, amount_cents, listing_photos).await {
+        match dispute_svc.analyze_and_maybe_resolve(dispute_id, amount_cents, listing_photos, amount_str).await {
             Ok(result) => tracing::info!(
                 %dispute_id,
                 verdict = ?result.verdict,
@@ -1395,7 +1417,49 @@ pub async fn set_tracking(
     if stored.order.seller_id != user_id {
         return Err(ApiError::forbidden("somente o vendedor pode registrar rastreio"));
     }
+    // In-memory cache (fast path for GET /orders/:id).
     state.tracking_codes.write().await.insert(id, code.clone());
+    // Persist to order_tracking_status so the WhatsApp tracking monitor picks it up.
+    // Look up buyer and seller phones from wa_contacts to populate buyer_peer / seller_peer.
+    if let Some(pool) = &state.pool {
+        let buyer_peer = state.listing_repo.as_ref()
+            .and_then(|r| Some(r))
+            .map(|repo| {
+                let buyer_id = stored.order.buyer_id;
+                let repo = repo.clone();
+                async move { repo.get_phone(buyer_id).await.unwrap_or(None).unwrap_or_default() }
+            });
+        let seller_peer = state.listing_repo.as_ref()
+            .map(|repo| {
+                let repo = repo.clone();
+                async move { repo.get_phone(user_id).await.unwrap_or(None).unwrap_or_default() }
+            });
+
+        let buyer_peer = if let Some(fut) = buyer_peer { fut.await } else { String::new() };
+        let seller_peer = if let Some(fut) = seller_peer { fut.await } else { String::new() };
+
+        if let Err(e) = sqlx::query(
+            r#"
+            INSERT INTO order_tracking_status (order_id, tracking_code, buyer_peer, seller_peer, last_status)
+            VALUES ($1, $2, $3, $4, 'unknown')
+            ON CONFLICT (order_id, tracking_code) DO UPDATE
+                SET buyer_peer  = COALESCE(NULLIF(EXCLUDED.buyer_peer, ''), order_tracking_status.buyer_peer),
+                    seller_peer = COALESCE(NULLIF(EXCLUDED.seller_peer, ''), order_tracking_status.seller_peer),
+                    updated_at  = NOW()
+            "#,
+        )
+        .bind(id)
+        .bind(&code)
+        .bind(&buyer_peer)
+        .bind(&seller_peer)
+        .execute(pool)
+        .await
+        {
+            tracing::warn!(order_id = %id, code = %code, error = %e, "tracking: falha ao persistir em order_tracking_status");
+        } else {
+            tracing::info!(order_id = %id, ?buyer_peer, ?seller_peer, "tracking: buyer/seller peers registrados");
+        }
+    }
     info!(order_id = %id, code = %code, "tracking registrado");
     Ok(Json(SetTrackingResponse { order_id: id, tracking_code: code }))
 }

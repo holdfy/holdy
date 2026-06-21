@@ -37,6 +37,7 @@ pub struct MessageHandler {
     conv_store: Arc<ConversationStore>,
     logistics: Arc<LogisticsService>,
     pg_pool: Option<Arc<sqlx::PgPool>>,
+    kyc_redis: Option<redis::aio::ConnectionManager>,
 }
 
 impl MessageHandler {
@@ -57,11 +58,17 @@ impl MessageHandler {
             conv_store,
             logistics,
             pg_pool: None,
+            kyc_redis: None,
         }
     }
 
     pub fn with_pg_pool(mut self, pool: sqlx::PgPool) -> Self {
         self.pg_pool = Some(Arc::new(pool));
+        self
+    }
+
+    pub fn with_kyc_redis(mut self, conn: redis::aio::ConnectionManager) -> Self {
+        self.kyc_redis = Some(conn);
         self
     }
 
@@ -625,6 +632,60 @@ impl MessageHandler {
             })
     }
 
+    /// Responde com o histórico de pedidos do usuário (como comprador e como vendedor).
+    async fn handle_my_orders(&self, peer: &str, session: &UserSession) {
+        use crate::core_api::OrderListItem;
+
+        let buyer_orders: Vec<OrderListItem> = if let Ok(tok) =
+            self.jwt_for_user(session.user_id, Role::Buyer)
+        {
+            self.core.list_orders("buyer", &tok).await.unwrap_or_default()
+        } else {
+            vec![]
+        };
+
+        let seller_orders: Vec<OrderListItem> = if let Ok(tok) =
+            self.jwt_for_user(session.user_id, Role::Seller)
+        {
+            self.core.list_orders("seller", &tok).await.unwrap_or_default()
+        } else {
+            vec![]
+        };
+
+        let buyer_ids: Vec<String> = buyer_orders.iter().map(|o| o.id.to_string()).collect();
+        let buyer_summaries: Vec<message_templates::OrderSummary<'_>> = buyer_orders
+            .iter()
+            .zip(buyer_ids.iter())
+            .map(|(o, id)| message_templates::OrderSummary {
+                id: id.as_str(),
+                amount: o.amount.as_str(),
+                status: o.status.as_str(),
+                description: o.description.as_deref(),
+            })
+            .collect();
+
+        let seller_ids: Vec<String> = seller_orders.iter().map(|o| o.id.to_string()).collect();
+        let seller_summaries: Vec<message_templates::OrderSummary<'_>> = seller_orders
+            .iter()
+            .zip(seller_ids.iter())
+            .map(|(o, id)| message_templates::OrderSummary {
+                id: id.as_str(),
+                amount: o.amount.as_str(),
+                status: o.status.as_str(),
+                description: o.description.as_deref(),
+            })
+            .collect();
+
+        let msg = message_templates::my_orders_list(&buyer_summaries, &seller_summaries);
+        self.outbound.send_text(peer, &msg).await;
+        tracing::info!(
+            peer = %crate::utils::masking::mask_whatsapp_peer(peer),
+            buyer_count = buyer_orders.len(),
+            seller_count = seller_orders.len(),
+            "handle_my_orders: histórico enviado"
+        );
+    }
+
     fn merge_holdfy_draft(draft: &mut OrderDraft, body: &str, ev: &WhatsAppEvent) {
         let (amt, phone) = parse_loose_fields(body, Some(ev));
         if let Some(a) = amt {
@@ -743,12 +804,22 @@ impl MessageHandler {
         let listing_url = draft.listing_source_url.as_deref();
         let listing_price = draft.listing_price_suggested.as_deref();
 
+        // Reputação do vendedor — exibida ao comprador antes do aceite (soft failure)
+        let seller_seal_str: Option<String> = if let Ok(bearer) = self.jwt_for_user(session.user_id, apicash_auth::Role::Seller) {
+            self.core.get_reputation(session.user_id, &bearer).await
+                .and_then(|r| r.seal)
+                .map(|s| s.whatsapp_display())
+        } else {
+            None
+        };
+
         let buyer_ok = self
             .outbound
             .send_text(
                 &buyer_peer_key,
                 message_templates::buyer_proposal_before_accept(
                     &masked_seller, &amt, &description, seller_name, seller_doc, listing_url, listing_price,
+                    seller_seal_str.as_deref(),
                 ),
             )
             .await;
@@ -823,7 +894,7 @@ impl MessageHandler {
             // Importa o link e avança
             let mut draft = draft;
             self.outbound.send_text(seller_peer, message_templates::importing_product()).await;
-            match self.core.import_listing(body, session.user_id).await {
+            match self.core.import_listing_with_queue_fallback(body, session.user_id).await {
                 Ok(resp) => {
                     let title = resp.title.clone();
                     let price_str = resp.price_suggested.clone();
@@ -997,31 +1068,52 @@ impl MessageHandler {
         }
     }
 
-    /// Consulta NFS-e com cache em banco. Evita chamar o portal da Receita para o mesmo CPF/CNPJ.
+    /// Consulta NFS-e com cache Redis → Postgres → portal. Evita chamar a Receita para o mesmo doc.
     async fn lookup_person_cached(
         &self,
         document: &str,
     ) -> (Option<crate::nfse_client::PersonLookup>, crate::nfse_client::LookupStatus) {
         let digits: String = document.chars().filter(|c| c.is_ascii_digit()).collect();
 
-        if let Some(pool) = &self.pg_pool {
-            if let Some(cached) = crate::wa_contact_store::get_nfse_cache(pool, &digits).await {
-                tracing::info!(doc_len = digits.len(), name = cached.name.as_deref().unwrap_or("?"), "nfse_cache: hit — Receita não consultada");
+        // 1. Redis (camada mais rápida)
+        if let Some(mut conn) = self.kyc_redis.clone() {
+            if let Some(cached) = crate::wa_contact_store::get_nfse_redis(&mut conn, &digits).await {
+                tracing::info!(doc_len = digits.len(), name = cached.name.as_deref().unwrap_or("?"), "nfse_cache: redis hit");
                 return (Some(cached), crate::nfse_client::LookupStatus::Ok);
             }
         }
 
+        // 2. Postgres
+        if let Some(pool) = &self.pg_pool {
+            if let Some(cached) = crate::wa_contact_store::get_nfse_cache(pool, &digits).await {
+                tracing::info!(doc_len = digits.len(), name = cached.name.as_deref().unwrap_or("?"), "nfse_cache: postgres hit");
+                // Popula Redis para próxima consulta
+                if let Some(mut conn) = self.kyc_redis.clone() {
+                    let p = cached.clone();
+                    tokio::spawn(async move {
+                        crate::wa_contact_store::set_nfse_redis(&mut conn, &p).await;
+                    });
+                }
+                return (Some(cached), crate::nfse_client::LookupStatus::Ok);
+            }
+        }
+
+        // 3. NFS-e portal
         let (person, status) = crate::nfse_client::lookup_person(document).await;
 
         if let (Some(ref p), crate::nfse_client::LookupStatus::Ok) = (&person, &status) {
             if p.name.is_some() {
-                if let Some(pool) = &self.pg_pool {
-                    let pool = pool.clone();
-                    let p = p.clone();
-                    tokio::spawn(async move {
-                        crate::wa_contact_store::save_nfse_cache(&pool, &p).await;
-                    });
-                }
+                let p_clone = p.clone();
+                let pool_opt = self.pg_pool.clone();
+                let redis_opt = self.kyc_redis.clone();
+                tokio::spawn(async move {
+                    if let Some(pool) = pool_opt {
+                        crate::wa_contact_store::save_nfse_cache(&pool, &p_clone).await;
+                    }
+                    if let Some(mut conn) = redis_opt {
+                        crate::wa_contact_store::set_nfse_redis(&mut conn, &p_clone).await;
+                    }
+                });
             }
         }
 
@@ -1506,6 +1598,15 @@ impl MessageHandler {
         seller_sess.touch();
         self.sessions.update(seller_peer_key, seller_sess).await;
 
+        // Reputação do comprador — exibida ao vendedor após criação do pedido (soft failure)
+        let buyer_seal_str: Option<String> = if let Ok(bearer) = self.jwt_for_user(buyer_id, apicash_auth::Role::Buyer) {
+            self.core.get_reputation(buyer_id, &bearer).await
+                .and_then(|r| r.seal)
+                .map(|s| s.whatsapp_display())
+        } else {
+            None
+        };
+
         let masked_buyer = mask_whatsapp_peer(buyer_peer_key);
         self.outbound
             .send_text(
@@ -1516,6 +1617,7 @@ impl MessageHandler {
                     &masked_buyer,
                     buyer_display_name,
                     buyer_document,
+                    buyer_seal_str.as_deref(),
                 ),
             )
             .await;
@@ -1643,6 +1745,10 @@ impl MessageHandler {
             self.outbound
                 .send_text(&peer, message_templates::welcome_help())
                 .await;
+            return Ok(());
+        }
+        if order_flow::is_my_orders(body) {
+            self.handle_my_orders(&peer, &session).await;
             return Ok(());
         }
 

@@ -26,6 +26,20 @@ pub fn is_help(cmd: &str) -> bool {
     )
 }
 
+pub fn is_my_orders(cmd: &str) -> bool {
+    matches!(
+        normalize_cmd(cmd).as_str(),
+        "meus pedidos"
+            | "pedidos"
+            | "ver pedidos"
+            | "historico"
+            | "histórico"
+            | "meu historico"
+            | "meu histórico"
+            | "/pedidos"
+    )
+}
+
 pub fn is_cancel(cmd: &str) -> bool {
     matches!(
         normalize_cmd(cmd).as_str(),
@@ -167,6 +181,7 @@ pub fn parse_cpf(s: &str) -> Option<String> {
 /// Normaliza: remove máscara (pontos, traços, barras, espaços).
 /// Se o texto tiver outros números (telefone, valor), tenta isolar
 /// o bloco de dígitos com separadores `. - /` que totalize 11 ou 14 dígitos.
+/// A validação matemática (algoritmo RF) fica na camada antifraude — não aqui.
 pub fn parse_document(s: &str) -> Option<String> {
     // Fast path: strip all non-digits — cobre "123.456.789-09", "cpf: 123...", etc.
     let all_digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();

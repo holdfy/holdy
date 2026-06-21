@@ -11,27 +11,19 @@ pub fn format_document(doc: &str) -> String {
 }
 
 /// Confirmação enviada a quem forneceu CPF/CNPJ após consulta na Receita Federal.
-/// `nfse_name` = nome da RF (autoritativo); `fallback_name` = nome do perfil WhatsApp.
+/// Exibe apenas o nome completo (autoritativo da RF ou fallback do perfil WA).
 pub fn document_confirmed(
     document: &str,
     nfse_name: Option<&str>,
-    situation: Option<&str>,
+    _situation: Option<&str>,
     fallback_name: Option<&str>,
 ) -> String {
     let doc_fmt = format_document(document);
-    let mut lines = vec![format!("✅ *Documento confirmado*\n🪪 {doc_fmt}")];
-    if let Some(name) = nfse_name {
-        lines.push(format!("👤 Nome (Receita Federal): *{name}*"));
-        if let Some(sit) = situation {
-            lines.push(format!("📋 Situação cadastral: *{sit}*"));
-        }
-    } else if let Some(name) = fallback_name {
-        lines.push(format!("👤 Nome (WhatsApp): *{name}*"));
-        lines.push("_⚠️ Nome da Receita Federal não disponível — configure NFSE\\_INSCRICAO e NFSE\\_SENHA_".into());
+    if let Some(name) = nfse_name.or(fallback_name) {
+        format!("✅ *{name}*\n🪪 {doc_fmt}")
     } else {
-        lines.push("_⚠️ Nome da Receita Federal não disponível — configure NFSE\\_INSCRICAO e NFSE\\_SENHA_".into());
+        format!("✅ *Documento confirmado*\n🪪 {doc_fmt}")
     }
-    lines.join("\n")
 }
 
 pub fn welcome() -> &'static str {
@@ -44,7 +36,7 @@ pub fn welcome_known(first_name: &str) -> String {
 }
 
 pub fn menu_hint() -> &'static str {
-    "Digite *holdfy*, *fazer um holdfy* ou *novo pedido* para começar."
+    "Digite *holdfy* para novo pedido ou *meus pedidos* para ver o histórico."
 }
 
 pub fn welcome_help() -> &'static str {
@@ -52,7 +44,76 @@ pub fn welcome_help() -> &'static str {
      Ex.: *fazer um holdfy de 20 para (41) 99999-9999* — ou envie o *cartão de contacto* do comprador (com ou sem valor na legenda).\n\
      Comprador responde *ACEITO* ou *RECUSO*.\n\
      PIX só depois do aceite; avisamos os dois quando o pagamento for confirmado.\n\n\
-     *Comandos:* holdfy, ajuda, cancelar"
+     *Comandos:* holdfy, ajuda, cancelar, *meus pedidos*"
+}
+
+// ─── Histórico de pedidos ─────────────────────────────────────────────────────
+
+pub struct OrderSummary<'a> {
+    pub id: &'a str,
+    pub amount: &'a str,
+    pub status: &'a str,
+    pub description: Option<&'a str>,
+}
+
+fn status_label_pt(status: &str) -> &str {
+    match status {
+        "pending_funding" => "⏳ Aguardando pagamento",
+        "in_custody" => "🔒 Em custódia",
+        "completed" => "✅ Concluído",
+        "cancelled" => "❌ Cancelado",
+        "failed" => "⚠️ Falhou",
+        _ => status,
+    }
+}
+
+pub fn my_orders_list(buyer: &[OrderSummary<'_>], seller: &[OrderSummary<'_>]) -> String {
+    if buyer.is_empty() && seller.is_empty() {
+        return "📋 *Meus pedidos*\n\nNenhum pedido encontrado.".to_string();
+    }
+
+    let mut msg = String::from("📋 *Meus pedidos*");
+
+    if !buyer.is_empty() {
+        msg.push_str("\n\n*Como comprador:*");
+        for order in buyer.iter().take(5) {
+            let id_short = if order.id.len() >= 8 { &order.id[..8] } else { order.id };
+            let desc = order.description.unwrap_or("—");
+            let desc_short: String = desc.chars().take(28).collect();
+            let desc_display = if desc.chars().count() > 28 {
+                format!("{desc_short}…")
+            } else {
+                desc_short
+            };
+            msg.push_str(&format!(
+                "\n• {}\n  R$ {} | {desc_display}\n  `{id_short}…`",
+                status_label_pt(order.status),
+                order.amount,
+            ));
+        }
+    }
+
+    if !seller.is_empty() {
+        msg.push_str("\n\n*Como vendedor:*");
+        for order in seller.iter().take(5) {
+            let id_short = if order.id.len() >= 8 { &order.id[..8] } else { order.id };
+            let desc = order.description.unwrap_or("—");
+            let desc_short: String = desc.chars().take(28).collect();
+            let desc_display = if desc.chars().count() > 28 {
+                format!("{desc_short}…")
+            } else {
+                desc_short
+            };
+            msg.push_str(&format!(
+                "\n• {}\n  R$ {} | {desc_display}\n  `{id_short}…`",
+                status_label_pt(order.status),
+                order.amount,
+            ));
+        }
+    }
+
+    msg.push_str("\n\n_Para detalhes, envie o código completo do pedido ao suporte._");
+    msg
 }
 
 pub fn start_order_intro() -> &'static str {
@@ -108,9 +169,11 @@ pub fn buyer_proposal_before_accept(
     seller_document: &str,
     listing_url: Option<&str>,
     listing_price: Option<&str>,
+    seller_seal: Option<&str>,
 ) -> String {
     let seller_doc_fmt = format_document(seller_document);
     let seller_display = seller_name.unwrap_or(seller_phone_masked);
+    let seal_block = seller_seal.map(|s| format!("\n🏅 {s}")).unwrap_or_default();
 
     // Bloco de anúncio + comparação de valores
     let listing_block = match listing_url {
@@ -129,7 +192,7 @@ pub fn buyer_proposal_before_accept(
 
     format!(
         "*Proposta HoldFy*\n\
-         👤 Vendedor: *{seller_display}* — `{seller_doc_fmt}`\
+         👤 Vendedor: *{seller_display}* — `{seller_doc_fmt}`{seal_block}\
          {listing_block}\n\
          📋 {description}\n\n\
          💰 O valor cobrado é: *R$ {amount}*\n\
@@ -175,15 +238,17 @@ pub fn seller_order_created_notice(
     buyer_phone_masked: &str,
     buyer_name: Option<&str>,
     buyer_document: &str,
+    buyer_seal: Option<&str>,
 ) -> String {
     let buyer_doc_fmt = format_document(buyer_document);
     let buyer_line = match buyer_name {
         Some(name) => format!("👤 Comprador: *{name}* — `{buyer_doc_fmt}`"),
         None => format!("👤 Comprador: ~*{buyer_phone_masked}* — `{buyer_doc_fmt}`"),
     };
+    let seal_block = buyer_seal.map(|s| format!("\n🏅 {s}")).unwrap_or_default();
     format!(
         "*Pedido criado*\n\
-         {buyer_line}\n\
+         {buyer_line}{seal_block}\n\
          💰 *R$ {amount}*\n\
          📋 *{description}*\n\n\
          A seguir só o código do pedido, depois só o código PIX."

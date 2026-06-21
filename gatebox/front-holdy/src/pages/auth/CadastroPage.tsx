@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Btn, Card, ErrorMsg, Input } from '../../components/Layout'
+import { maskPhone } from '../../lib/doc'
 
 export function CadastroPage() {
   const { register } = useAuth()
@@ -53,7 +54,7 @@ export function CadastroPage() {
             </div>
             <Input label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
             <Input label="Senha (mín. 8 caracteres)" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-            <Input label="Celular (opcional)" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(41) 99999-9999" />
+            <Input label="Celular (opcional)" type="tel" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} placeholder="(41) 99999-9999" />
             <ErrorMsg msg={error} />
             <Btn type="submit" disabled={loading}>{loading ? 'Criando conta…' : 'Criar conta'}</Btn>
           </form>

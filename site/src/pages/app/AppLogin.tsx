@@ -1,4 +1,4 @@
-import { Shield, Lock, User, Eye, EyeOff, Fingerprint, ShieldCheck, HelpCircle, Store, ShoppingBag, Building2 } from "lucide-react";
+import { Shield, Lock, User, Eye, EyeOff, Fingerprint, ShieldCheck, HelpCircle, Store, ShoppingBag, Building2, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
@@ -18,6 +18,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useUserRole, UserRole, type PersonType } from "@/contexts/UserRoleContext";
 import { toast } from "sonner";
 import type { ApiError } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 
 export default function AppLogin() {
   const { t } = useTranslation();
@@ -31,6 +32,8 @@ export default function AppLogin() {
   const [regPassword, setRegPassword] = useState("");
   const [regPersonType, setRegPersonType] = useState<PersonType>("pf");
   const [regName, setRegName] = useState("");
+  const [regDocInfo, setRegDocInfo] = useState<{ name: string | null; situation: string | null } | null>(null);
+  const [regDocLoading, setRegDocLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,6 +81,22 @@ export default function AppLogin() {
     toast.success(t("auth.toastResetSent"));
     setForgotOpen(false);
     setResetEmail("");
+  };
+
+  const handleRegDocBlur = async () => {
+    const digits = stripDoc(regEmail);
+    if (digits.length !== 11 && digits.length !== 14) return;
+    if (!validateCpfOrCnpj(digits)) return;
+    setRegDocLoading(true);
+    setRegDocInfo(null);
+    try {
+      const result = await api.lookupDocument(digits);
+      setRegDocInfo({ name: result.name, situation: result.situation });
+    } catch {
+      // RF lookup falhou — não bloqueia o cadastro
+    } finally {
+      setRegDocLoading(false);
+    }
   };
 
   const createAccount = async () => {
@@ -373,10 +392,26 @@ export default function AppLogin() {
                 id="reg-email"
                 placeholder={regPersonType === "pj" ? "00.000.000/0001-00" : "000.000.000-00"}
                 value={regEmail}
-                onChange={(e) => setRegEmail(maskCpfCnpj(e.target.value))}
+                onChange={(e) => { setRegEmail(maskCpfCnpj(e.target.value)); setRegDocInfo(null); }}
+                onBlur={handleRegDocBlur}
                 inputMode="numeric"
                 maxLength={18}
               />
+              {regDocLoading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Consultando Receita Federal…
+                </div>
+              )}
+              {regDocInfo && !regDocLoading && (
+                <div className="flex items-start gap-2 bg-secondary/5 border border-secondary/20 rounded-xl p-3 mt-1">
+                  <User className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
+                  <div className="text-xs space-y-0.5">
+                    {regDocInfo.name && <p className="font-semibold text-foreground">{regDocInfo.name}</p>}
+                    {regDocInfo.situation && <p className="text-muted-foreground">Situação: {regDocInfo.situation}</p>}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="reg-pass">{t("auth.password")}</Label>

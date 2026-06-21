@@ -46,6 +46,13 @@ pub async fn resolve_dispute(
         .ok_or_else(|| AdminError::NotFound(format!("dispute {id}")))?;
     let order_id = dispute.order_id;
 
+    // Busca order para obter o valor real (usado na mensagem WA).
+    let amount_str = state.orders.get(order_id).await
+        .ok()
+        .flatten()
+        .map(|s| s.order.amount.to_string())
+        .unwrap_or_default();
+
     state
         .disputes
         .resolve_dispute(id, body.resolution, body.notes)
@@ -67,7 +74,7 @@ pub async fn resolve_dispute(
     }
 
     // Notifica comprador e vendedor via WhatsApp (fire-and-forget).
-    notify_wa_dispute_resolved(order_id, verdict, &dispute.reason).await;
+    notify_wa_dispute_resolved(order_id, verdict, &amount_str).await;
 
     Ok(Json(serde_json::json!({ "ok": true, "dispute_id": id, "verdict": verdict })))
 }

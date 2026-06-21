@@ -23,6 +23,9 @@ pub struct CreateProposalRequest {
     /// Listing UUID from importer — when set, the listing is linked to the order after acceptance.
     #[serde(default)]
     pub listing_id: Option<Uuid>,
+    /// Número de WhatsApp do vendedor (ex.: `+5541999990000`) — salvo em wa_contacts para notificações de rastreio.
+    #[serde(default)]
+    pub seller_phone: Option<String>,
 }
 
 impl CreateProposalRequest {
@@ -43,6 +46,9 @@ pub struct AcceptProposalRequest {
     /// Social links for anti-fraud scoring (optional).
     #[serde(default)]
     pub social_links: Option<Vec<String>>,
+    /// Número de WhatsApp do comprador (ex.: `+5541999990000`) — salvo em wa_contacts para notificações de rastreio.
+    #[serde(default)]
+    pub buyer_phone: Option<String>,
 }
 
 /// Proposal status lifecycle.
@@ -105,6 +111,9 @@ pub struct ProposalResponse {
     pub expires_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<Uuid>,
+    /// First photo URL from the linked listing, if any.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listing_photo: Option<String>,
 }
 
 impl From<&StoredProposal> for ProposalResponse {
@@ -119,6 +128,7 @@ impl From<&StoredProposal> for ProposalResponse {
             created_at: p.created_at,
             expires_at: p.expires_at,
             order_id: p.order_id,
+            listing_photo: None,
         }
     }
 }

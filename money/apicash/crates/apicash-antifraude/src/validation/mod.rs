@@ -12,6 +12,6 @@ pub use cached_document_validator::CachedDocumentValidator;
 pub use document_cache::{DocumentCache, InMemoryDocumentCache, PostgresDocumentCache};
 pub use document_validator::{DocumentStatus, DocumentType, DocumentValidator};
 pub use http_document_validator::HttpDocumentValidator;
-pub use local_document_validator::LocalDocumentValidator;
+pub use local_document_validator::{validate_cpf, validate_cnpj, validate_document, LocalDocumentValidator};
 pub use social_validator::SocialValidator;
 pub use validation_result::{SocialAccountSnapshot, SocialValidationResult};

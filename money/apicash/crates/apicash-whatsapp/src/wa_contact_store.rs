@@ -1,8 +1,48 @@
 //! Persistência de contatos WhatsApp (peer_key → nome + CPF/CNPJ)
 //! e cache de consultas NFS-e (document → nome + situação).
+//!
+//! Cache hierarchy: Redis (24h) → Postgres `nfse_document_cache` → NFS-e portal.
 
+use redis::{aio::ConnectionManager, AsyncCommands};
 use sqlx::PgPool;
 use uuid::Uuid;
+
+const KYC_REDIS_KEY_PREFIX: &str = "nfse:v1:";
+const KYC_REDIS_TTL_SECS: u64 = 86_400;
+
+// ─── Redis helpers (NFS-e cache layer 1) ─────────────────────────────────────
+
+/// Consulta Redis para CPF/CNPJ (só dígitos). Retorna None se ausente ou erro.
+pub async fn get_nfse_redis(
+    conn: &mut ConnectionManager,
+    document_digits: &str,
+) -> Option<crate::nfse_client::PersonLookup> {
+    let key = format!("{KYC_REDIS_KEY_PREFIX}{document_digits}");
+    let raw: Option<String> = conn.get(&key).await.ok()?;
+    let v: serde_json::Value = serde_json::from_str(&raw?).ok()?;
+    let doc_label: &'static str = if document_digits.len() == 11 { "CPF" } else { "CNPJ" };
+    Some(crate::nfse_client::PersonLookup {
+        document_digits: document_digits.to_string(),
+        document_label: doc_label,
+        name: v.get("n").and_then(|x| x.as_str()).map(|s| s.to_string()),
+        situation: v.get("s").and_then(|x| x.as_str()).map(|s| s.to_string()),
+    })
+}
+
+/// Grava resultado de consulta NFS-e no Redis (TTL 24h). Só persiste quando há nome.
+pub async fn set_nfse_redis(conn: &mut ConnectionManager, person: &crate::nfse_client::PersonLookup) {
+    if person.name.is_none() {
+        return;
+    }
+    let key = format!("{KYC_REDIS_KEY_PREFIX}{}", person.document_digits);
+    let payload = serde_json::json!({
+        "n": person.name,
+        "s": person.situation,
+    });
+    let _ = conn
+        .set_ex::<_, _, ()>(&key, payload.to_string(), KYC_REDIS_TTL_SECS)
+        .await;
+}
 
 // ─── Cache NFS-e (Receita Federal) ───────────────────────────────────────────
 

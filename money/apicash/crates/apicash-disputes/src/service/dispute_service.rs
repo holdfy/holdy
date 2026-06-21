@@ -216,12 +216,14 @@ impl DisputeService {
     ///
     /// `order_amount_cents`: valor do pedido em centavos BRL (pedidos > R$2k → sempre manual).
     /// `listing_photo_urls`: URLs das fotos originais do anúncio (MinIO).
-    #[instrument(skip(self, listing_photo_urls), fields(dispute_id = %dispute_id))]
+    /// `amount_str`: valor formatado (ex.: "150.00") para incluir na notificação WhatsApp.
+    #[instrument(skip(self, listing_photo_urls, amount_str), fields(dispute_id = %dispute_id))]
     pub async fn analyze_and_maybe_resolve(
         &self,
         dispute_id: Uuid,
         order_amount_cents: u64,
         listing_photo_urls: Vec<String>,
+        amount_str: String,
     ) -> Result<EvidenceAnalysisResult, DisputeError> {
         let evidence = self.evidence_repo.list_for_dispute(dispute_id).await?;
         let buyer_photos: Vec<String> = evidence.iter()
@@ -289,7 +291,7 @@ impl DisputeService {
                 let order_id = d.order_id;
                 tokio::spawn(async move {
                     finalize_dispute_order(order_id, &verdict_str).await;
-                    notify_wa_dispute_resolved(order_id, &verdict_str, "").await;
+                    notify_wa_dispute_resolved(order_id, &verdict_str, &amount_str).await;
                 });
             }
         } else {

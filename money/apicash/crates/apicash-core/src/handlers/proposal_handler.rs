@@ -84,6 +84,18 @@ pub async fn create_proposal(
         }
     }
 
+    // Persist seller WhatsApp so tracking monitor can send notifications.
+    if let (Some(phone), Some(repo)) = (&req.seller_phone, &state.listing_repo) {
+        let phone = phone.trim();
+        if !phone.is_empty() {
+            if let Err(e) = repo.upsert_phone(seller_id, phone).await {
+                warn!(%seller_id, error = %e, "failed to save seller phone (non-critical)");
+            } else {
+                info!(%seller_id, "seller phone saved for tracking notifications");
+            }
+        }
+    }
+
     info!(%id, %seller_id, %buyer_id, open = buyer_id.is_nil(), "proposal created");
 
     Ok((StatusCode::CREATED, Json(ProposalResponse::from(&proposal))))
@@ -108,7 +120,16 @@ pub async fn get_proposal(
         }
     }
 
-    Ok(Json(ProposalResponse::from(&proposal)))
+    let mut resp = ProposalResponse::from(&proposal);
+
+    // Attach first listing photo — non-critical, soft failure
+    if let (Some(lid), Some(repo)) = (proposal.listing_id, &state.listing_repo) {
+        if let Ok(Some(listing)) = repo.get_listing(lid).await {
+            resp.listing_photo = listing.photos.into_iter().next();
+        }
+    }
+
+    Ok(Json(resp))
 }
 
 /// POST /proposals/{id}/accept — buyer accepts, creating the escrow order + PIX QR.
@@ -180,6 +201,18 @@ pub async fn accept_proposal(
         error!(error = %e, "proposal update failed");
         ApiError::internal("proposal persistence failed")
     })?;
+
+    // Persist buyer WhatsApp so tracking monitor can send notifications.
+    if let (Some(phone), Some(repo)) = (&body.buyer_phone, &state.listing_repo) {
+        let phone = phone.trim();
+        if !phone.is_empty() {
+            if let Err(e) = repo.upsert_phone(buyer_id, phone).await {
+                warn!(%buyer_id, error = %e, "failed to save buyer phone (non-critical)");
+            } else {
+                info!(%buyer_id, "buyer phone saved for tracking notifications");
+            }
+        }
+    }
 
     // Link imported listing to the newly created order if listing_id was provided.
     if let (Some(listing_id), Some(repo)) = (proposal.listing_id, &state.listing_repo) {

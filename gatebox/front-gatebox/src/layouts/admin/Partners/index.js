@@ -26,6 +26,7 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 import { adminApi } from "services/api";
 import { useSnackbar } from "context/SnackbarContext";
+import { maskCpfCnpj } from "utils/masks";
 
 const defaultPartner = {
   description: "",
@@ -210,7 +211,7 @@ export default function AdminPartners() {
                 <MDInput type="number" label="Partners List ID" fullWidth value={form.partners_list_id} onChange={(e) => setForm((f) => ({ ...f, partners_list_id: parseInt(e.target.value, 10) || 1 }))} />
               </Grid>
               <Grid item xs={6}>
-                <MDInput label="Documento" fullWidth value={form.document} onChange={(e) => setForm((f) => ({ ...f, document: e.target.value }))} />
+                <MDInput label="Documento" fullWidth value={form.document} onChange={(e) => setForm((f) => ({ ...f, document: maskCpfCnpj(e.target.value) }))} inputProps={{ inputMode: "numeric", maxLength: 18 }} />
               </Grid>
               <Grid item xs={6}>
                 <MDInput label="Conta" fullWidth value={form.account} onChange={(e) => setForm((f) => ({ ...f, account: e.target.value }))} />

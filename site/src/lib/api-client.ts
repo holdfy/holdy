@@ -41,6 +41,7 @@ export interface OrderResponse {
   risk_score: number | null;
   risk_decision: "approve" | "review" | "block" | null;
   description?: string | null;
+  tracking_code?: string | null;
 }
 
 export interface ProposalResponse {
@@ -53,6 +54,7 @@ export interface ProposalResponse {
   created_at: string;
   expires_at: string;
   order_id: string | null;
+  listing_photo?: string | null;
 }
 
 export interface AcceptProposalResponse {
@@ -79,6 +81,8 @@ export interface CreateProposalRequest {
   description?: string;
   seller_pix_key?: string;
   listing_id?: string;
+  /** WhatsApp do vendedor — salvo em wa_contacts para notificações de rastreio. */
+  seller_phone?: string;
 }
 
 export interface ReleaseCustodyRequest {
@@ -160,6 +164,32 @@ export interface TrackingInfo {
   }>;
   estimated_delivery: string | null;
   provider_used: string;
+}
+
+export interface DisputeEvidenceItem {
+  id: string;
+  party: "buyer" | "seller";
+  kind: string;
+  minio_url: string | null;
+  content: string | null;
+  ai_flagged: boolean;
+  created_at: string;
+}
+
+export interface DisputeResponse {
+  dispute_id: string;
+  order_id: string;
+  status: "open" | "under_review" | "resolved" | "closed";
+  opened_by: "buyer" | "seller";
+  reason: string;
+  deadline_at: string | null;
+  resolved_at: string | null;
+  resolution_type: string | null;
+  resolution_notes: string | null;
+  ai_verdict: "favor_buyer" | "favor_seller" | "inconclusive" | null;
+  ai_confidence: number | null;
+  high_risk_buyer: boolean;
+  evidence: DisputeEvidenceItem[];
 }
 
 export interface ReputationSeal {
@@ -273,6 +303,9 @@ export const api = {
       { method: "POST", body: JSON.stringify({ reason }) },
     ),
 
+  getDispute: (orderId: string) =>
+    request<DisputeResponse>(`/orders/${orderId}/dispute`),
+
   offRamp: (orderId: string, destinationPixKey: string) =>
     request(`/orders/${orderId}/off-ramp`, {
       method: "POST",
@@ -288,10 +321,10 @@ export const api = {
 
   getProposal: (id: string) => request<ProposalResponse>(`/proposals/${id}`),
 
-  acceptProposal: (id: string, cpf?: string) =>
+  acceptProposal: (id: string, cpf?: string, buyerPhone?: string) =>
     request<AcceptProposalResponse>(`/proposals/${id}/accept`, {
       method: "POST",
-      body: JSON.stringify({ cpf }),
+      body: JSON.stringify({ cpf, buyer_phone: buyerPhone || undefined }),
     }),
 
   rejectProposal: (id: string) =>
@@ -341,6 +374,13 @@ export const api = {
     request<{ evidence_id: string; dispute_id: string; kind: string; message: string }>(
       `/orders/${orderId}/dispute/evidence`,
       { method: "POST", body: JSON.stringify({ kind, content, ext }) },
+    ),
+
+  // Logistics — tracking
+  setTracking: (orderId: string, trackingCode: string) =>
+    request<{ order_id: string; tracking_code: string }>(
+      `/orders/${orderId}/tracking`,
+      { method: "POST", body: JSON.stringify({ tracking_code: trackingCode }) },
     ),
 
   // Profile — chave PIX e WhatsApp

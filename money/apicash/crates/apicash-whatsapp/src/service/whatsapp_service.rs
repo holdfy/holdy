@@ -427,6 +427,9 @@ pub async fn spawn_agent(
     if let Some(pool) = build_wa_contacts_pool().await {
         handler_builder = handler_builder.with_pg_pool(pool);
     }
+    if let Some(conn) = build_kyc_redis().await {
+        handler_builder = handler_builder.with_kyc_redis(conn);
+    }
     let handler = Arc::new(handler_builder);
 
     maybe_spawn_tracking_monitor(outbound.clone()).await;
@@ -524,6 +527,26 @@ async fn build_wa_contacts_pool() -> Option<sqlx::PgPool> {
         }
         Err(e) => {
             tracing::warn!(error = %e, "wa_contacts: falha ao conectar Postgres, contatos não serão persistidos");
+            None
+        }
+    }
+}
+
+async fn build_kyc_redis() -> Option<redis::aio::ConnectionManager> {
+    let url = std::env::var("REDIS_URL").ok().filter(|s| !s.trim().is_empty())?;
+    match redis::Client::open(url.trim().to_string()) {
+        Ok(client) => match redis::aio::ConnectionManager::new(client).await {
+            Ok(conn) => {
+                tracing::info!("kyc_redis: conexão Redis iniciada (cache NFS-e TTL 24h)");
+                Some(conn)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "kyc_redis: falha ao conectar Redis, cache desativado");
+                None
+            }
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "kyc_redis: REDIS_URL inválido, cache desativado");
             None
         }
     }

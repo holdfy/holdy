@@ -24,6 +24,7 @@ apicash-disputes = { workspace = true }
 apicash-importer = { workspace = true }
 apicash-logistics = { workspace = true }
 mongodb = { workspace = true }
+redis = { workspace = true }
 whatsapp-rust = { workspace = true, features = ["sqlite-storage"] }
 whatsapp-rust-tokio-transport = { workspace = true }
 whatsapp-rust-ureq-http-client = { workspace = true }

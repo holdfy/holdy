@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
-import type { ApiError } from "@/lib/api-client";
+import type { ApiError, ImportedProductDraft } from "@/lib/api-client";
 
 export default function SellerNewProposal() {
   const { t } = useTranslation();
@@ -20,8 +20,30 @@ export default function SellerNewProposal() {
   const [listingId, setListingId] = useState<string | undefined>(undefined);
   const [listingImported, setListingImported] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importedDraft, setImportedDraft] = useState<ImportedProductDraft | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [proposalLink, setProposalLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const handlePreviewListing = async () => {
+    const url = listingUrl.trim();
+    if (!url) return;
+    setIsPreviewLoading(true);
+    setImportedDraft(null);
+    try {
+      const draft = await api.importListing(url);
+      setImportedDraft(draft);
+      setListingId(draft.listing_id ?? undefined);
+      setListingImported(true);
+      if (!amount.trim() && draft.price_suggested) setAmount(draft.price_suggested);
+      if (!description.trim() && draft.title) setDescription(draft.title);
+      toast.success(t("seller.listingImported", "Anúncio importado!"));
+    } catch {
+      toast.error(t("seller.importError", "Erro ao importar produto"));
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -91,7 +113,7 @@ export default function SellerNewProposal() {
     createMutation.mutate();
   };
 
-  const isPending = createMutation.isPending || isImporting;
+  const isPending = createMutation.isPending || isImporting || isPreviewLoading;
   const pendingLabel = isImporting
     ? t("seller.importingListing", "Importando anúncio...")
     : t("buyer.addFunds", "Criar um Pagamento Seguro");
@@ -122,27 +144,63 @@ export default function SellerNewProposal() {
               {t("seller.listingUrl", "Link do Anúncio")}
               <span className="text-muted-foreground text-xs ml-1">({t("common.optional", "opcional")})</span>
             </Label>
-            <div className="relative">
-              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="listingUrl"
-                placeholder={t("seller.listingUrlPlaceholder", "Cole o link (OLX, Mercado Livre, Instagram...)")}
-                value={listingUrl}
-                onChange={(e) => {
-                  setListingUrl(e.target.value);
-                  setListingId(undefined);
-                  setListingImported(false);
-                }}
-                className="pl-9"
-                autoComplete="off"
-              />
-              {listingImported && (
-                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="listingUrl"
+                  placeholder={t("seller.listingUrlPlaceholder", "Cole o link (OLX, Mercado Livre, Instagram...)")}
+                  value={listingUrl}
+                  onChange={(e) => {
+                    setListingUrl(e.target.value);
+                    setListingId(undefined);
+                    setListingImported(false);
+                    setImportedDraft(null);
+                  }}
+                  className="pl-9"
+                  autoComplete="off"
+                />
+                {listingImported && (
+                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                )}
+              </div>
+              {listingUrl.trim() && !listingImported && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 shrink-0 px-3"
+                  onClick={handlePreviewListing}
+                  disabled={isPreviewLoading}
+                >
+                  {isPreviewLoading
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : t("seller.previewBtn", "Pré-visualizar")}
+                </Button>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
               {t("seller.listingUrlHint", "Título e valor serão preenchidos automaticamente.")}
             </p>
+
+            {importedDraft && (
+              <div className="rounded-xl border border-border overflow-hidden flex gap-0 bg-muted/30">
+                {importedDraft.photos[0] && (
+                  <img
+                    src={importedDraft.photos[0]}
+                    alt={importedDraft.title}
+                    className="h-24 w-24 object-cover shrink-0"
+                  />
+                )}
+                <div className="p-3 flex flex-col justify-center gap-1 min-w-0">
+                  <p className="text-sm font-semibold line-clamp-2 text-foreground">{importedDraft.title}</p>
+                  {importedDraft.price_suggested && (
+                    <p className="text-xs text-primary font-medium">R$ {importedDraft.price_suggested}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground capitalize">{importedDraft.source_platform}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -245,6 +303,7 @@ export default function SellerNewProposal() {
               setListingUrl("");
               setListingId(undefined);
               setListingImported(false);
+              setImportedDraft(null);
             }}
           >
             {t("seller.newProposal", "Criar outra proposta")}

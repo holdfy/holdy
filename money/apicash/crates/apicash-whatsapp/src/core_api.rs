@@ -59,6 +59,23 @@ pub struct OrderResponse {
     pub status: String,
 }
 
+/// Item de `GET /orders?role=buyer|seller` — campos exibidos no histórico WhatsApp.
+#[derive(Debug, Deserialize)]
+pub struct OrderListItem {
+    pub id: Uuid,
+    pub amount: String,
+    pub status: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub tracking_code: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OrdersListResponse {
+    orders: Vec<OrderListItem>,
+}
+
 /// Resposta mínima de score (`POST /risk/score` / `/internal/risk/score`).
 #[derive(Debug, Deserialize)]
 pub struct RiskScoreResponse {
@@ -175,6 +192,14 @@ impl CoreApiClient {
         bearer: Option<&str>,
     ) -> Result<OrderResponse, CoreApiError> {
         self.get_json(&format!("/orders/{order_id}"), bearer).await
+    }
+
+    /// Lista pedidos do usuário. `role` = `"buyer"` ou `"seller"`. Retorna até 10 itens recentes.
+    pub async fn list_orders(&self, role: &str, bearer: &str) -> Result<Vec<OrderListItem>, CoreApiError> {
+        let resp: OrdersListResponse = self
+            .get_json(&format!("/orders?role={role}"), Some(bearer))
+            .await?;
+        Ok(resp.orders)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -337,6 +362,77 @@ impl CoreApiClient {
         self.post_json_with_api_key("/internal/listings/import", &body, None, k).await
     }
 
+    /// Enfileira importação assíncrona (Pulsar/NATS). Retorna `job_id` ou erro se fila não configurada.
+    pub async fn import_listing_async(&self, url: &str, user_id: Uuid) -> Result<Uuid, CoreApiError> {
+        let body = serde_json::json!({ "url": url, "user_id": user_id });
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        #[derive(serde::Deserialize)]
+        struct AsyncResp { job_id: Uuid }
+        let r: AsyncResp = self.post_json_with_api_key("/internal/listings/import/async", &body, None, k).await?;
+        Ok(r.job_id)
+    }
+
+    /// Consulta status de um job. Quando `status == "done"` inclui dados do listing.
+    pub async fn get_import_job(&self, job_id: Uuid) -> Result<ImportJobStatus, CoreApiError> {
+        let k = std::env::var("APICASH_API_KEY").ok();
+        let k = k.as_deref().filter(|s| !s.is_empty());
+        let path = format!("/internal/listings/jobs/{job_id}");
+        let url = format!("{}{}", self.base, path);
+        let mut req = self.client.get(&url).headers(self.headers(None));
+        if let Some(key) = k { req = req.header("x-api-key", key); }
+        let resp = req.send().await?;
+        let status = resp.status();
+        let text = resp.text().await?;
+        if !status.is_success() {
+            return Err(CoreApiError::Api { status: status.as_u16(), body: text });
+        }
+        Ok(serde_json::from_str(&text)?)
+    }
+
+    /// Polling assíncrono com timeout. Retorna dados do listing quando pronto, ou faz fallback para sync.
+    /// Intervalo: 2s; timeout: 20s. Se a fila não estiver configurada, usa sync diretamente.
+    pub async fn import_listing_with_queue_fallback(
+        &self,
+        url: &str,
+        user_id: Uuid,
+    ) -> Result<ImportListingResponse, CoreApiError> {
+        match self.import_listing_async(url, user_id).await {
+            Ok(job_id) => {
+                // Polling com timeout de 20s
+                for _ in 0..10 {
+                    tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+                    match self.get_import_job(job_id).await {
+                        Ok(job) if job.status == "done" => {
+                            if let Some(listing) = job.listing {
+                                return Ok(listing);
+                            }
+                            // Job done mas sem listing — fallback sync
+                            break;
+                        }
+                        Ok(job) if job.status == "error" => {
+                            return Err(CoreApiError::Other(
+                                job.error_msg.unwrap_or_else(|| "import falhou na fila".into()),
+                            ));
+                        }
+                        Ok(_) => continue,
+                        Err(e) => {
+                            tracing::warn!(error = %e, "poll import job failed — tentando sync");
+                            break;
+                        }
+                    }
+                }
+                // Timeout ou job sem dados — fallback sync
+                tracing::info!("import_listing: timeout no polling, usando sync");
+                self.import_listing(url, user_id).await
+            }
+            Err(_) => {
+                // Fila não configurada — usa sync diretamente
+                self.import_listing(url, user_id).await
+            }
+        }
+    }
+
     /// Retorna o dispute_id para um pedido (None se não houver disputa aberta).
     pub async fn get_dispute_for_order(&self, order_id: Uuid) -> Result<Option<Uuid>, CoreApiError> {
         let k = std::env::var("APICASH_API_KEY").ok();
@@ -403,6 +499,13 @@ impl CoreApiClient {
         self.post_json_with_api_key(&format!("/orders/{order_id}/dispute/analyze"), &body, None, k).await
     }
 
+    /// Consulta reputação de um usuário (`GET /reputation/{user_id}`). Soft failure — retorna None se falhar.
+    pub async fn get_reputation(&self, user_id: Uuid, bearer: &str) -> Option<ReputationResponse> {
+        self.get_json(&format!("/reputation/{user_id}"), Some(bearer))
+            .await
+            .ok()
+    }
+
     /// Vincula um listing a um pedido via rota interna (fire-and-forget aceitável).
     pub async fn link_listing_to_order(&self, listing_id: Uuid, order_id: Uuid) -> Result<(), CoreApiError> {
         let body = serde_json::json!({ "order_id": order_id });
@@ -420,6 +523,40 @@ impl CoreApiClient {
             tracing::warn!(listing_id = %listing_id, order_id = %order_id, status = %resp.status(), "link_listing_to_order: non-2xx");
         }
         Ok(())
+    }
+}
+
+/// Status de um job de importação assíncrona (`GET /v1/listings/jobs/{id}`).
+#[derive(Debug, Deserialize)]
+pub struct ImportJobStatus {
+    pub job_id: String,
+    pub status: String,
+    pub error_msg: Option<String>,
+    pub listing: Option<ImportListingResponse>,
+}
+
+/// Resposta de `GET /reputation/{user_id}`.
+#[derive(Debug, Deserialize, Clone)]
+pub struct ReputationResponse {
+    pub score: u32,
+    pub seal: Option<ReputationSeal>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ReputationSeal {
+    pub name: String,
+    pub label: String,
+}
+
+impl ReputationSeal {
+    /// Emoji + label para exibição no WhatsApp.
+    pub fn whatsapp_display(&self) -> String {
+        let emoji = match self.name.as_str() {
+            "premium" => "⭐",
+            "authenticated" => "✅",
+            _ => "🔵",
+        };
+        format!("{emoji} *{}*", self.label)
     }
 }
 

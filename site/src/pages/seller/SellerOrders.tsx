@@ -1,9 +1,9 @@
-import { ChevronRight, Plus, Link2, Loader2, Copy, ExternalLink, PackageSearch } from "lucide-react";
+import { ChevronRight, Plus, Link2, Loader2, Copy, ExternalLink, PackageSearch, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, maskPhone } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,7 @@ export default function SellerOrders() {
   const [importedDraft, setImportedDraft] = useState<ImportedProductDraft | null>(null);
   const [createdProposal, setCreatedProposal] = useState<ProposalResponse | null>(null);
   const [pixKey, setPixKey] = useState("");
+  const [sellerPhone, setSellerPhone] = useState("");
 
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ["seller-orders"],
@@ -70,6 +71,7 @@ export default function SellerOrders() {
         description: description.trim() || undefined,
         seller_pix_key: pixKey.trim() || undefined,
         listing_id: importedDraft?.listing_id ?? undefined,
+        seller_phone: sellerPhone.replace(/\D/g, "") || undefined,
       }),
     onSuccess: (data) => {
       setCreatedProposal(data);
@@ -77,6 +79,7 @@ export default function SellerOrders() {
       setAmount("");
       setDescription("");
       setPixKey("");
+      setSellerPhone("");
       setImportedDraft(null);
     },
     onError: (err: ApiError) => {
@@ -288,6 +291,23 @@ export default function SellerOrders() {
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("seller.pixKeyHint", "PIX enviado automaticamente após confirmação do comprador.")}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t("seller.whatsapp", "Seu WhatsApp")}
+                  <span className="text-muted-foreground text-xs">({t("common.optional", "opcional")})</span>
+                </Label>
+                <Input
+                  placeholder="(41) 99999-0000"
+                  value={sellerPhone}
+                  onChange={(e) => setSellerPhone(maskPhone(e.target.value))}
+                  type="tel"
+                  inputMode="numeric"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("seller.whatsappHint", "Receba notificações de rastreio da entrega pelo WhatsApp.")}
                 </p>
               </div>
               {importedDraft && (

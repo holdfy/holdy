@@ -22,6 +22,7 @@ pub use crate::reputation::{ReputationSeal, ReputationService, UserReputation};
 pub use crate::score::{BehavioralContext, OnRampDecision, RiskFactor, RiskLevel, ScoreCalculator, UserScore};
 pub use crate::service::AntiFraudeService;
 pub use crate::validation::{
+    validate_cpf, validate_cnpj, validate_document,
     CachedDocumentValidator, DocumentCache, DocumentStatus, DocumentType, DocumentValidator,
     HttpDocumentValidator, InMemoryDocumentCache, LocalDocumentValidator, PostgresDocumentCache,
     SocialAccountSnapshot, SocialValidationResult, SocialValidator,

@@ -22,6 +22,7 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 import { adminApi } from "services/api";
 import { useSnackbar } from "context/SnackbarContext";
+import { maskCpfCnpj, maskPhone } from "utils/masks";
 import CustomerBalanceExtract from "./CustomerBalanceExtract";
 
 export default function AdminCustomerDetail() {
@@ -139,11 +140,11 @@ export default function AdminCustomerDetail() {
             </MDBox>
             <MDBox mb={2}>
               <MDTypography variant="button" color="text">Documento</MDTypography>
-              <MDTypography variant="body1">{customer.document_number || "-"}</MDTypography>
+              <MDTypography variant="body1">{customer.document_number ? maskCpfCnpj(customer.document_number) : "-"}</MDTypography>
             </MDBox>
             <MDBox mb={2}>
               <MDTypography variant="button" color="text">Telefone</MDTypography>
-              <MDTypography variant="body1">{customer.phone_number || "-"}</MDTypography>
+              <MDTypography variant="body1">{customer.phone_number ? maskPhone(customer.phone_number) : "-"}</MDTypography>
             </MDBox>
             <MDBox mb={2}>
               <MDTypography variant="button" color="text">Status</MDTypography>
@@ -172,13 +173,13 @@ export default function AdminCustomerDetail() {
                 <MDInput label="Nome social" fullWidth value={form.social_name ?? ""} onChange={(e) => setForm((f) => ({ ...f, social_name: e.target.value }))} />
               </Grid>
               <Grid item xs={12} md={6}>
-                <MDInput label="Documento" fullWidth value={form.document_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, document_number: e.target.value }))} />
+                <MDInput label="Documento" fullWidth value={form.document_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, document_number: maskCpfCnpj(e.target.value) }))} inputProps={{ inputMode: "numeric", maxLength: 18 }} />
               </Grid>
               <Grid item xs={12} md={6}>
                 <MDInput label="Email" type="email" fullWidth value={form.email ?? ""} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
               </Grid>
               <Grid item xs={12} md={6}>
-                <MDInput label="Telefone" fullWidth value={form.phone_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone_number: e.target.value }))} />
+                <MDInput label="Telefone" fullWidth value={form.phone_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone_number: maskPhone(e.target.value) }))} inputProps={{ inputMode: "numeric", maxLength: 15 }} />
               </Grid>
               <Grid item xs={12} md={6}>
                 <MDInput label="Responsável" fullWidth value={form.responsible_name ?? ""} onChange={(e) => setForm((f) => ({ ...f, responsible_name: e.target.value }))} />
