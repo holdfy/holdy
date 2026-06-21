@@ -35,7 +35,9 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::order_repository::{InMemoryOrderRepository, OrderRepository, PostgresOrderRepository};
-use super::proposal_repository::{InMemoryProposalRepository, ProposalRepository};
+use super::proposal_repository::{
+    InMemoryProposalRepository, PostgresProposalRepository, ProposalRepository,
+};
 
 /// Snapshot stored after a successful create-order pipeline.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -267,7 +269,10 @@ impl AppState {
             YieldCalculator::default(),
         ));
         let anchor = Arc::new(AnchorService::new(cfg));
-        let proposals = Arc::new(InMemoryProposalRepository::new());
+        let proposals: Arc<dyn ProposalRepository> = match pool.clone() {
+            Some(p) => Arc::new(PostgresProposalRepository::new(p)),
+            None => Arc::new(InMemoryProposalRepository::new()),
+        };
         let importer = Arc::new(ImporterService::new());
         let logistics = Arc::new(build_logistics_service());
         let listing_repo = pool.clone().map(|p| Arc::new(ListingRepository::new(p)));
