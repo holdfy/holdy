@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use apicash_auth::{JwtClaims, Role};
+use apicash_auth::JwtClaims;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Extension;
@@ -40,7 +40,7 @@ pub async fn create_proposal(
     req.validate().map_err(ApiError::bad_request)?;
 
     let buyer_id = req.buyer_id.unwrap_or(Uuid::nil());
-    let seller_id = resolve_seller_id(&state, claims)?;
+    let (seller_id, seller_document) = resolve_seller_id(&state, claims)?;
 
     if buyer_id != Uuid::nil() && seller_id == buyer_id {
         return Err(ApiError::bad_request(
@@ -55,6 +55,7 @@ pub async fn create_proposal(
     let proposal = StoredProposal {
         id: Uuid::new_v4(),
         seller_id,
+        seller_document,
         buyer_id,
         amount: req.amount.trim().to_string(),
         description: req.description.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
@@ -300,18 +301,12 @@ fn require_claims(claims: Option<Extension<JwtClaims>>) -> Result<JwtClaims, Api
 fn resolve_seller_id(
     state: &AppState,
     claims: Option<Extension<JwtClaims>>,
-) -> Result<Uuid, ApiError> {
+) -> Result<(Uuid, Option<String>), ApiError> {
     if state.auth.config().auth_disabled {
-        return Ok(Uuid::nil());
+        return Ok((Uuid::nil(), None));
     }
     let c = require_claims(claims)?;
-    match c.role {
-        Role::Seller => Ok(c.current_user_id()),
-        Role::Buyer => Err(ApiError::forbidden(
-            "only a seller can create proposals",
-        )),
-        Role::Admin | Role::Platform => Err(ApiError::forbidden(
-            "only a seller can create proposals",
-        )),
-    }
+    let id = c.current_user_id();
+    let doc = if c.document.is_empty() { None } else { Some(c.document.clone()) };
+    Ok((id, doc))
 }

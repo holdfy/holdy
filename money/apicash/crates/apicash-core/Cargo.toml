@@ -24,6 +24,7 @@ path = "src/main.rs"
 [dependencies]
 apicash-auth = { workspace = true }
 apicash-shared = { workspace = true }
+jsonwebtoken = { workspace = true }
 apicash-custody = { workspace = true }
 apicash-anchor = { workspace = true }
 apicash-antifraude = { workspace = true }

@@ -93,8 +93,8 @@ impl ProposalRepository for PostgresProposalRepository {
         sqlx::query(
             r#"
             INSERT INTO proposals (id, seller_id, buyer_id, amount, description, status,
-                                   created_at, expires_at, order_id, listing_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                                   created_at, expires_at, order_id, listing_id, seller_document)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             "#,
         )
         .bind(p.id)
@@ -107,6 +107,7 @@ impl ProposalRepository for PostgresProposalRepository {
         .bind(p.expires_at)
         .bind(p.order_id)
         .bind(p.listing_id)
+        .bind(p.seller_document.as_deref())
         .execute(&self.pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -117,7 +118,7 @@ impl ProposalRepository for PostgresProposalRepository {
         let row = sqlx::query(
             r#"
             SELECT id, seller_id, buyer_id, amount, description, status,
-                   created_at, expires_at, order_id, listing_id
+                   created_at, expires_at, order_id, listing_id, seller_document
             FROM proposals WHERE id = $1
             "#,
         )
@@ -160,7 +161,7 @@ impl ProposalRepository for PostgresProposalRepository {
         let rows = sqlx::query(
             r#"
             SELECT id, seller_id, buyer_id, amount, description, status,
-                   created_at, expires_at, order_id, listing_id
+                   created_at, expires_at, order_id, listing_id, seller_document
             FROM proposals WHERE seller_id = $1 ORDER BY created_at DESC
             "#,
         )
@@ -186,6 +187,7 @@ fn row_to_stored(r: &sqlx::postgres::PgRow) -> Result<StoredProposal, String> {
     Ok(StoredProposal {
         id: r.try_get("id").map_err(|e| e.to_string())?,
         seller_id: r.try_get("seller_id").map_err(|e| e.to_string())?,
+        seller_document: r.try_get("seller_document").map_err(|e| e.to_string())?,
         buyer_id: r.try_get("buyer_id").map_err(|e| e.to_string())?,
         amount: r.try_get("amount").map_err(|e| e.to_string())?,
         description: r.try_get("description").map_err(|e| e.to_string())?,

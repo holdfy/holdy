@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, Loader2, Truck, ChevronDown, ChevronUp, CheckCircle2, User } from "lucide-react";
+import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, Loader2, CheckCircle2, User, Store, AlertCircle } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -17,8 +17,9 @@ import {
 import { formatCurrency, maskCpfCnpj, maskPhone, stripDoc, validateCpf, validateCnpj } from "@/lib/format";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
-import type { ApiError, ShippingQuote } from "@/lib/api-client";
+import type { ApiError } from "@/lib/api-client";
 import QRCode from "qrcode";
+import { useUserRole } from "@/contexts/UserRoleContext";
 
 interface PaymentRouteState {
   pixBrCode?: string;
@@ -28,27 +29,78 @@ interface PaymentRouteState {
   proposalId?: string;
 }
 
-interface DocInfo {
+interface PartyInfo {
   name: string | null;
   situation: string | null;
+  loading: boolean;
+  error: boolean;
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1] ?? result);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+// Lookup CPF/CNPJ and return name+situation (null on failure)
+async function lookupParty(doc: string): Promise<PartyInfo> {
+  const digits = doc.replace(/\D/g, "");
+  if (digits.length < 11) return { name: null, situation: null, loading: false, error: false };
+  try {
+    const result = await api.lookupDocument(digits);
+    return { name: result.name, situation: result.situation, loading: false, error: false };
+  } catch {
+    return { name: null, situation: null, loading: false, error: true };
+  }
+}
+
+function PartyCard({
+  icon,
+  label,
+  document,
+  info,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  document: string;
+  info: PartyInfo;
+}) {
+  const maskedDoc = document.replace(/\D/g, "").length === 11
+    ? document.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+    : document.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+
+  return (
+    <div className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
+      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-0.5">{label}</p>
+        {info.loading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Consultando Receita Federal…</span>
+          </div>
+        ) : info.name ? (
+          <>
+            <p className="font-semibold text-sm text-foreground truncate">{info.name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{maskedDoc}</p>
+            {info.situation && (
+              <p className="text-xs text-muted-foreground">Situação: {info.situation}</p>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-foreground font-medium">{maskedDoc}</p>
+            {info.error && (
+              <p className="text-xs text-muted-foreground">Não foi possível consultar a Receita Federal</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function AppPayment() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useUserRole();
   const { proposalId: proposalIdParam } = useParams<{ proposalId?: string }>();
   const state = (location.state ?? {}) as PaymentRouteState;
   const [helpOpen, setHelpOpen] = useState(false);
@@ -59,17 +111,28 @@ export default function AppPayment() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isPaid, setIsPaid] = useState(false);
 
-  const [proposalId, setProposalId] = useState(proposalIdParam ?? state.proposalId ?? "");
-  const [cpf, setCpf] = useState("");
+  const [proposalId] = useState(proposalIdParam ?? state.proposalId ?? "");
+
+  // Buyer CPF — pre-filled from JWT if available
+  const buyerDocFromJwt = user?.document?.replace(/\D/g, "") ?? "";
+  const [cpf, setCpf] = useState(
+    buyerDocFromJwt.length === 11
+      ? buyerDocFromJwt.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+      : buyerDocFromJwt.length === 14
+      ? buyerDocFromJwt.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")
+      : ""
+  );
   const [cpfError, setCpfError] = useState<string | null>(null);
-  const [docInfo, setDocInfo] = useState<DocInfo | null>(null);
-  const [docCheckLoading, setDocCheckLoading] = useState(false);
   const [buyerPhone, setBuyerPhone] = useState("");
 
-  const [freightOpen, setFreightOpen] = useState(false);
-  const [cepDestino, setCepDestino] = useState("");
-  const [freightQuotes, setFreightQuotes] = useState<ShippingQuote[]>([]);
-  const [freightLoading, setFreightLoading] = useState(false);
+  // Card do comprador (fixo — dados do usuário logado via JWT, nunca sobrescrito pelo campo)
+  const [buyerInfo, setBuyerInfo] = useState<PartyInfo>({ name: null, situation: null, loading: false, error: false });
+  // Card do vendedor (dados da proposta via KYC)
+  const [sellerInfo, setSellerInfo] = useState<PartyInfo>({ name: null, situation: null, loading: false, error: false });
+  // KYC inline do campo CPF (separado do card — não mexe no buyerInfo)
+  const [docInfo, setDocInfo] = useState<PartyInfo | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
+
 
   // Generate real QR code image whenever pixBrCode changes
   useEffect(() => {
@@ -81,7 +144,15 @@ export default function AppPayment() {
     }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [pixBrCode]);
 
-  // Fetch proposal details to show product image (soft failure — buyer may not be authed)
+  // Auto-lookup buyer KYC from JWT document on mount
+  useEffect(() => {
+    if (!buyerDocFromJwt || buyerDocFromJwt.length < 11) return;
+    setBuyerInfo(prev => ({ ...prev, loading: true }));
+    lookupParty(buyerDocFromJwt).then(setBuyerInfo);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch proposal details (product image + seller_document)
   const { data: proposalData } = useQuery({
     queryKey: ["proposal-preview", proposalIdParam],
     queryFn: () => api.getProposal(proposalIdParam!),
@@ -89,6 +160,14 @@ export default function AppPayment() {
     retry: false,
     staleTime: 60_000,
   });
+
+  // Auto-lookup seller KYC when proposal loads
+  useEffect(() => {
+    const sellerDoc = proposalData?.seller_document;
+    if (!sellerDoc) return;
+    setSellerInfo(prev => ({ ...prev, loading: true }));
+    lookupParty(sellerDoc).then(setSellerInfo);
+  }, [proposalData?.seller_document]);
 
   // Poll order status after proposal acceptance — auto-navigate when paid
   const { data: polledOrder } = useQuery({
@@ -107,30 +186,6 @@ export default function AppPayment() {
     }
   }, [polledOrder?.status, orderId, navigate, t]);
 
-  const handleFreightQuote = async () => {
-    const cep = cepDestino.replace(/\D/g, "");
-    if (cep.length !== 8) {
-      toast.error("CEP inválido — informe 8 dígitos");
-      return;
-    }
-    setFreightLoading(true);
-    try {
-      const res = await api.quoteShipping({
-        from_postal_code: "01001000",
-        to_postal_code: cep,
-        weight_kg: "0.5",
-        width_cm: 20,
-        height_cm: 10,
-        length_cm: 15,
-      });
-      setFreightQuotes(res.quotes);
-    } catch {
-      toast.error("Erro ao calcular frete — tente novamente");
-    } finally {
-      setFreightLoading(false);
-    }
-  };
-
   const handleCpfBlur = async () => {
     const digits = stripDoc(cpf);
     if (!digits) return;
@@ -141,16 +196,12 @@ export default function AppPayment() {
       return;
     }
     setCpfError(null);
-    setDocCheckLoading(true);
-    try {
-      const result = await api.lookupDocument(digits);
-      setDocInfo({ name: result.name, situation: result.situation });
-    } catch {
-      // soft error — Receita Federal lookup failed; don't block the flow
-      setDocInfo(null);
-    } finally {
-      setDocCheckLoading(false);
-    }
+    // Só busca KYC inline se o CPF digitado for diferente do usuário logado
+    // (evita duplicar o card que já mostra o usuário logado)
+    if (digits === buyerDocFromJwt) { setDocInfo(null); return; }
+    setDocLoading(true);
+    setDocInfo(null);
+    lookupParty(digits).then(info => { setDocInfo(info); setDocLoading(false); });
   };
 
   const acceptMutation = useMutation({
@@ -170,15 +221,19 @@ export default function AppPayment() {
   const handleAcceptProposal = () => {
     const digits = stripDoc(cpf);
     if (!digits) {
-      setCpfError(t("payment.cpfRequired", "CPF ou CNPJ é obrigatório para verificação."));
+      setCpfError(t("payment.cpfRequired"));
       return;
     }
     const valid = digits.length === 11 ? validateCpf(digits) : digits.length === 14 ? validateCnpj(digits) : false;
     if (!valid) {
-      setCpfError(t("payment.invalidCpf", "Documento inválido — verifique os dígitos."));
+      setCpfError(t("payment.invalidCpf"));
       return;
     }
     setCpfError(null);
+    if (buyerPhone.replace(/\D/g, "").length < 10) {
+      toast.error(t("payment.whatsappRequired", "WhatsApp é obrigatório para acompanhar a entrega."));
+      return;
+    }
     acceptMutation.mutate(digits);
   };
 
@@ -229,35 +284,40 @@ export default function AppPayment() {
         </div>
       )}
 
+      {/* Cards das partes — comprador e vendedor */}
+      {!pixBrCode && (
+        <div className="space-y-2">
+          {/* Comprador */}
+          {(buyerDocFromJwt.length >= 11 || buyerInfo.name) && (
+            <PartyCard
+              icon={<User className="h-5 w-5 text-primary" />}
+              label={t("payment.partyBuyer", "Você (Comprador)")}
+              document={buyerDocFromJwt || stripDoc(cpf)}
+              info={buyerInfo}
+            />
+          )}
+
+          {/* Vendedor */}
+          {proposalData?.seller_document && (
+            <PartyCard
+              icon={<Store className="h-5 w-5 text-secondary" />}
+              label={t("payment.partySeller", "Vendedor")}
+              document={proposalData.seller_document}
+              info={sellerInfo}
+            />
+          )}
+        </div>
+      )}
+
       {/* Etapa 1 — Formulário (antes do PIX ser gerado) */}
       {!pixBrCode && (
         <div className="bg-card rounded-2xl p-6 border border-border space-y-4">
           <p className="font-semibold text-sm">{t("payment.enterProposal", "Proposta de pagamento seguro")}</p>
 
-          <div className="space-y-2">
-            <Label htmlFor="proposal-id">{t("payment.proposalId", "ID da Proposta")}</Label>
-            {proposalIdParam ? (
-              <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-xl border border-border">
-                <span className="font-mono text-xs text-muted-foreground truncate flex-1">{proposalId}</span>
-                <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
-                  {t("payment.autoFilled", "automático")}
-                </span>
-              </div>
-            ) : (
-              <Input
-                id="proposal-id"
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={proposalId}
-                onChange={(e) => setProposalId(e.target.value)}
-                className="font-mono text-sm"
-              />
-            )}
-          </div>
-
-          {/* CPF/CNPJ obrigatório */}
+          {/* CPF/CNPJ — pré-preenchido do JWT quando disponível */}
           <div className="space-y-1.5">
             <Label htmlFor="cpf">
-              {t("payment.cpfLabel", "CPF ou CNPJ")}
+              {t("payment.cpfLabel", "Seu CPF ou CNPJ")}
               <span className="ml-1 text-destructive text-xs font-semibold">*</span>
             </Label>
             <Input
@@ -275,37 +335,33 @@ export default function AppPayment() {
               className={cpfError ? "border-destructive" : ""}
             />
             {cpfError && (
-              <p className="text-xs text-destructive">{cpfError}</p>
+              <div className="flex items-center gap-1.5 text-xs text-destructive">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                <span>{cpfError}</span>
+              </div>
             )}
-            {docCheckLoading && (
+            {docLoading && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 <span>Consultando Receita Federal…</span>
               </div>
             )}
-            {docInfo && !docCheckLoading && (
-              <div className="flex items-start gap-2 bg-secondary/5 border border-secondary/20 rounded-xl p-3">
-                <User className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
+            {docInfo && !docLoading && (docInfo.name || docInfo.situation) && (
+              <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-xl p-3">
+                <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="text-xs space-y-0.5">
-                  {docInfo.name && (
-                    <p className="font-semibold text-foreground">{docInfo.name}</p>
-                  )}
-                  {docInfo.situation && (
-                    <p className="text-muted-foreground">Situação: {docInfo.situation}</p>
-                  )}
-                  {!docInfo.name && !docInfo.situation && (
-                    <p className="text-muted-foreground">Documento aceito. Receita Federal não retornou dados.</p>
-                  )}
+                  {docInfo.name && <p className="font-semibold text-foreground">{docInfo.name}</p>}
+                  {docInfo.situation && <p className="text-muted-foreground">Situação: {docInfo.situation}</p>}
                 </div>
               </div>
             )}
           </div>
 
-          {/* WhatsApp do comprador — notificações de rastreio */}
+          {/* WhatsApp do comprador — obrigatório para rastreio */}
           <div className="space-y-1.5">
             <Label htmlFor="buyer-phone" className="flex items-center gap-1.5">
               <span>WhatsApp</span>
-              <span className="text-muted-foreground text-xs">({t("common.optional", "opcional")})</span>
+              <span className="text-destructive text-xs font-semibold ml-1">*</span>
             </Label>
             <Input
               id="buyer-phone"
@@ -316,72 +372,14 @@ export default function AppPayment() {
               inputMode="numeric"
             />
             <p className="text-xs text-muted-foreground">
-              {t("payment.whatsappHint", "Receba atualizações de rastreio da entrega pelo WhatsApp.")}
+              {t("payment.whatsappHint")}
             </p>
-          </div>
-
-          {/* Cotação de frete — opcional */}
-          <div className="border border-border rounded-xl overflow-hidden">
-            <button
-              type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition"
-              onClick={() => setFreightOpen((v) => !v)}
-            >
-              <span className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-muted-foreground" />
-                Estimar frete (opcional)
-              </span>
-              {freightOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-
-            {freightOpen && (
-              <div className="px-4 pb-4 space-y-3 border-t border-border">
-                <div className="space-y-1 pt-3">
-                  <Label htmlFor="cep-destino" className="text-xs">CEP de destino</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="cep-destino"
-                      placeholder="00000-000"
-                      value={cepDestino}
-                      onChange={(e) => setCepDestino(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                      inputMode="numeric"
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-10 px-3 shrink-0"
-                      onClick={handleFreightQuote}
-                      disabled={freightLoading || cepDestino.replace(/\D/g, "").length !== 8}
-                    >
-                      {freightLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Calcular"}
-                    </Button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">Estimativa para pacote padrão (~0,5 kg)</p>
-                </div>
-
-                {freightQuotes.length > 0 && (
-                  <div className="space-y-1.5">
-                    {freightQuotes.map((q, i) => (
-                      <div key={i} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2 text-sm">
-                        <span className="text-muted-foreground font-medium">{q.carrier_label}</span>
-                        <div className="text-right">
-                          <span className="font-semibold">R$ {parseFloat(q.price_brl).toFixed(2)}</span>
-                          <span className="text-xs text-muted-foreground ml-2">{q.estimated_days}d úteis</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           <Button
             className="w-full h-12 rounded-xl vault-card border-0 text-white font-semibold hover:opacity-90"
             onClick={handleAcceptProposal}
-            disabled={!proposalId.trim() || acceptMutation.isPending}
+            disabled={acceptMutation.isPending}
           >
             {acceptMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {t("payment.acceptProposal", "Aceitar Proposta e Gerar PIX")}

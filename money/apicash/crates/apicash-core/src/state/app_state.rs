@@ -12,6 +12,9 @@ use apicash_antifraude::{
     SocialValidator,
 };
 use apicash_auth::{AuthConfig, AuthService};
+use crate::config::OAuthConfig;
+use crate::handlers::oauth_handler::{new_oauth_states, OAuthStates};
+use crate::repository::user_repository::{InMemoryUserRepository, PostgresUserRepository, UserRepository};
 use apicash_custody::{
     CustodyRepository, CustodyService, InMemoryCustodyRepository, PostgresCustodyRepository,
     YieldCalculator,
@@ -85,14 +88,22 @@ pub struct AppState {
     pub listing_repo: Option<Arc<ListingRepository>>,
     /// Producer Pulsar para fila de importação async (None se Pulsar não configurado).
     pub event_producer: Option<Arc<tokio::sync::Mutex<EventProducer>>>,
-    /// Códigos de rastreio por order_id (in-memory cache — persiste também em order_tracking_status quando pool disponível).
+    /// Códigos de rastreio por order_id (in-memory cache).
     pub tracking_codes: Arc<RwLock<HashMap<Uuid, String>>>,
-    /// Pool Postgres compartilhado (Some quando APICASH_ORDERS_PG ou APICASH_CUSTODY_PG estiver habilitado).
+    /// Pool Postgres compartilhado.
     pub pool: Option<sqlx::PgPool>,
-    /// Auditoria web no MongoDB — paridade com ConversationStore do canal WhatsApp.
+    /// Auditoria web no MongoDB.
     pub activity_store: Arc<WebActivityStore>,
-    /// Cache Redis para consultas NFS-e (TTL 24h). Compartilhado com canal WhatsApp via mesma chave.
+    /// Cache Redis para consultas NFS-e (TTL 24h).
     pub kyc_redis: Option<RedisConnectionManager>,
+    /// HTTP client compartilhado (OAuth token exchange, userinfo, etc.).
+    pub http: reqwest::Client,
+    /// Configuração dos provedores OAuth (lida de env).
+    pub oauth: OAuthConfig,
+    /// Estados CSRF para fluxo OAuth (TTL 10 min, limpeza lazy).
+    pub oauth_states: OAuthStates,
+    /// Repositório de usuários persistidos (login social / OAuth).
+    pub user_repository: Arc<dyn UserRepository>,
 }
 
 impl AppState {
@@ -270,7 +281,7 @@ impl AppState {
             std::time::Duration::from_secs(86_400), // 24h TTL
         ));
 
-        let social = SocialValidator::new(http, social_check);
+        let social = SocialValidator::new(http.clone(), social_check);
         let antifraude = Arc::new(AntiFraudeService::new(doc_validator, social, score_repo.clone()));
         let reputation = Arc::new(ReputationService::new(score_repo));
         let auth = Arc::new(AuthService::with_antifraude(auth_cfg, antifraude.clone()));
@@ -313,6 +324,13 @@ impl AppState {
             fiat_rail = anchor.fiat_rail_name(),
             "anchor service (simulated rail = PIX EMV via Gatebox quando GATEBOX_BASE_URL está definido)",
         );
+
+        let want_users_pg = env_enabled("APICASH_ORDERS_PG") || env_enabled("APICASH_CUSTODY_PG");
+        let user_repo: Arc<dyn UserRepository> = match (want_users_pg, pool.clone()) {
+            (true, Some(ref p)) => Arc::new(PostgresUserRepository::new(p.clone())),
+            _ => Arc::new(InMemoryUserRepository::new()),
+        };
+
         Self {
             auth,
             antifraude,
@@ -330,6 +348,10 @@ impl AppState {
             pool,
             activity_store: WebActivityStore::noop(),
             kyc_redis: None,
+            http: http.clone(),
+            oauth: OAuthConfig::from_env(),
+            oauth_states: new_oauth_states(),
+            user_repository: user_repo,
         }
     }
 }

@@ -193,7 +193,19 @@
     "toastResetSent": "Si existe cuenta, recibirás instrucciones.",
     "toastFillFields": "Completá correo y contraseña",
     "toastAccountCreated": "Cuenta creada. Bienvenido a Holdfy.",
-    "toastBiometric": "El inicio biométrico abriría el prompt del dispositivo aquí."
+    "toastBiometric": "El inicio biométrico abriría el prompt del dispositivo aquí.",
+    "orContinueWith": "o continúa con",
+    "socialGoogle": "Entrar con Google",
+    "socialFacebook": "Entrar con Facebook",
+    "socialApple": "Entrar con Apple",
+    "socialLinkedIn": "Entrar con LinkedIn",
+    "oauthError": "Error al iniciar sesión social. Inténtalo de nuevo.",
+    "invalidCredentials": "Usuario o contraseña incorrectos. Verificá e intentá de nuevo.",
+    "loginError": "No se pudo iniciar sesión. Intentá de nuevo.",
+    "loggingIn": "Iniciando…",
+    "completeProfileTitle": "Completa tu perfil",
+    "completeProfileDesc": "Ingresa tu RUT/CPF/CNPJ para habilitar transacciones.",
+    "completeProfileSave": "Guardar documento"
   },
   "navBuyer": {
     "home": "Inicio",
@@ -203,7 +215,9 @@
     "homeShort": "INICIO",
     "ordersShort": "PEDIDOS",
     "walletShort": "BILLETERA",
-    "profileShort": "PERFIL"
+    "profileShort": "PERFIL",
+    "sellModeShort": "VENDER",
+    "sellMode": "Modo Vendedor"
   },
   "navSeller": {
     "dashboard": "Panel",
@@ -215,7 +229,9 @@
     "ordersShort": "PEDIDOS",
     "disputesShort": "DISPUTAS",
     "walletShort": "BILLETERA",
-    "profileShort": "PERFIL"
+    "profileShort": "PERFIL",
+    "buyModeShort": "COMPRAR",
+    "buyMode": "Modo Comprador"
   },
   "status": {
     "PENDING": "Pendiente",
@@ -353,16 +369,35 @@
     "resolutionNotes": "Notas de resolución"
   },
   "payment": {
-    "title": "Agregar fondos vía PIX",
+    "title": "Pago Seguro",
     "amount": "Monto",
     "pixKey": "Clave PIX",
     "copyPaste": "Copiá el código PIX",
     "copied": "¡Copiado!",
-    "help": "Cómo funciona PIX",
-    "helpTitle": "Depósito PIX",
-    "helpDesc": "Escanea el QR o copia el código PIX en tu app bancaria. Los fondos aparecen retenidos en segundos.",
-    "confirm": "Ya pagué",
-    "toastPaid": "Pago detectado — fondos retenidos."
+    "help": "Sobre el depósito en garantía",
+    "helpTitle": "Cómo funciona el depósito en garantía",
+    "helpDesc": "Tu pago queda retenido por Holdfy hasta que confirmes que recibiste el producto. Solo entonces el vendedor cobra.",
+    "confirm": "Esperando confirmación del pago",
+    "toastPaid": "¡Pago confirmado!",
+    "enterProposal": "Propuesta de pago seguro",
+    "cpfLabel": "Tu CPF o CNPJ",
+    "cpfRequired": "CPF o CNPJ es obligatorio para verificación.",
+    "invalidCpf": "Documento inválido — verificá los dígitos.",
+    "acceptProposal": "Aceptar Propuesta y Generar PIX",
+    "proposalAccepted": "¡Propuesta aceptada! Pagá el PIX abajo.",
+    "acceptError": "Error al aceptar la propuesta. Intentá de nuevo.",
+    "paymentConfirmed": "¡Pago confirmado! Redirigiendo…",
+    "waitingPayment": "Esperando confirmación automática",
+    "autoConfirmDesc": "Serás redirigido automáticamente cuando se detecte el pago.",
+    "whatsappHint": "Recibirás actualizaciones del seguimiento por WhatsApp.",
+    "whatsappRequired": "WhatsApp es obligatorio para hacer seguimiento de tu entrega.",
+    "productAlt": "Producto",
+    "partyBuyer": "Vos (Comprador)",
+    "partySeller": "Vendedor",
+    "estimateFreight": "Estimar envío (opcional)",
+    "destinationCep": "Código postal de destino",
+    "calculate": "Calcular",
+    "freightEstimateHint": "Estimación para paquete estándar (~0,5 kg)"
   },
   "transactionComplete": {
     "title": "Transacción completada",
@@ -394,7 +429,10 @@
     "phoneSaved": "¡WhatsApp guardado con éxito!",
     "phoneError": "Error al guardar WhatsApp",
     "pixKeySaved": "¡Clave PIX guardada con éxito!",
-    "pixKeyError": "Error al guardar clave PIX"
+    "pixKeyError": "Error al guardar clave PIX",
+    "displayName": "Nombre",
+    "emailLabel": "Correo electrónico",
+    "completeProfileBanner": "Ingresa tu CPF/CNPJ para habilitar transacciones."
   },
   "notifications": {
     "title": "Notificaciones",

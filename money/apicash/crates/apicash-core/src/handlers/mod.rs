@@ -2,6 +2,7 @@
 
 pub mod auth_handler;
 pub mod custody_handler;
+pub mod oauth_handler;
 pub mod importer_handler;
 pub mod kyc_handler;
 pub mod logistics_handler;

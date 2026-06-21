@@ -1,6 +1,6 @@
-import { Shield, Lock, User, Eye, EyeOff, Fingerprint, ShieldCheck, HelpCircle, Store, ShoppingBag, Building2, Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Shield, Lock, User, Eye, EyeOff, Fingerprint, ShieldCheck, HelpCircle, Building2, Loader2, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +18,11 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useUserRole, UserRole, type PersonType } from "@/contexts/UserRoleContext";
 import { toast } from "sonner";
 import type { ApiError } from "@/lib/api-client";
-import { api } from "@/lib/api-client";
+import { api, tokenStore } from "@/lib/api-client";
 
 export default function AppLogin() {
   const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<UserRole>("buyer");
   const [forgotOpen, setForgotOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [signUpOpen, setSignUpOpen] = useState(false);
@@ -37,11 +36,32 @@ export default function AppLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { login } = useUserRole();
+  const [searchParams] = useSearchParams();
+  const { login, loginFromToken, setRole } = useUserRole();
+
+  // OAuth callback: backend redireciona para /login?token=...&refresh=...&oauth=1
+  useEffect(() => {
+    const token = searchParams.get("token");
+    const refresh = searchParams.get("refresh");
+    const oauthError = searchParams.get("oauth_error");
+
+    if (oauthError) {
+      toast.error(t("auth.oauthError"));
+      // Remove params sem recarregar
+      navigate("/login", { replace: true });
+      return;
+    }
+    if (token && refresh) {
+      loginFromToken(token, refresh);
+      navigate("/buyer", { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleUsernameChange = (val: string) => {
-    // Email ou username com letras — sem máscara
+    setLoginError(null);
     if (/[a-zA-Z@]/.test(val)) {
       setUsername(val);
     } else {
@@ -51,23 +71,22 @@ export default function AppLogin() {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      toast.error(t("auth.toastFillFields"));
+      setLoginError(t("auth.toastFillFields"));
       return;
     }
-    // Envia dígitos puros se for CPF/CNPJ, senão envia o valor original
     const digits = stripDoc(username);
     const loginId = (digits.length === 11 || digits.length === 14) ? digits : username.trim();
     setLoading(true);
+    setLoginError(null);
     try {
-      await login(loginId, password, selectedRole);
-      navigate(selectedRole === "seller" ? "/seller" : "/buyer");
+      await login(loginId, password, "buyer");
+      navigate("/buyer");
     } catch (err) {
       const apiErr = err as ApiError;
-      if (apiErr?.status === 401) {
-        toast.error(t("auth.invalidCredentials", "Usuário ou senha incorretos"));
-      } else {
-        toast.error(t("auth.loginError", "Erro ao entrar. Tente novamente."));
-      }
+      const msg = apiErr?.status === 401
+        ? t("auth.invalidCredentials")
+        : t("auth.loginError");
+      setLoginError(msg);
     } finally {
       setLoading(false);
     }
@@ -87,6 +106,8 @@ export default function AppLogin() {
     const digits = stripDoc(regEmail);
     if (digits.length !== 11 && digits.length !== 14) return;
     if (!validateCpfOrCnpj(digits)) return;
+    // Lookup Receita Federal requer JWT — pula silenciosamente se não autenticado
+    if (!tokenStore.getAccess()) return;
     setRegDocLoading(true);
     setRegDocInfo(null);
     try {
@@ -148,36 +169,6 @@ export default function AppLogin() {
           <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase mt-3">{t("auth.welcomeSubtitle")}</p>
         </div>
 
-        <div className="mb-5">
-          <label className="text-xs font-semibold tracking-wider uppercase text-foreground mb-2 block">{t("auth.accessType")}</label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setSelectedRole("buyer")}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                selectedRole === "buyer"
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-card hover:border-muted-foreground/30"
-              }`}
-            >
-              <ShoppingBag className={`h-6 w-6 ${selectedRole === "buyer" ? "text-primary" : "text-muted-foreground"}`} />
-              <span className={`text-sm font-semibold ${selectedRole === "buyer" ? "text-primary" : "text-muted-foreground"}`}>{t("common.buyer")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedRole("seller")}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                selectedRole === "seller"
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-card hover:border-muted-foreground/30"
-              }`}
-            >
-              <Store className={`h-6 w-6 ${selectedRole === "seller" ? "text-primary" : "text-muted-foreground"}`} />
-              <span className={`text-sm font-semibold ${selectedRole === "seller" ? "text-primary" : "text-muted-foreground"}`}>{t("common.seller")}</span>
-            </button>
-          </div>
-        </div>
-
         <div className="space-y-5 flex-1">
           <div>
             <label className="text-xs font-semibold tracking-wider uppercase text-foreground mb-2 block">{t("auth.cpfCnpjLabel", "CPF ou CNPJ")}</label>
@@ -227,6 +218,13 @@ export default function AppLogin() {
             </div>
           </div>
 
+          {loginError && (
+            <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive font-medium">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              {loginError}
+            </div>
+          )}
+
           <Button
             className="w-full h-14 rounded-xl vault-card border-0 text-white font-semibold text-base hover:opacity-90"
             onClick={handleLogin}
@@ -245,6 +243,55 @@ export default function AppLogin() {
             <Fingerprint className="mr-2 h-5 w-5" />
             {t("auth.biometricLogin")}
           </Button>
+
+          {/* Social login */}
+          <div className="relative flex items-center gap-3">
+            <div className="flex-1 border-t" />
+            <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">{t("auth.orContinueWith")}</span>
+            <div className="flex-1 border-t" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <a
+              href="/auth/oauth/google"
+              className="flex items-center justify-center gap-2 h-12 rounded-xl border bg-card hover:bg-muted transition text-sm font-semibold"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Google
+            </a>
+            <a
+              href="/auth/oauth/apple"
+              className="flex items-center justify-center gap-2 h-12 rounded-xl border bg-card hover:bg-muted transition text-sm font-semibold"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98l-.09.06c-.22.15-2.39 1.39-2.37 4.15.03 3.27 2.87 4.36 2.9 4.37l-.08.1zM13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+              </svg>
+              Apple
+            </a>
+            <a
+              href="/auth/oauth/facebook"
+              className="flex items-center justify-center gap-2 h-12 rounded-xl border bg-card hover:bg-muted transition text-sm font-semibold"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2" aria-hidden="true">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              Facebook
+            </a>
+            <a
+              href="/auth/oauth/linkedin"
+              className="flex items-center justify-center gap-2 h-12 rounded-xl border bg-card hover:bg-muted transition text-sm font-semibold"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#0A66C2" aria-hidden="true">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+              LinkedIn
+            </a>
+          </div>
         </div>
 
         <div className="text-center pt-6">

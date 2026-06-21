@@ -77,6 +77,8 @@ impl std::fmt::Display for ProposalStatus {
 pub struct StoredProposal {
     pub id: Uuid,
     pub seller_id: Uuid,
+    /// CPF/CNPJ of the seller — captured from JWT at creation time.
+    pub seller_document: Option<String>,
     pub buyer_id: Uuid,
     /// Canonical decimal string (e.g. "100.50").
     pub amount: String,
@@ -111,6 +113,9 @@ pub struct ProposalResponse {
     pub expires_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<Uuid>,
+    /// CPF/CNPJ of the seller — shown to buyer for identity verification.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seller_document: Option<String>,
     /// First photo URL from the linked listing, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub listing_photo: Option<String>,
@@ -128,6 +133,7 @@ impl From<&StoredProposal> for ProposalResponse {
             created_at: p.created_at,
             expires_at: p.expires_at,
             order_id: p.order_id,
+            seller_document: p.seller_document.clone(),
             listing_photo: None,
         }
     }

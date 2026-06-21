@@ -127,8 +127,8 @@ impl AuthService {
         } else {
             None
         };
-        let access = self.generate_token_full(claims.sub, claims.role, claims.person_type, claims.document.clone(), risk)?;
-        let refresh = self.generate_refresh_token(claims.sub, claims.role, claims.person_type, claims.document)?;
+        let access = self.generate_token_full_with_profile(claims.sub, claims.role, claims.person_type, claims.document.clone(), risk, claims.email.clone(), claims.name.clone(), claims.avatar_url.clone())?;
+        let refresh = self.generate_refresh_token_with_profile(claims.sub, claims.role, claims.person_type, claims.document, claims.email, claims.name, claims.avatar_url)?;
         Ok(LoginResponse::new(
             access,
             self.config.jwt_ttl_secs,
@@ -146,8 +146,8 @@ impl AuthService {
         if !claims.is_refresh_token() {
             return Err(AuthError::InvalidToken("expected refresh token".into()));
         }
-        let access = self.generate_token_full(claims.sub, claims.role, claims.person_type, claims.document.clone(), None)?;
-        let refresh = self.generate_refresh_token(claims.sub, claims.role, claims.person_type, claims.document)?;
+        let access = self.generate_token_full_with_profile(claims.sub, claims.role, claims.person_type, claims.document.clone(), None, claims.email.clone(), claims.name.clone(), claims.avatar_url.clone())?;
+        let refresh = self.generate_refresh_token_with_profile(claims.sub, claims.role, claims.person_type, claims.document, claims.email, claims.name, claims.avatar_url)?;
         Ok(LoginResponse::new(
             access,
             self.config.jwt_ttl_secs,
@@ -187,6 +187,22 @@ impl AuthService {
         document: String,
         risk_score: Option<u32>,
     ) -> Result<String, AuthError> {
+        self.generate_token_full_with_profile(user_id, role, person_type, document, risk_score, None, None, None)
+    }
+
+    /// Emite JWT HS256 com todos os campos, incluindo perfil OAuth (email, nome, avatar).
+    #[allow(clippy::too_many_arguments)]
+    pub fn generate_token_full_with_profile(
+        &self,
+        user_id: Uuid,
+        role: Role,
+        person_type: PersonType,
+        document: String,
+        risk_score: Option<u32>,
+        email: Option<String>,
+        name: Option<String>,
+        avatar_url: Option<String>,
+    ) -> Result<String, AuthError> {
         if self.config.jwt_secret.len() < 8 {
             return Err(AuthError::Misconfigured);
         }
@@ -198,6 +214,9 @@ impl AuthService {
             role,
             person_type,
             document,
+            email,
+            name,
+            avatar_url,
             risk_score,
             token_use: None,
             exp,
@@ -220,6 +239,20 @@ impl AuthService {
         person_type: PersonType,
         document: String,
     ) -> Result<String, AuthError> {
+        self.generate_refresh_token_with_profile(user_id, role, person_type, document, None, None, None)
+    }
+
+    /// Refresh token com perfil OAuth.
+    pub fn generate_refresh_token_with_profile(
+        &self,
+        user_id: Uuid,
+        role: Role,
+        person_type: PersonType,
+        document: String,
+        email: Option<String>,
+        name: Option<String>,
+        avatar_url: Option<String>,
+    ) -> Result<String, AuthError> {
         if self.config.jwt_secret.len() < 8 {
             return Err(AuthError::Misconfigured);
         }
@@ -231,6 +264,9 @@ impl AuthService {
             role,
             person_type,
             document,
+            email,
+            name,
+            avatar_url,
             risk_score: None,
             token_use: Some("refresh".into()),
             exp,

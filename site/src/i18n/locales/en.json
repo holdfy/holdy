@@ -192,7 +192,19 @@
     "toastResetSent": "If an account exists, you will receive reset instructions.",
     "toastFillFields": "Fill in email and password",
     "toastAccountCreated": "Account created. Welcome to Holdfy.",
-    "toastBiometric": "Biometric sign-in would open your device prompt here."
+    "toastBiometric": "Biometric sign-in would open your device prompt here.",
+    "orContinueWith": "or continue with",
+    "socialGoogle": "Sign in with Google",
+    "socialFacebook": "Sign in with Facebook",
+    "socialApple": "Sign in with Apple",
+    "socialLinkedIn": "Sign in with LinkedIn",
+    "oauthError": "Social login failed. Please try again.",
+    "invalidCredentials": "Incorrect login or password. Please check and try again.",
+    "loginError": "Could not sign in. Please try again.",
+    "loggingIn": "Signing in…",
+    "completeProfileTitle": "Complete your profile",
+    "completeProfileDesc": "Enter your Tax ID (CPF or CNPJ) to enable transactions.",
+    "completeProfileSave": "Save document"
   },
   "navBuyer": {
     "home": "Home",
@@ -202,7 +214,9 @@
     "homeShort": "HOME",
     "ordersShort": "ORDERS",
     "walletShort": "WALLET",
-    "profileShort": "PROFILE"
+    "profileShort": "PROFILE",
+    "sellModeShort": "SELL",
+    "sellMode": "Seller Mode"
   },
   "navSeller": {
     "dashboard": "Dashboard",
@@ -214,7 +228,9 @@
     "ordersShort": "ORDERS",
     "disputesShort": "DISPUTES",
     "walletShort": "WALLET",
-    "profileShort": "PROFILE"
+    "profileShort": "PROFILE",
+    "buyModeShort": "BUY",
+    "buyMode": "Buyer Mode"
   },
   "status": {
     "PENDING": "Pending",
@@ -352,16 +368,35 @@
     "resolutionNotes": "Resolution notes"
   },
   "payment": {
-    "title": "Add funds via PIX",
+    "title": "Secure Payment",
     "amount": "Amount",
     "pixKey": "PIX key",
     "copyPaste": "Copy PIX code",
     "copied": "Copied!",
-    "help": "How PIX works",
-    "helpTitle": "PIX deposit",
-    "helpDesc": "Scan the QR code or copy the PIX string in your banking app. Funds appear held within seconds.",
-    "confirm": "I've paid",
-    "toastPaid": "Payment detected — funds held."
+    "help": "About escrow",
+    "helpTitle": "How escrow works",
+    "helpDesc": "Your payment is held by Holdfy until you confirm you received the product. Only then does the seller get paid.",
+    "confirm": "Awaiting payment confirmation",
+    "toastPaid": "Payment confirmed!",
+    "enterProposal": "Secure payment proposal",
+    "cpfLabel": "Your CPF or CNPJ",
+    "cpfRequired": "CPF or CNPJ is required for verification.",
+    "invalidCpf": "Invalid document — please check the digits.",
+    "acceptProposal": "Accept Proposal & Generate PIX",
+    "proposalAccepted": "Proposal accepted! Pay the PIX below.",
+    "acceptError": "Failed to accept proposal. Please try again.",
+    "paymentConfirmed": "Payment confirmed! Redirecting…",
+    "waitingPayment": "Awaiting automatic confirmation",
+    "autoConfirmDesc": "You will be redirected automatically once your payment is detected.",
+    "whatsappHint": "You will receive delivery tracking updates via WhatsApp.",
+    "whatsappRequired": "WhatsApp is required to track your delivery.",
+    "productAlt": "Product",
+    "partyBuyer": "You (Buyer)",
+    "partySeller": "Seller",
+    "estimateFreight": "Estimate shipping (optional)",
+    "destinationCep": "Destination ZIP code",
+    "calculate": "Calculate",
+    "freightEstimateHint": "Estimate for standard package (~0.5 kg)"
   },
   "transactionComplete": {
     "title": "Transaction complete",
@@ -393,7 +428,10 @@
     "phoneSaved": "WhatsApp saved successfully!",
     "phoneError": "Error saving WhatsApp",
     "pixKeySaved": "PIX key saved successfully!",
-    "pixKeyError": "Error saving PIX key"
+    "pixKeyError": "Error saving PIX key",
+    "displayName": "Name",
+    "emailLabel": "Email",
+    "completeProfileBanner": "Enter your CPF/CNPJ to enable transactions."
   },
   "notifications": {
     "title": "Notifications",

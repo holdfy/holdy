@@ -10,8 +10,9 @@ use tower_governor::GovernorLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::handlers::{
-    auth_handler, custody_handler, importer_handler, kyc_handler, logistics_handler, order_handler,
-    payment_handler, proposal_handler, reputation_handler, testnet_handler, webhook_handler,
+    auth_handler, custody_handler, importer_handler, kyc_handler, logistics_handler, oauth_handler,
+    order_handler, payment_handler, proposal_handler, reputation_handler, testnet_handler,
+    webhook_handler,
 };
 use crate::middleware::{auth_middleware, build_x402_layer};
 use crate::state::AppState;
@@ -30,6 +31,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/login", post(auth_handler::login))
         .route("/refresh", post(auth_handler::refresh))
         .route("/register", post(auth_handler::register))
+        // OAuth social login (sem rate limit — os provedores já têm controle de frequência)
+        .route("/oauth/{provider}", get(oauth_handler::oauth_redirect))
+        .route("/oauth/{provider}/callback", get(oauth_handler::oauth_callback))
         .layer(GovernorLayer::new(governor_conf.clone()))
         .with_state(state.clone());
 
@@ -68,9 +72,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/proposals/{id}/reject",
             post(proposal_handler::reject_proposal),
         )
-        // Profile: chave PIX e WhatsApp do usuário site
+        // Profile: chave PIX, WhatsApp e vínculo de documento pós-login social
         .route("/profile/pix-key", axum::routing::put(order_handler::update_pix_key))
         .route("/profile/phone", axum::routing::put(order_handler::update_phone))
+        .route("/auth/profile/link-document", post(oauth_handler::link_document))
         // Listing import acessível ao site com JWT (mesmo handler do /internal, user_id vem do token)
         .route("/v1/listings/import", post(importer_handler::import_listing))
         .route("/v1/listings/import/async", post(importer_handler::import_listing_async))
@@ -103,7 +108,6 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/internal/listings/import", post(importer_handler::import_listing))
         .route("/internal/listings/import/async", post(importer_handler::import_listing_async))
         .route("/internal/listings/jobs/{id}", get(importer_handler::get_import_job))
-        .route("/internal/listings/import/async", post(importer_handler::import_listing_async))
         .route("/internal/listings/{id}/order", axum::routing::patch(importer_handler::link_listing_to_order))
         .layer(GovernorLayer::new(governor_conf.clone()))
         .with_state(state.clone());

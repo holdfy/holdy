@@ -192,7 +192,19 @@
     "toastResetSent": "Se existir conta, você receberá instruções de redefinição.",
     "toastFillFields": "Preencha e-mail e senha",
     "toastAccountCreated": "Conta criada. Bem-vindo à Holdfy.",
-    "toastBiometric": "Login biométrico abriria o prompt do dispositivo aqui."
+    "toastBiometric": "Login biométrico abriria o prompt do dispositivo aqui.",
+    "orContinueWith": "ou continue com",
+    "socialGoogle": "Entrar com Google",
+    "socialFacebook": "Entrar com Facebook",
+    "socialApple": "Entrar com Apple",
+    "socialLinkedIn": "Entrar com LinkedIn",
+    "oauthError": "Erro ao entrar com rede social. Tente novamente.",
+    "invalidCredentials": "Login ou senha incorretos. Verifique e tente novamente.",
+    "loginError": "Não foi possível entrar. Tente novamente.",
+    "loggingIn": "Entrando…",
+    "completeProfileTitle": "Complete seu perfil",
+    "completeProfileDesc": "Informe seu CPF ou CNPJ para habilitar transações.",
+    "completeProfileSave": "Salvar documento"
   },
   "navBuyer": {
     "home": "Início",
@@ -202,7 +214,9 @@
     "homeShort": "INÍCIO",
     "ordersShort": "PEDIDOS",
     "walletShort": "CARTEIRA",
-    "profileShort": "PERFIL"
+    "profileShort": "PERFIL",
+    "sellModeShort": "VENDER",
+    "sellMode": "Modo Vendedor"
   },
   "navSeller": {
     "dashboard": "Painel",
@@ -214,7 +228,9 @@
     "ordersShort": "PEDIDOS",
     "disputesShort": "DISPUTAS",
     "walletShort": "CARTEIRA",
-    "profileShort": "PERFIL"
+    "profileShort": "PERFIL",
+    "buyModeShort": "COMPRAR",
+    "buyMode": "Modo Comprador"
   },
   "status": {
     "PENDING": "Pendente",
@@ -352,16 +368,35 @@
     "resolutionNotes": "Notas da resolução"
   },
   "payment": {
-    "title": "Adicionar fundos via PIX",
+    "title": "Pagamento Seguro",
     "amount": "Valor",
     "pixKey": "Chave PIX",
     "copyPaste": "Copiar código PIX",
     "copied": "Copiado!",
-    "help": "Como funciona o PIX",
-    "helpTitle": "Depósito PIX",
-    "helpDesc": "Escaneie o QR ou copie o código PIX no app do banco. Fundos aparecem retidos em segundos.",
-    "confirm": "Já paguei",
-    "toastPaid": "Pagamento detectado — fundos retidos."
+    "help": "Entenda a custódia",
+    "helpTitle": "Como funciona a custódia",
+    "helpDesc": "O valor pago fica retido pela Holdfy até você confirmar que recebeu o produto. Só então o vendedor recebe.",
+    "confirm": "Aguardando confirmação do pagamento",
+    "toastPaid": "Pagamento confirmado!",
+    "enterProposal": "Proposta de pagamento seguro",
+    "cpfLabel": "Seu CPF ou CNPJ",
+    "cpfRequired": "CPF ou CNPJ é obrigatório para verificação.",
+    "invalidCpf": "Documento inválido — verifique os dígitos.",
+    "acceptProposal": "Aceitar Proposta e Gerar PIX",
+    "proposalAccepted": "Proposta aceita! Pague o PIX abaixo.",
+    "acceptError": "Erro ao aceitar proposta. Tente novamente.",
+    "paymentConfirmed": "Pagamento confirmado! Redirecionando…",
+    "waitingPayment": "Aguardando confirmação automática",
+    "autoConfirmDesc": "Você será redirecionado automaticamente após o pagamento ser detectado.",
+    "whatsappHint": "Você receberá atualizações de rastreio da entrega pelo WhatsApp.",
+    "whatsappRequired": "WhatsApp é obrigatório para acompanhar a entrega.",
+    "productAlt": "Produto",
+    "partyBuyer": "Você (Comprador)",
+    "partySeller": "Vendedor",
+    "estimateFreight": "Estimar frete (opcional)",
+    "destinationCep": "CEP de destino",
+    "calculate": "Calcular",
+    "freightEstimateHint": "Estimativa para pacote padrão (~0,5 kg)"
   },
   "transactionComplete": {
     "title": "Transação concluída",
@@ -393,7 +428,10 @@
     "phoneSaved": "WhatsApp salvo com sucesso!",
     "phoneError": "Erro ao salvar WhatsApp",
     "pixKeySaved": "Chave PIX salva com sucesso!",
-    "pixKeyError": "Erro ao salvar chave PIX"
+    "pixKeyError": "Erro ao salvar chave PIX",
+    "displayName": "Nome",
+    "emailLabel": "E-mail",
+    "completeProfileBanner": "Informe seu CPF/CNPJ para habilitar transações."
   },
   "notifications": {
     "title": "Notificações",

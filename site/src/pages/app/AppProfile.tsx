@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { User, Shield, ChevronRight, LogOut, Loader2 } from "lucide-react";
+import { User, Shield, ChevronRight, LogOut, Loader2, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { tokenStore, api } from "@/lib/api-client";
 import type { ApiError } from "@/lib/api-client";
 import { maskPhone } from "@/lib/format";
 import { toast } from "sonner";
+import { useUserRole } from "@/contexts/UserRoleContext";
 import {
   Dialog,
   DialogContent,
@@ -20,27 +21,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-function getUserIdFromToken(): string | null {
-  const token = tokenStore.getAccess();
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.sub ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export default function AppProfile() {
   const { t } = useTranslation();
+  const { user } = useUserRole();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
-  const userId = getUserIdFromToken();
+  const [docInput, setDocInput] = useState("");
+  const [docOpen, setDocOpen] = useState(false);
+  const userId = user?.id ?? null;
 
   const phoneMutation = useMutation({
     mutationFn: () => api.updatePhone(phone.trim()),
     onSuccess: () => toast.success(t("profile.phoneSaved", "WhatsApp salvo com sucesso!")),
     onError: (err: ApiError) => toast.error(err?.error ?? t("profile.phoneError", "Erro ao salvar WhatsApp")),
+  });
+
+  const docMutation = useMutation({
+    mutationFn: () => api.linkDocument(docInput.replace(/\D/g, "")),
+    onSuccess: () => {
+      toast.success(t("profile.docSaved", "Documento vinculado com sucesso!"));
+      setDocOpen(false);
+    },
+    onError: (err: ApiError) => toast.error(err?.error ?? t("profile.docError", "Erro ao salvar documento")),
   });
 
   const sections = useMemo(
@@ -63,15 +65,42 @@ export default function AppProfile() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="md:col-span-1">
           <div className="bg-card rounded-2xl p-5 border border-border flex flex-col items-center gap-4 text-center">
-            <div className="h-16 w-16 rounded-full vault-card flex items-center justify-center">
-              <User className="h-8 w-8 text-white" />
-            </div>
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.name ?? "avatar"}
+                className="h-16 w-16 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-16 w-16 rounded-full vault-card flex items-center justify-center">
+                <User className="h-8 w-8 text-white" />
+              </div>
+            )}
             <div>
-              <p className="font-semibold text-lg">Demo User</p>
-              <p className="text-sm text-muted-foreground">demo@holdfy.com</p>
+              <p className="font-semibold text-lg">{user?.name ?? t("profile.displayName", "Nome")}</p>
+              {user?.email && <p className="text-sm text-muted-foreground">{user.email}</p>}
               {userId && <ReputationBadge userId={userId} className="mt-2" />}
             </div>
           </div>
+
+          {/* Banner: CPF/CNPJ pendente para usuários sociais */}
+          {user && !user.hasDocument && (
+            <button
+              type="button"
+              onClick={() => setDocOpen(true)}
+              className="w-full flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left hover:bg-amber-500/15 transition"
+            >
+              <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                  {t("auth.completeProfileTitle")}
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                  {t("profile.completeProfileBanner")}
+                </p>
+              </div>
+            </button>
+          )}
         </div>
         <div className="md:col-span-2 space-y-4">
           <div className="bg-card rounded-2xl p-5 border border-border space-y-3">
@@ -142,6 +171,36 @@ export default function AppProfile() {
             <DialogTitle>{section?.label}</DialogTitle>
             <DialogDescription className="text-left leading-relaxed pt-2">{section?.body}</DialogDescription>
           </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={docOpen} onOpenChange={setDocOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("auth.completeProfileTitle")}</DialogTitle>
+            <DialogDescription>{t("auth.completeProfileDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 pt-2">
+            <Label htmlFor="doc-input">{t("auth.cpfCnpjLabel", "CPF ou CNPJ")}</Label>
+            <Input
+              id="doc-input"
+              inputMode="numeric"
+              maxLength={18}
+              placeholder="000.000.000-00"
+              value={docInput}
+              onChange={(e) => setDocInput(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setDocOpen(false)}>{t("common.cancel")}</Button>
+            <Button
+              className="vault-card border-0 text-white hover:opacity-90"
+              disabled={docMutation.isPending}
+              onClick={() => docMutation.mutate()}
+            >
+              {docMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("auth.completeProfileSave")}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

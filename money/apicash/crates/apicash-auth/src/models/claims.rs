@@ -59,6 +59,15 @@ pub struct JwtClaims {
     /// Documento do utilizador (CPF ou CNPJ). Omitido se vazio.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub document: String,
+    /// Email verificado pelo provedor (OAuth) ou cadastrado manualmente.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// Nome completo do utilizador.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// URL do avatar / foto de perfil.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
     /// Score agregado 0–1000 (antifraude), se conhecido no momento da emissão.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub risk_score: Option<u32>,

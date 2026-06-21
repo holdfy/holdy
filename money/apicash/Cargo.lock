@@ -407,6 +407,7 @@ dependencies = [
  "dotenvy",
  "hex",
  "hmac",
+ "jsonwebtoken",
  "mongodb",
  "redis",
  "reqwest 0.12.28",

@@ -54,6 +54,7 @@ export interface ProposalResponse {
   created_at: string;
   expires_at: string;
   order_id: string | null;
+  seller_document?: string | null;
   listing_photo?: string | null;
 }
 
@@ -394,5 +395,12 @@ export const api = {
     request<{ user_id: string; phone: string; status: string }>(
       "/profile/phone",
       { method: "PUT", body: JSON.stringify({ phone }) },
+    ),
+
+  // Profile — vincular CPF/CNPJ pós-login social
+  linkDocument: (document: string) =>
+    request<{ ok: boolean }>(
+      "/auth/profile/link-document",
+      { method: "POST", body: JSON.stringify({ document }) },
     ),
 };
