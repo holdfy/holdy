@@ -8,7 +8,7 @@ use leptos_router::path;
 use crate::i18n::{MsgKey, T};
 use crate::pages::{
     dashboard::DashboardPage, disputes::DisputesPage, orders::OrdersPage, reports::ReportsPage,
-    sellers::SellersPage,
+    sellers::SellersPage, stellar::StellarPage,
 };
 use crate::providers::auth_provider::AuthProvider;
 use crate::providers::i18n_provider::I18nProvider;
@@ -45,6 +45,7 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("disputes") view=DisputesPage />
                             <Route path=path!("sellers") view=SellersPage />
                             <Route path=path!("reports") view=ReportsPage />
+                            <Route path=path!("stellar") view=StellarPage />
                         </ParentRoute>
                     </Routes>
                 </Router>

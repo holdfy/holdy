@@ -14,6 +14,7 @@ pub fn Sidebar() -> impl IntoView {
                 <A href="/disputes"><span class="ap-nav-item"><T key=MsgKey::NavDisputes /></span></A>
                 <A href="/sellers"><span class="ap-nav-item"><T key=MsgKey::NavSellers /></span></A>
                 <A href="/reports"><span class="ap-nav-item"><T key=MsgKey::NavReports /></span></A>
+                <A href="/stellar"><span class="ap-nav-item"><T key=MsgKey::NavStellar /></span></A>
             </nav>
         </aside>
     }

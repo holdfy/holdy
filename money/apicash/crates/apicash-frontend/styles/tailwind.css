@@ -224,3 +224,188 @@ a:hover {
   color: var(--text);
   font-size: 0.8125rem;
 }
+
+/* ── Stellar ─────────────────────────────────────────────────────────────── */
+
+/* Clickable table row */
+.ap-table .stl-row {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ap-table .stl-row:hover {
+  background: rgba(59, 130, 246, 0.07);
+}
+
+/* Badges */
+.stl-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.stl-badge--real    { background: rgba(34, 197, 94, 0.15);  color: #22c55e; }
+.stl-badge--mock    { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.stl-badge--custody { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.stl-badge--pending { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+.stl-badge--sim     { background: rgba(139, 156, 179, 0.12);color: #8b9cb3; }
+
+/* Short hash in table */
+.stl-hash {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.775rem;
+  color: var(--muted);
+}
+/* Full selectable hash in detail */
+.stl-hash--full {
+  color: var(--text);
+  user-select: all;
+  word-break: break-all;
+  display: block;
+  line-height: 1.5;
+}
+
+/* External link */
+.stl-ext-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.stl-ext-link:hover { color: var(--accent-hover); text-decoration: underline; }
+
+/* List header strip */
+.stl-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Empty state */
+.stl-empty {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+}
+
+/* ── Detail panel ────────────────────────────────────────────────────────── */
+
+.stl-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.stl-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.stl-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 860px) {
+  .stl-detail-grid { grid-template-columns: 1fr; }
+}
+
+.stl-section {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.stl-section-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+/* Detail row: label + value */
+.stl-drow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+  font-size: 0.875rem;
+}
+.stl-drow:last-child { border-bottom: none; }
+
+.stl-drow-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  min-width: 150px;
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+}
+
+.stl-drow-value {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Botão de rede na tabela (link direto para Stellar Expert) */
+.stl-net-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.stl-net-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--accent-hover);
+}
+.stl-net-btn--disabled {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Pill de rede no header do detalhe */
+.stl-net-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.stl-net-pill-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}

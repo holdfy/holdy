@@ -199,6 +199,49 @@ pub async fn get_user_scores() -> Result<UserScoreListResponse, ServerFnError> {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StellarTxRow {
+    pub order_id: String,
+    pub buyer_name: String,
+    pub buyer_document: String,
+    pub seller_id: String,
+    pub amount_brl: String,
+    pub order_status: String,
+    pub custody_status: Option<String>,
+    /// "real" | "mock" | "simulated"
+    pub soroban_mode: String,
+    pub soroban_escrow_contract_id: Option<String>,
+    pub soroban_lock_tx_hash: Option<String>,
+    pub soroban_release_tx_hash: Option<String>,
+    pub brlx_transfer_tx_hash: Option<String>,
+    /// "testnet" | "mainnet" | "simulated"
+    pub network: String,
+    pub created_at: String,
+    pub explorer_lock_url: Option<String>,
+    pub explorer_contract_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StellarTxListResponse {
+    pub transactions: Vec<StellarTxRow>,
+    pub total: usize,
+    pub network: String,
+}
+
+#[server(GetStellarTransactions, "/api")]
+pub async fn get_stellar_transactions() -> Result<StellarTxListResponse, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let r = admin_get("admin/stellar/transactions").await?;
+        let v = r.json::<StellarTxListResponse>().await?;
+        Ok(v)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        unreachable!()
+    }
+}
+
 #[server(GetSellerDashboard, "/api")]
 pub async fn get_seller_dashboard(
     seller_id: String,

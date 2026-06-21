@@ -15,6 +15,7 @@ pub enum MsgKey {
     NavDisputes,
     NavSellers,
     NavReports,
+    NavStellar,
     NavbarSubtitle,
     Logout,
     PageTitle,
@@ -75,6 +76,32 @@ pub enum MsgKey {
     YieldTotalReported,
     YieldCustodies,
 
+    // Stellar
+    StellarTitle,
+    StellarSubtitle,
+    StellarBack,
+    StellarNetwork,
+    StellarMode,
+    StellarContract,
+    StellarLockTx,
+    StellarReleaseTx,
+    StellarBrlxTx,
+    StellarOpenExplorer,
+    StellarNegotiation,
+    StellarBlockchain,
+    StellarBuyer,
+    StellarDocument,
+    StellarSeller,
+    StellarAmount,
+    StellarOrderStatus,
+    StellarCustodyStatus,
+    StellarCreatedAt,
+    StellarNoData,
+    LoadingStellar,
+    ColNetwork,
+    ColMode,
+    ColLockTx,
+
     // Auth
     DefaultAdminUser,
 }
@@ -98,6 +125,7 @@ const TABLE: &[(MsgKey, Triple)] = &[
     (MsgKey::NavDisputes, msg!("Disputas", "Disputes", "Disputas")),
     (MsgKey::NavSellers, msg!("Vendedores", "Sellers", "Vendedores")),
     (MsgKey::NavReports, msg!("Relatórios", "Reports", "Informes")),
+    (MsgKey::NavStellar, msg!("Stellar", "Stellar", "Stellar")),
     (
         MsgKey::NavbarSubtitle,
         msg!(
@@ -251,6 +279,36 @@ const TABLE: &[(MsgKey, Triple)] = &[
         MsgKey::DefaultAdminUser,
         msg!("Administrador", "Administrator", "Administrador"),
     ),
+
+    // Stellar
+    (MsgKey::StellarTitle,   msg!("Transações Stellar", "Stellar Transactions", "Transacciones Stellar")),
+    (MsgKey::StellarSubtitle, msg!(
+        "On-chain: hashes Soroban, contratos escrow e trilha BRLx por pedido.",
+        "On-chain: Soroban hashes, escrow contracts and BRLx trail per order.",
+        "On-chain: hashes Soroban, contratos escrow y trazabilidad BRLx."
+    )),
+    (MsgKey::StellarBack,    msg!("← Voltar à lista", "← Back to list", "← Volver a la lista")),
+    (MsgKey::StellarNetwork, msg!("Rede", "Network", "Red")),
+    (MsgKey::StellarMode,    msg!("Modo Soroban", "Soroban Mode", "Modo Soroban")),
+    (MsgKey::StellarContract,msg!("Contrato Escrow", "Escrow Contract", "Contrato Escrow")),
+    (MsgKey::StellarLockTx,  msg!("TX Lock (PIX→Escrow)", "TX Lock (PIX→Escrow)", "TX Lock (PIX→Escrow)")),
+    (MsgKey::StellarReleaseTx,msg!("TX Release (liberação)", "TX Release", "TX Release (liberación)")),
+    (MsgKey::StellarBrlxTx, msg!("TX BRLx Transfer", "TX BRLx Transfer", "TX BRLx Transfer")),
+    (MsgKey::StellarOpenExplorer, msg!("↗ Ver no Stellar Expert", "↗ Open in Stellar Expert", "↗ Ver en Stellar Expert")),
+    (MsgKey::StellarNegotiation, msg!("Negociação", "Order Details", "Negociación")),
+    (MsgKey::StellarBlockchain,  msg!("Blockchain Stellar", "Stellar Blockchain", "Blockchain Stellar")),
+    (MsgKey::StellarBuyer,   msg!("Comprador", "Buyer", "Comprador")),
+    (MsgKey::StellarDocument,msg!("Documento", "Document", "Documento")),
+    (MsgKey::StellarSeller,  msg!("Vendedor", "Seller", "Vendedor")),
+    (MsgKey::StellarAmount,  msg!("Valor", "Amount", "Valor")),
+    (MsgKey::StellarOrderStatus, msg!("Status do pedido", "Order status", "Estado del pedido")),
+    (MsgKey::StellarCustodyStatus, msg!("Status da custódia", "Custody status", "Estado de custodia")),
+    (MsgKey::StellarCreatedAt, msg!("Criado em", "Created at", "Creado el")),
+    (MsgKey::StellarNoData,  msg!("Nenhuma transação Stellar encontrada (Postgres inativo ou sem pedidos com on-ramp).", "No Stellar transactions found (Postgres inactive or no on-ramp orders).", "No se encontraron transacciones Stellar.")),
+    (MsgKey::LoadingStellar, msg!("A carregar transações Stellar…", "Loading Stellar transactions…", "Cargando transacciones Stellar…")),
+    (MsgKey::ColNetwork,     msg!("Rede", "Network", "Red")),
+    (MsgKey::ColMode,        msg!("Modo", "Mode", "Modo")),
+    (MsgKey::ColLockTx,      msg!("Lock TX", "Lock TX", "Lock TX")),
 ];
 
 fn locale_index(locale: Locale) -> usize {

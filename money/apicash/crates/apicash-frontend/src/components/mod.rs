@@ -4,4 +4,5 @@ pub mod language_selector;
 pub mod navbar;
 pub mod order_table;
 pub mod sidebar;
+pub mod stellar_table;
 pub mod yield_chart;
