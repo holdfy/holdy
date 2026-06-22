@@ -329,7 +329,11 @@
     "listingUrlHint": "Título e valor serão preenchidos automaticamente.",
     "importingListing": "Importando anúncio...",
     "listingImported": "Anúncio importado!",
-    "previewBtn": "Pré-visualizar"
+    "previewBtn": "Pré-visualizar",
+    "yourData": "Você (Vendedor)",
+    "kycVerifying": "Verificando seus dados...",
+    "kycError": "Dados não disponíveis",
+    "kycSituation": "Situação"
   },
   "order": {
     "protectedPayment": "Pagamento retido",
@@ -365,7 +369,19 @@
     "aiVerdictSeller": "IA decidiu a favor do vendedor",
     "aiVerdictInconclusive": "IA inconclusiva — revisão manual em andamento",
     "aiConfidence": "Confiança da análise",
-    "resolutionNotes": "Notas da resolução"
+    "resolutionNotes": "Notas da resolução",
+    "disputeReasonLabel": "Motivo da disputa",
+    "disputeReasonDifferent": "Produto diferente do anunciado",
+    "disputeReasonDefective": "Produto com defeito",
+    "disputeReasonDamaged": "Produto danificado na entrega",
+    "disputeReasonNotReceived": "Não recebi o produto",
+    "disputeReasonOther": "Outro",
+    "disputeDetails": "Detalhes adicionais (opcional)",
+    "toastDisputeReasonRequired": "Selecione o motivo da disputa",
+    "toastReleaseError": "Erro ao liberar pagamento",
+    "toastReleaseSeller": "Confirmado! Seu PIX está sendo enviado para a chave cadastrada.",
+    "buyerData": "Dados do comprador",
+    "notFound": "Pedido não encontrado"
   },
   "payment": {
     "title": "Pagamento Seguro",
@@ -396,7 +412,9 @@
     "estimateFreight": "Estimar frete (opcional)",
     "destinationCep": "CEP de destino",
     "calculate": "Calcular",
-    "freightEstimateHint": "Estimativa para pacote padrão (~0,5 kg)"
+    "freightEstimateHint": "Estimativa para pacote padrão (~0,5 kg)",
+    "sellerTransactions": "transações concluídas",
+    "sellerReputation": "Reputação"
   },
   "transactionComplete": {
     "title": "Transação concluída",
@@ -440,7 +458,11 @@
     "n2Title": "Atualização de entrega",
     "n2Body": "Transportadora coletou seu pacote — acompanhe em Pedidos.",
     "n3Title": "Atualização de disputa",
-    "n3Body": "Vendedor respondeu à disputa #4821."
+    "n3Body": "Vendedor respondeu à disputa #4821.",
+    "paymentConfirmedTitle": "Pagamento confirmado!",
+    "paymentConfirmedBody": "Seu pedido foi pago e está em custódia.",
+    "trackingUpdatedTitle": "Rastreio atualizado",
+    "trackingUpdatedBody": "Há novidades no rastreio do seu pedido."
   },
   "withdraw": {
     "title": "Sacar fundos",

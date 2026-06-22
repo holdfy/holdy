@@ -33,6 +33,7 @@ export interface LoginResponse {
 export interface OrderResponse {
   id: string;
   buyer_id: string;
+  buyer_name?: string | null;
   seller_id: string;
   amount: string;
   status: "pending_funding" | "in_custody" | "completed" | "cancelled" | "failed";

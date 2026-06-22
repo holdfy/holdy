@@ -169,6 +169,15 @@ export default function AppPayment() {
     lookupParty(sellerDoc).then(setSellerInfo);
   }, [proposalData?.seller_document]);
 
+  // Seller reputation
+  const { data: sellerReputation } = useQuery({
+    queryKey: ["reputation", proposalData?.seller_id],
+    queryFn: () => api.getReputation(proposalData!.seller_id),
+    enabled: !!proposalData?.seller_id && !pixBrCode,
+    staleTime: 300_000,
+    retry: false,
+  });
+
   // Poll order status after proposal acceptance — auto-navigate when paid
   const { data: polledOrder } = useQuery({
     queryKey: ["order-payment-poll", orderId],
@@ -305,6 +314,31 @@ export default function AppPayment() {
               document={proposalData.seller_document}
               info={sellerInfo}
             />
+          )}
+
+          {/* Reputação do vendedor */}
+          {proposalData?.seller_document && sellerReputation && (
+            <div className="bg-muted/40 border border-border rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{sellerReputation.completed_transactions}</span>
+                {" "}{t("payment.sellerTransactions", "transações concluídas")}
+              </div>
+              {sellerReputation.seal ? (
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                  sellerReputation.seal.badge_color === "gold"
+                    ? "text-amber-600 bg-amber-50 border-amber-200"
+                    : sellerReputation.seal.badge_color === "green"
+                    ? "text-secondary bg-secondary/10 border-secondary/20"
+                    : "text-primary bg-primary/10 border-primary/20"
+                }`}>
+                  {sellerReputation.seal.label}
+                </span>
+              ) : sellerReputation.kyc_approved ? (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full border text-secondary bg-secondary/10 border-secondary/20">
+                  KYC ✓
+                </span>
+              ) : null}
+            </div>
           )}
         </div>
       )}

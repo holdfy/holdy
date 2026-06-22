@@ -329,7 +329,11 @@
     "listingUrlHint": "Title and price will be filled automatically.",
     "importingListing": "Importing listing...",
     "listingImported": "Listing imported!",
-    "previewBtn": "Preview"
+    "previewBtn": "Preview",
+    "yourData": "You (Seller)",
+    "kycVerifying": "Verifying your data...",
+    "kycError": "Data unavailable",
+    "kycSituation": "Status"
   },
   "order": {
     "protectedPayment": "Payment held",
@@ -365,7 +369,19 @@
     "aiVerdictSeller": "AI decided in favor of the seller",
     "aiVerdictInconclusive": "AI inconclusive — manual review in progress",
     "aiConfidence": "Analysis confidence",
-    "resolutionNotes": "Resolution notes"
+    "resolutionNotes": "Resolution notes",
+    "disputeReasonLabel": "Dispute reason",
+    "disputeReasonDifferent": "Item not as described",
+    "disputeReasonDefective": "Defective product",
+    "disputeReasonDamaged": "Damaged in delivery",
+    "disputeReasonNotReceived": "Item not received",
+    "disputeReasonOther": "Other",
+    "disputeDetails": "Additional details (optional)",
+    "toastDisputeReasonRequired": "Select a dispute reason",
+    "toastReleaseError": "Failed to release payment",
+    "toastReleaseSeller": "Confirmed! Your PIX is being sent to the registered key.",
+    "buyerData": "Buyer information",
+    "notFound": "Order not found"
   },
   "payment": {
     "title": "Secure Payment",
@@ -396,7 +412,9 @@
     "estimateFreight": "Estimate shipping (optional)",
     "destinationCep": "Destination ZIP code",
     "calculate": "Calculate",
-    "freightEstimateHint": "Estimate for standard package (~0.5 kg)"
+    "freightEstimateHint": "Estimate for standard package (~0.5 kg)",
+    "sellerTransactions": "completed transactions",
+    "sellerReputation": "Reputation"
   },
   "transactionComplete": {
     "title": "Transaction complete",
@@ -440,7 +458,11 @@
     "n2Title": "Delivery update",
     "n2Body": "Courier picked up your package — track in Orders.",
     "n3Title": "Dispute update",
-    "n3Body": "Seller responded to dispute #4821."
+    "n3Body": "Seller responded to dispute #4821.",
+    "paymentConfirmedTitle": "Payment confirmed!",
+    "paymentConfirmedBody": "Your order has been paid and is in custody.",
+    "trackingUpdatedTitle": "Tracking updated",
+    "trackingUpdatedBody": "There are updates on your order tracking."
   },
   "withdraw": {
     "title": "Withdraw funds",

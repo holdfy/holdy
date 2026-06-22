@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Shield, ArrowLeft, CheckCircle2, HelpCircle, CheckCheck, Loader2, Paperclip, X, AlertTriangle, PackageSearch, Bot } from "lucide-react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { Shield, ArrowLeft, CheckCircle2, HelpCircle, CheckCheck, Loader2, Paperclip, X, AlertTriangle, PackageSearch, Bot, User } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -165,6 +165,7 @@ export default function AppOrderDetail() {
   const profilePath = isSeller ? "/seller/profile" : "/buyer/profile";
 
   const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
   const [disputeNote, setDisputeNote] = useState("");
   const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
@@ -173,23 +174,16 @@ export default function AppOrderDetail() {
   const [trackingInput, setTrackingInput] = useState("");
   const [trackingResult, setTrackingResult] = useState<TrackingInfo | null>(null);
 
+  const prevOrderStatus = useRef<string | undefined>(undefined);
+  const prevTrackingStatus = useRef<string | undefined>(undefined);
+
   const setTrackingMutation = useMutation({
     mutationFn: (code: string) => api.setTracking(id!, code),
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success("Código de rastreio registrado!");
       setTrackingInput("");
-      // fetch tracking info right away
-      api.trackShipment(data.tracking_code)
-        .then(setTrackingResult)
-        .catch(() => {});
     },
     onError: (err: ApiError) => toast.error(err?.error ?? "Erro ao registrar rastreio"),
-  });
-
-  const fetchTrackingMutation = useMutation({
-    mutationFn: (code: string) => api.trackShipment(code),
-    onSuccess: setTrackingResult,
-    onError: () => toast.error("Código não encontrado ou serviço indisponível"),
   });
 
   const { data: order, isLoading, isError } = useQuery({
@@ -197,11 +191,22 @@ export default function AppOrderDetail() {
     queryFn: () => api.getOrder(id!),
     enabled: !!id,
     retry: 1,
-    // Auto-poll while waiting for payment confirmation
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === "pending_funding" ? 5000 : false;
+      if (status === "pending_funding") return 5000;
+      if (status === "in_custody") return 30_000;
+      return false;
     },
+  });
+
+  // Auto-poll tracking a cada 30s quando há código de rastreio
+  const { data: autoTrackingData, refetch: refetchTracking, isFetching: trackingFetching } = useQuery({
+    queryKey: ["tracking-auto", order?.tracking_code],
+    queryFn: () => api.trackShipment(order!.tracking_code!),
+    enabled: !!order?.tracking_code && order.status === "in_custody",
+    refetchInterval: 30_000,
+    staleTime: 25_000,
+    retry: false,
   });
 
   // Busca disputa — 404 significa que não há disputa; falha silenciosa
@@ -224,6 +229,39 @@ export default function AppOrderDetail() {
     },
   });
 
+  // Notificação browser quando pagamento confirmado (para vendedor)
+  useEffect(() => {
+    if (!order?.status) return;
+    const prev = prevOrderStatus.current;
+    prevOrderStatus.current = order.status;
+    if (prev !== undefined && prev === "pending_funding" && order.status === "in_custody" && isSeller) {
+      const fire = () => new Notification(
+        t("notifications.paymentConfirmedTitle", "Pagamento confirmado!"),
+        { body: t("notifications.paymentConfirmedBody", "Seu pedido foi pago e está em custódia."), icon: "/favicon.ico" }
+      );
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "granted") fire();
+      else if (Notification.permission !== "denied") Notification.requestPermission().then(p => p === "granted" && fire());
+    }
+  }, [order?.status, isSeller, t]);
+
+  // Notificação quando rastreio atualiza
+  useEffect(() => {
+    if (!autoTrackingData?.current_status) return;
+    const prev = prevTrackingStatus.current;
+    prevTrackingStatus.current = autoTrackingData.current_status;
+    if (prev !== undefined && prev !== autoTrackingData.current_status) {
+      toast.info(`${t("notifications.trackingUpdatedTitle", "Rastreio")}: ${autoTrackingData.current_status}`);
+      if (!("Notification" in window)) return;
+      const fire = () => new Notification(
+        t("notifications.trackingUpdatedTitle", "Rastreio atualizado"),
+        { body: autoTrackingData.current_status }
+      );
+      if (Notification.permission === "granted") fire();
+      else if (Notification.permission !== "denied") Notification.requestPermission().then(p => p === "granted" && fire());
+    }
+  }, [autoTrackingData?.current_status, t]);
+
   const steps = useMemo(
     () => [
       { label: t("order.stepPaid"), desc: t("order.stepPaidDesc") },
@@ -238,13 +276,26 @@ export default function AppOrderDetail() {
   const activeStep = order ? orderStatusStep(order.status) : 0;
 
   const submitDispute = async () => {
-    if (!disputeNote.trim()) {
+    if (!disputeReason) {
+      toast.error(t("order.toastDisputeReasonRequired", "Selecione o motivo da disputa"));
+      return;
+    }
+    if (disputeReason === "other" && !disputeNote.trim()) {
       toast.error(t("order.toastDisputeEmpty"));
       return;
     }
     setDisputeSubmitting(true);
+    const reasonMap: Record<string, string> = {
+      different: t("order.disputeReasonDifferent", "Produto diferente do anunciado"),
+      defective: t("order.disputeReasonDefective", "Produto com defeito"),
+      damaged: t("order.disputeReasonDamaged", "Produto danificado na entrega"),
+      not_received: t("order.disputeReasonNotReceived", "Não recebi o produto"),
+      other: t("order.disputeReasonOther", "Outro"),
+    };
+    const reasonLabel = reasonMap[disputeReason] ?? disputeReason;
+    const fullReason = disputeNote.trim() ? `${reasonLabel}: ${disputeNote.trim()}` : reasonLabel;
     try {
-      await api.openDispute(id!, disputeNote);
+      await api.openDispute(id!, fullReason);
 
       // Upload each evidence file
       for (const file of disputeFiles) {
@@ -256,6 +307,7 @@ export default function AppOrderDetail() {
 
       toast.success(t("order.toastDisputeSent"));
       setDisputeOpen(false);
+      setDisputeReason("");
       setDisputeNote("");
       setDisputeFiles([]);
     } catch (err: unknown) {
@@ -275,7 +327,11 @@ export default function AppOrderDetail() {
         released_by: user?.id ?? "",
         idempotency_key: `release-${id}-${Date.now()}`,
       });
-      toast.success(t("order.toastDeliveryConfirmed"));
+      if (isSeller) {
+        toast.success(t("order.toastReleaseSeller", "Confirmado! Seu PIX está sendo enviado para a chave cadastrada."));
+      } else {
+        toast.success(t("order.toastDeliveryConfirmed"));
+      }
       navigate(isSeller ? "/seller/orders" : "/buyer/transaction-complete", {
         state: { orderId: id, amount: order?.amount },
       });
@@ -382,6 +438,20 @@ export default function AppOrderDetail() {
           {/* Score de Risco */}
           <RiskBadge score={order.risk_score} decision={order.risk_decision} />
 
+          {/* Dados do comprador — visíveis apenas para o vendedor */}
+          {isSeller && (order.buyer_name || order.buyer_id) && (
+            <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                <User className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">{t("order.buyerData", "Dados do comprador")}</p>
+                {order.buyer_name && <p className="font-semibold text-sm">{order.buyer_name}</p>}
+                <p className="text-xs text-muted-foreground font-mono">{order.buyer_id.slice(0, 8).toUpperCase()}</p>
+              </div>
+            </div>
+          )}
+
           {/* Rastreio */}
           {isSeller && isInCustody && (
             <div className="bg-card rounded-2xl p-5 border border-border space-y-3">
@@ -422,32 +492,27 @@ export default function AppOrderDetail() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => fetchTrackingMutation.mutate(order.tracking_code!)}
-                  disabled={fetchTrackingMutation.isPending}
+                  onClick={() => {
+                    refetchTracking();
+                    setTrackingResult(null);
+                  }}
+                  disabled={trackingFetching}
                 >
-                  {fetchTrackingMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Atualizar"}
+                  {trackingFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Atualizar"}
                 </Button>
               </div>
-              {!trackingResult && !fetchTrackingMutation.isPending && (
-                <div className="flex items-center gap-2">
-                  <p className="font-mono text-sm font-semibold">{order.tracking_code}</p>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-xs h-7 px-2"
-                    onClick={() => fetchTrackingMutation.mutate(order.tracking_code!)}
-                  >
-                    Ver status
-                  </Button>
-                </div>
+              {!autoTrackingData && !trackingResult && !trackingFetching && (
+                <p className="font-mono text-sm font-semibold">{order.tracking_code}</p>
               )}
-              {fetchTrackingMutation.isPending && (
+              {trackingFetching && !autoTrackingData && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Consultando transportadora…
                 </div>
               )}
-              {trackingResult && <TrackingCard info={trackingResult} />}
+              {(trackingResult ?? autoTrackingData) && (
+                <TrackingCard info={(trackingResult ?? autoTrackingData)!} />
+              )}
             </div>
           )}
 
@@ -536,7 +601,7 @@ export default function AppOrderDetail() {
       <div className="h-4" />
 
       {/* Dispute dialog com upload de evidências */}
-      <Dialog open={disputeOpen} onOpenChange={(o) => { if (!disputeSubmitting) setDisputeOpen(o); }}>
+      <Dialog open={disputeOpen} onOpenChange={(o) => { if (!disputeSubmitting) { setDisputeOpen(o); if (!o) { setDisputeReason(""); setDisputeNote(""); } } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("order.disputeTitle")}</DialogTitle>
@@ -544,8 +609,37 @@ export default function AppOrderDetail() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Motivo da disputa — menu de opções */}
             <div className="space-y-2">
-              <Label htmlFor="dispute-note">{t("common.message")}</Label>
+              <Label>{t("order.disputeReasonLabel", "Motivo da disputa")}</Label>
+              <div className="space-y-2">
+                {(
+                  [
+                    ["different", t("order.disputeReasonDifferent", "Produto diferente do anunciado")],
+                    ["defective", t("order.disputeReasonDefective", "Produto com defeito")],
+                    ["damaged", t("order.disputeReasonDamaged", "Produto danificado na entrega")],
+                    ["not_received", t("order.disputeReasonNotReceived", "Não recebi o produto")],
+                    ["other", t("order.disputeReasonOther", "Outro")],
+                  ] as [string, string][]
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setDisputeReason(value)}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition ${
+                      disputeReason === value
+                        ? "border-destructive bg-destructive/10 text-destructive font-semibold"
+                        : "border-border bg-muted/30 text-foreground hover:bg-muted/60"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dispute-note">{t("order.disputeDetails", "Detalhes adicionais (opcional)")}</Label>
               <Textarea
                 id="dispute-note"
                 placeholder={t("order.disputePlaceholder")}

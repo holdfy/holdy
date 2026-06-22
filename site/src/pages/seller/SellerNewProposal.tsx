@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowLeft, Copy, Check, Shield, Loader2, Link2, CheckCircle2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Copy, Check, Shield, Loader2, Link2, CheckCircle2, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
@@ -10,9 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import type { ApiError, ImportedProductDraft } from "@/lib/api-client";
+import { useUserRole } from "@/contexts/UserRoleContext";
 
 export default function SellerNewProposal() {
   const { t } = useTranslation();
+  const { user } = useUserRole();
+  const sellerDoc = user?.document?.replace(/\D/g, "") ?? "";
+  const [sellerKyc, setSellerKyc] = useState<{ name: string | null; situation: string | null; loading: boolean; error: boolean }>(
+    { name: null, situation: null, loading: false, error: false }
+  );
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [pixKey, setPixKey] = useState("");
@@ -24,6 +30,14 @@ export default function SellerNewProposal() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [proposalLink, setProposalLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (sellerDoc.length < 11) return;
+    setSellerKyc(prev => ({ ...prev, loading: true }));
+    api.lookupDocument(sellerDoc)
+      .then(r => setSellerKyc({ name: r.name, situation: r.situation, loading: false, error: false }))
+      .catch(() => setSellerKyc({ name: null, situation: null, loading: false, error: true }));
+  }, [sellerDoc]);
 
   const handlePreviewListing = async () => {
     const url = listingUrl.trim();
@@ -136,6 +150,44 @@ export default function SellerNewProposal() {
           </p>
         </div>
       </div>
+
+      {/* Card do vendedor — dados do usuário logado via JWT + RF */}
+      {sellerDoc.length >= 11 && (
+        <div className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <User className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-0.5">
+              {t("seller.yourData", "Você (Vendedor)")}
+            </p>
+            {sellerKyc.loading ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>{t("seller.kycVerifying", "Verificando seus dados...")}</span>
+              </div>
+            ) : sellerKyc.name ? (
+              <>
+                <p className="font-semibold text-sm text-foreground truncate">{sellerKyc.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {sellerDoc.length === 11
+                    ? sellerDoc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+                    : sellerDoc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")}
+                </p>
+                {sellerKyc.situation && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("seller.kycSituation", "Situação")}: {sellerKyc.situation}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {sellerKyc.error ? t("seller.kycError", "Dados não disponíveis") : sellerDoc}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {!proposalLink ? (
         <div className="bg-card rounded-2xl p-6 border border-border space-y-5">

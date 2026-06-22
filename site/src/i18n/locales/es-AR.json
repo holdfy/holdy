@@ -330,7 +330,11 @@
     "listingImported": "¡Anuncio importado!",
     "previewBtn": "Vista previa",
     "noDisputesDesc": "Tu cuenta está al día. Sin disputas abiertas.",
-    "noDisputes": "Sin disputas"
+    "noDisputes": "Sin disputas",
+    "yourData": "Vos (Vendedor)",
+    "kycVerifying": "Verificando tus datos...",
+    "kycError": "Datos no disponibles",
+    "kycSituation": "Situación"
   },
   "order": {
     "protectedPayment": "Pago retenido",
@@ -366,7 +370,19 @@
     "aiVerdictSeller": "La IA decidió a favor del vendedor",
     "aiVerdictInconclusive": "IA no concluyente — revisión manual en curso",
     "aiConfidence": "Confianza del análisis",
-    "resolutionNotes": "Notas de resolución"
+    "resolutionNotes": "Notas de resolución",
+    "disputeReasonLabel": "Motivo de la disputa",
+    "disputeReasonDifferent": "Producto diferente al anunciado",
+    "disputeReasonDefective": "Producto defectuoso",
+    "disputeReasonDamaged": "Producto dañado en la entrega",
+    "disputeReasonNotReceived": "No recibí el producto",
+    "disputeReasonOther": "Otro",
+    "disputeDetails": "Detalles adicionales (opcional)",
+    "toastDisputeReasonRequired": "Seleccioná el motivo de la disputa",
+    "toastReleaseError": "Error al liberar el pago",
+    "toastReleaseSeller": "¡Confirmado! Tu PIX está siendo enviado a la clave registrada.",
+    "buyerData": "Datos del comprador",
+    "notFound": "Pedido no encontrado"
   },
   "payment": {
     "title": "Pago Seguro",
@@ -397,7 +413,9 @@
     "estimateFreight": "Estimar envío (opcional)",
     "destinationCep": "Código postal de destino",
     "calculate": "Calcular",
-    "freightEstimateHint": "Estimación para paquete estándar (~0,5 kg)"
+    "freightEstimateHint": "Estimación para paquete estándar (~0,5 kg)",
+    "sellerTransactions": "transacciones completadas",
+    "sellerReputation": "Reputación"
   },
   "transactionComplete": {
     "title": "Transacción completada",
@@ -441,7 +459,11 @@
     "n2Title": "Actualización de entrega",
     "n2Body": "Courier recogió tu paquete — sigue en Pedidos.",
     "n3Title": "Actualización de disputa",
-    "n3Body": "Vendedor respondió a disputa #4821."
+    "n3Body": "Vendedor respondió a disputa #4821.",
+    "paymentConfirmedTitle": "¡Pago confirmado!",
+    "paymentConfirmedBody": "Tu pedido fue pagado y está en custodia.",
+    "trackingUpdatedTitle": "Seguimiento actualizado",
+    "trackingUpdatedBody": "Hay novedades en el seguimiento de tu pedido."
   },
   "withdraw": {
     "title": "Retirar plata",
