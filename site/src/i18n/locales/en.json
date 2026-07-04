@@ -214,9 +214,7 @@
     "homeShort": "HOME",
     "ordersShort": "ORDERS",
     "walletShort": "WALLET",
-    "profileShort": "PROFILE",
-    "sellModeShort": "SELL",
-    "sellMode": "Seller Mode"
+    "profileShort": "PROFILE"
   },
   "navSeller": {
     "dashboard": "Dashboard",
@@ -228,9 +226,7 @@
     "ordersShort": "ORDERS",
     "disputesShort": "DISPUTES",
     "walletShort": "WALLET",
-    "profileShort": "PROFILE",
-    "buyModeShort": "BUY",
-    "buyMode": "Buyer Mode"
+    "profileShort": "PROFILE"
   },
   "status": {
     "PENDING": "Pending",

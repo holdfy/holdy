@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { SellerBottomNav } from "@/components/seller/SellerBottomNav";
 import { SellerSidebar } from "@/components/seller/SellerSidebar";
+import { ModeSwitcher, ModeSwitcherStrip } from "@/components/app/ModeIndicator";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -11,6 +12,7 @@ export default function SellerLayout() {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-background pb-24 max-w-lg mx-auto relative">
+        <ModeSwitcherStrip mode="seller" />
         <Outlet />
         <SellerBottomNav />
       </div>
@@ -24,7 +26,10 @@ export default function SellerLayout() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center justify-between border-b border-border px-4">
             <SidebarTrigger />
-            <LanguageSwitcher variant="app" />
+            <div className="flex items-center gap-3">
+              <ModeSwitcher mode="seller" />
+              <LanguageSwitcher variant="app" />
+            </div>
           </header>
           <main className="flex-1 overflow-auto">
             <div className="max-w-6xl mx-auto p-6">

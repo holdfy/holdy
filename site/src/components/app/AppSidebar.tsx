@@ -1,4 +1,4 @@
-import { LayoutGrid, FileText, Wallet, User, Shield, LogOut, Store } from "lucide-react";
+import { LayoutGrid, FileText, Wallet, User, Shield, LogOut } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
@@ -79,14 +79,6 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 space-y-1">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip={t("navBuyer.sellMode")}>
-              <a href="/seller" className="text-secondary hover:text-secondary/80">
-                <Store className="h-4 w-4" />
-                <span>{t("navBuyer.sellMode")}</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip={t("common.logout")}>
               <a href="/login" className="text-muted-foreground hover:text-foreground">

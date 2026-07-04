@@ -215,9 +215,7 @@
     "homeShort": "INICIO",
     "ordersShort": "PEDIDOS",
     "walletShort": "BILLETERA",
-    "profileShort": "PERFIL",
-    "sellModeShort": "VENDER",
-    "sellMode": "Modo Vendedor"
+    "profileShort": "PERFIL"
   },
   "navSeller": {
     "dashboard": "Panel",
@@ -229,9 +227,7 @@
     "ordersShort": "PEDIDOS",
     "disputesShort": "DISPUTAS",
     "walletShort": "BILLETERA",
-    "profileShort": "PERFIL",
-    "buyModeShort": "COMPRAR",
-    "buyMode": "Modo Comprador"
+    "profileShort": "PERFIL"
   },
   "status": {
     "PENDING": "Pendiente",

@@ -1817,21 +1817,8 @@ Fluxo típico:
 USAGE
 }
 
-CMD="${1:-}"
+CMD="${1:-restart}"
 SCOPE="${2:-all}"
-
-if [ -z "${CMD}" ]; then
-  printf '\nEscolha o modo de rede:\n  1) testnet\n  2) mainnet\n\n> '
-  read -r _choice
-  case "${_choice}" in
-  1 | testnet) CMD="testnet" ;;
-  2 | mainnet) CMD="mainnet" ;;
-  *)
-    warn "opção inválida: ${_choice}"
-    exit 2
-    ;;
-  esac
-fi
 
 if [ "${CMD}" != "whatsapp-pair" ] && [ "${CMD}" != "open-browsers" ]; then
   case "${SCOPE}" in
