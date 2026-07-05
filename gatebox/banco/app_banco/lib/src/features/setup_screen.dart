@@ -43,6 +43,7 @@ class _SetupScreenState extends State<SetupScreen> {
       orElse: () => EndpointStore.builtIn,
     );
     BancoApiConfig.setActiveUrl(ep.url);
+    widget.api.resetSession();
     setState(() {
       _activeId = id;
       _testResult = null;
