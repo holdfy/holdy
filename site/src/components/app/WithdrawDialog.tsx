@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { maskCurrencyBR, unmaskCurrencyBR } from "@/lib/format";
 
 export function WithdrawDialog({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -21,7 +22,7 @@ export function WithdrawDialog({ children }: { children: ReactNode }) {
   const [pixKey, setPixKey] = useState("");
 
   const submit = () => {
-    const n = parseFloat(amount.replace(",", "."));
+    const n = parseFloat(unmaskCurrencyBR(amount));
     if (!amount.trim() || Number.isNaN(n) || n <= 0 || !pixKey.trim()) {
       toast.error(t("withdraw.toastInvalid"));
       return;
@@ -46,9 +47,9 @@ export function WithdrawDialog({ children }: { children: ReactNode }) {
             <Input
               id="withdraw-amt"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder="0,00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => setAmount(maskCurrencyBR(e.target.value))}
             />
           </div>
           <div className="space-y-2">

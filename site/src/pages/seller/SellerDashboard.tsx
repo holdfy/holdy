@@ -17,6 +17,7 @@ export default function SellerDashboard() {
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ["orders", "seller"],
     queryFn: () => api.listOrders("seller"),
+    refetchInterval: 30_000,
   });
 
   const isLoading = dashLoading || ordersLoading;

@@ -6,6 +6,7 @@
 //! poder pagar localmente. `notify-status` marcar transação como concluída (`status_transaction_id=4`)
 //! quando `status` for APPROVED/COMPLETED/PAID e `charge_id` for id numérico ou `external_id` conhecido.
 
+mod apicash_notify;
 mod handler;
 mod whatsapp_notify;
 

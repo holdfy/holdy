@@ -93,9 +93,12 @@ pub(crate) fn synthetic_pix_qrcode_response(
     Ok(GenerateQrCodeResponse {
         status_code: 200,
         qr_code,
-        tx_id: tx_id.clone(),
+        tx_id,
         expires_at,
-        transaction_id: tx_id,
+        // Igual ao `charge_id` que o bank_bridge recebe de volta ao pagar este QR (ref_token
+        // embutido em `GATEBOXRUST:QR|{ref_token}|amount`) — permite ao apicash-core localizar a
+        // ordem via `gateway_in_tx_id` quando o webhook `/internal/webhook/pix` é notificado.
+        transaction_id: ref_token,
         gateway: gateway_label.to_string(),
         data,
     })

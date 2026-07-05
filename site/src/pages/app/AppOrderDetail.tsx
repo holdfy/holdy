@@ -32,13 +32,14 @@ import { useUserRole } from "@/contexts/UserRoleContext";
 import type { ApiError, TrackingInfo, DisputeResponse } from "@/lib/api-client";
 import { TrackingCard } from "@/components/TrackingCard";
 
-function orderStatusStep(status: string): number {
-  switch (status) {
-    case "pending_funding": return 0;
-    case "in_custody": return 1;
-    case "completed": return 3;
-    default: return 0;
-  }
+// Steps: 0=Pago 1=Retido(custódia) 2=Enviado 3=Entregue 4=Liberado.
+// 2 e 3 vêm do status real da transportadora (simulador de rastreio), não só do escrow.
+function orderStatusStep(status: string, trackingStatus?: string | null, hasTrackingCode?: boolean): number {
+  if (status === "completed") return 4;
+  if (status !== "in_custody") return 0;
+  if (trackingStatus === "delivered") return 3;
+  if (hasTrackingCode) return 2;
+  return 1;
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -273,7 +274,9 @@ export default function AppOrderDetail() {
     [t],
   );
 
-  const activeStep = order ? orderStatusStep(order.status) : 0;
+  const activeStep = order
+    ? orderStatusStep(order.status, autoTrackingData?.current_status, !!order.tracking_code)
+    : 0;
 
   const submitDispute = async () => {
     if (!disputeReason) {
@@ -409,7 +412,7 @@ export default function AppOrderDetail() {
                 {isInCustody ? t("status.IN_CUSTODY_BADGE") : t(`status.${displayStatus.toUpperCase()}`, displayStatus)}
               </span>
             </div>
-            <h2 className="font-display text-2xl font-bold">{order.description ?? t("order.escrowOrder", "Pedido de escrow")}</h2>
+            <h2 className="text-sm font-semibold text-foreground">{order.description ?? t("order.escrowOrder", "Pedido de escrow")}</h2>
           </div>
 
           <div className="vault-card rounded-2xl p-5">

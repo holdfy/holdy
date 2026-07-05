@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::{info, warn};
 
+use crate::bank_bridge::apicash_notify;
 use crate::bank_bridge::whatsapp_notify;
 use crate::transaction::TransactionRepository;
 
@@ -322,6 +323,10 @@ async fn notify_status(
         if let Some(reference) = whatsapp_notify::payment_reference_for_notify(&effective_ref) {
             whatsapp_notify::spawn_whatsapp_payment_notify(reference);
         }
+
+        // `gateway_in_tx_id` gravado na ordem = `ref_token` (":" virou "_"), mesmo formato usado
+        // em `synthetic_pix_qrcode_response`. Normaliza antes de notificar o apicash-core.
+        apicash_notify::spawn_apicash_payment_notify(effective_ref.replace(':', "_"));
     }
 
     StatusCode::OK

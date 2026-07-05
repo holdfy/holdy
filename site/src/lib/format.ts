@@ -11,6 +11,37 @@ export function formatCurrency(amount: number, locale?: string): string {
   }).format(amount);
 }
 
+/**
+ * Máscara de valor monetário BR (estilo 1.000.000,00) — digita-se em centavos,
+ * formata progressivamente com ponto de milhar e vírgula decimal.
+ */
+export function maskCurrencyBR(rawValue: string): string {
+  const digits = rawValue.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  if (!digits) return "";
+  const cents = digits.padStart(3, "0");
+  const intPart = cents.slice(0, -2);
+  const centsPart = cents.slice(-2);
+  const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${withThousands},${centsPart}`;
+}
+
+/** Converte valor mascarado BR ("1.000.000,00") para string decimal ("1000000.00") pro backend. */
+export function unmaskCurrencyBR(masked: string): string {
+  const digits = masked.replace(/\D/g, "");
+  if (!digits) return "";
+  const cents = digits.padStart(3, "0");
+  const intPart = cents.slice(0, -2).replace(/^0+(?=\d)/, "") || "0";
+  const centsPart = cents.slice(-2);
+  return `${intPart}.${centsPart}`;
+}
+
+/** Converte um decimal simples ("150.5", 150) pro formato mascarado BR ("150,50") — usado ao pré-preencher. */
+export function decimalToMaskedBR(decimal: string | number): string {
+  const n = typeof decimal === "number" ? decimal : parseFloat(decimal.replace(",", "."));
+  if (!Number.isFinite(n)) return "";
+  return maskCurrencyBR(Math.round(n * 100).toString());
+}
+
 /** Aplica máscara CPF (000.000.000-00) ou CNPJ (00.000.000/0001-00) progressivamente. */
 export function maskCpfCnpj(value: string): string {
   const d = value.replace(/\D/g, "").slice(0, 14);

@@ -12,7 +12,7 @@ import { api } from "@/lib/api-client";
 import type { ApiError, ImportedProductDraft } from "@/lib/api-client";
 import { useUserRole } from "@/contexts/UserRoleContext";
 import { getPublicSiteUrl } from "@/lib/utils";
-import { detectPixKeyType } from "@/lib/format";
+import { detectPixKeyType, maskCurrencyBR, unmaskCurrencyBR, decimalToMaskedBR } from "@/lib/format";
 
 export default function SellerNewProposal() {
   const { t } = useTranslation();
@@ -59,7 +59,7 @@ export default function SellerNewProposal() {
       setImportedDraft(draft);
       setListingId(draft.listing_id ?? undefined);
       setListingImported(true);
-      if (!amount.trim() && draft.price_suggested) setAmount(draft.price_suggested);
+      if (!amount.trim() && draft.price_suggested) setAmount(decimalToMaskedBR(draft.price_suggested));
       if (!description.trim() && draft.title) setDescription(draft.title);
       toast.success(t("seller.listingImported", "Anúncio importado!"));
     } catch {
@@ -91,7 +91,7 @@ export default function SellerNewProposal() {
           const imported = await api.importListing(listingUrl.trim());
           resolvedListingId = imported.listing_id ?? undefined;
           if (!amount.trim() && imported.price_suggested) {
-            setAmount(imported.price_suggested);
+            setAmount(decimalToMaskedBR(imported.price_suggested));
           }
           if (!description.trim() && imported.title) {
             setDescription(imported.title);
@@ -106,7 +106,7 @@ export default function SellerNewProposal() {
       }
 
       return api.createProposal({
-        amount: amount.trim().replace(",", "."),
+        amount: unmaskCurrencyBR(amount),
         description: description.trim() || undefined,
         seller_pix_key: pixKey.trim() || undefined,
         listing_id: resolvedListingId,
@@ -136,7 +136,7 @@ export default function SellerNewProposal() {
       toast.error(t("seller.amountRequired", "Informe o valor da proposta"));
       return;
     }
-    const val = parseFloat(amount.trim().replace(",", "."));
+    const val = parseFloat(unmaskCurrencyBR(amount));
     if (isNaN(val) || val <= 0) {
       toast.error(t("seller.invalidAmount", "Valor inválido"));
       return;
@@ -272,7 +272,7 @@ export default function SellerNewProposal() {
               id="amount"
               placeholder="0,00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => setAmount(maskCurrencyBR(e.target.value))}
               inputMode="decimal"
               className="text-lg font-semibold"
             />

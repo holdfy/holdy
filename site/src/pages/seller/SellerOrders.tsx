@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { formatCurrency, maskPhone } from "@/lib/format";
+import { formatCurrency, maskPhone, maskCurrencyBR, unmaskCurrencyBR, decimalToMaskedBR } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,7 @@ export default function SellerOrders() {
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ["seller-orders"],
     queryFn: () => api.listOrders("seller"),
+    refetchInterval: 30_000,
   });
 
   const orders = ordersData?.orders ?? [];
@@ -67,7 +68,7 @@ export default function SellerOrders() {
     mutationFn: () =>
       api.createProposal({
         buyer_id: buyerId.trim() || undefined,
-        amount: amount.replace(",", "."),
+        amount: unmaskCurrencyBR(amount),
         description: description.trim() || undefined,
         seller_pix_key: pixKey.trim() || undefined,
         listing_id: importedDraft?.listing_id ?? undefined,
@@ -92,7 +93,7 @@ export default function SellerOrders() {
     onSuccess: (data) => {
       setImportedDraft(data);
       if (data.price_suggested) {
-        setAmount(data.price_suggested);
+        setAmount(decimalToMaskedBR(data.price_suggested));
       }
       if (data.title) {
         setDescription(data.title);
@@ -109,7 +110,7 @@ export default function SellerOrders() {
       toast.error(t("auth.toastFillFields"));
       return;
     }
-    if (isNaN(parseFloat(amount.replace(",", ".")))) {
+    if (isNaN(parseFloat(unmaskCurrencyBR(amount)))) {
       toast.error(t("seller.invalidAmount", "Valor inválido"));
       return;
     }
@@ -263,9 +264,9 @@ export default function SellerOrders() {
               <div className="space-y-1.5">
                 <Label>{t("payment.amount", "Valor (R$)")}</Label>
                 <Input
-                  placeholder="100.00"
+                  placeholder="0,00"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => setAmount(maskCurrencyBR(e.target.value))}
                   type="text"
                   inputMode="decimal"
                 />
