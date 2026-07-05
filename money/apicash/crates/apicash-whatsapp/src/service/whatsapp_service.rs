@@ -302,7 +302,59 @@ fn internal_notify_routes(state: InternalNotifyState) -> Router {
         .with_state(state)
 }
 
-/// `GET /health`, `/ready` e rotas internas (banco → WhatsApp).
+const QR_PAIR_HTML: &str = r#"<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QRCode — Parear (produção)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; text-align: center; }
+    h1 { font-size: 1.25rem; }
+    img { width: min(100%, 320px); height: auto; border: 1px solid #ccc; border-radius: 8px; }
+    p { color: #444; line-height: 1.5; }
+    .hint { font-size: 0.9rem; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Parear WhatsApp (HoldFy — produção)</h1>
+  <p>No telemóvel: <strong>WhatsApp → Aparelhos ligados → Ligar um aparelho</strong> e escaneie o QR abaixo.</p>
+  <p><img id="qr" src="whatsapp-pairing-qr.png" alt="QR de pareamento" /></p>
+  <p class="hint">O QR renova a cada ~20 s. Esta página atualiza a imagem automaticamente.</p>
+  <script>
+    setInterval(function () {
+      document.getElementById('qr').src = 'whatsapp-pairing-qr.png?t=' + Date.now();
+    }, 3000);
+  </script>
+</body>
+</html>
+"#;
+
+async fn qr_pair_html() -> impl IntoResponse {
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        QR_PAIR_HTML,
+    )
+}
+
+async fn qr_pair_png() -> impl IntoResponse {
+    let path = multidevice::pairing_qr_png_path();
+    match std::fs::read(&path) {
+        Ok(bytes) => (
+            [
+                (axum::http::header::CONTENT_TYPE, "image/png"),
+                (axum::http::header::CACHE_CONTROL, "no-store"),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+/// `GET /health`, `/ready`, rotas internas (banco → WhatsApp) e visualizador do QR de pareamento
+/// (`/qrcode/pair.html` + `/qrcode/whatsapp-pairing-qr.png`) — protegido externamente via
+/// Basic Auth no NGINX, não aqui.
 pub async fn run_health_only_server(
     bind: &str,
     handler: Arc<MessageHandler>,
@@ -312,6 +364,8 @@ pub async fn run_health_only_server(
     let app = Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
+        .route("/qrcode/pair.html", get(qr_pair_html))
+        .route("/qrcode/whatsapp-pairing-qr.png", get(qr_pair_png))
         .merge(internal_notify_routes(internal));
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!(%bind, "whatsapp agent health + internal notify");

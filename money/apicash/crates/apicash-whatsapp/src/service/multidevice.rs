@@ -27,7 +27,7 @@ fn best_qr_for_payload(payload: &[u8]) -> Option<QrCode> {
 }
 
 /// Ficheiro com o QR a **imagem completa** (o terminal muitas vezes part o Unicode por largura).
-fn pairing_qr_png_path() -> PathBuf {
+pub(crate) fn pairing_qr_png_path() -> PathBuf {
     std::env::var("APICASH_WA_QR_PNG")
         .ok()
         .filter(|s| !s.is_empty())
