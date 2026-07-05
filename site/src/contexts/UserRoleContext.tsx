@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import { api, tokenStore, type LoginResponse } from "@/lib/api-client";
 
 export type UserRole = "buyer" | "seller" | "admin";
@@ -22,6 +22,7 @@ interface UserRoleContextType {
   user: UserIdentity | null;
   isAuthenticated: boolean;
   login: (username: string, password: string, roleHint: "buyer" | "seller") => Promise<void>;
+  register: (document: string, password: string, name: string | undefined, roleHint: "buyer" | "seller") => Promise<void>;
   loginFromToken: (accessToken: string, refreshToken: string) => void;
   logout: () => void;
   setRole: (role: UserRole) => void;
@@ -63,26 +64,34 @@ function buildIdentity(resp: LoginResponse, roleHint: "buyer" | "seller"): UserI
   return buildIdentityFromClaims(claims, roleHint);
 }
 
-export function UserRoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<UserRole>("buyer");
-  const [user, setUser] = useState<UserIdentity | null>(null);
+/** Restaura sessão de token já armazenado (ex: link aberto direto, reload da página). */
+function restoreIdentity(): UserIdentity | null {
+  const token = tokenStore.getAccess();
+  if (!token) return null;
+  const claims = decodeJwtPayload(token);
+  return claims.sub ? buildIdentityFromClaims(claims, "buyer") : null;
+}
 
-  // Restaura sessão de token já armazenado (ex: reload da página)
-  useEffect(() => {
-    const token = tokenStore.getAccess();
-    if (token && !user) {
-      const claims = decodeJwtPayload(token);
-      if (claims.sub) {
-        const identity = buildIdentityFromClaims(claims, "buyer");
-        setUser(identity);
-        setRole(identity.role === "admin" ? "buyer" : identity.role);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+export function UserRoleProvider({ children }: { children: ReactNode }) {
+  // Inicialização síncrona (lazy useState) — se fosse useEffect, componentes filhos
+  // (ex: AppPayment lendo `user.document` no mount) rodam ANTES da sessão restaurar,
+  // já que efeitos disparam de baixo pra cima, e o primeiro render ficaria com user=null.
+  const [user, setUser] = useState<UserIdentity | null>(() => restoreIdentity());
+  const [role, setRole] = useState<UserRole>(() => {
+    const restored = restoreIdentity();
+    return restored ? (restored.role === "admin" ? "buyer" : restored.role) : "buyer";
+  });
 
   const login = useCallback(async (username: string, password: string, roleHint: "buyer" | "seller") => {
     const resp = await api.login(username, password);
+    tokenStore.set(resp.access_token, resp.refresh_token);
+    const identity = buildIdentity(resp, roleHint);
+    setUser(identity);
+    setRole(identity.role === "admin" ? roleHint : identity.role);
+  }, []);
+
+  const register = useCallback(async (document: string, password: string, name: string | undefined, roleHint: "buyer" | "seller") => {
+    const resp = await api.register(document, password, name);
     tokenStore.set(resp.access_token, resp.refresh_token);
     const identity = buildIdentity(resp, roleHint);
     setUser(identity);
@@ -105,7 +114,7 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <UserRoleContext.Provider value={{ role, user, isAuthenticated: !!user, login, loginFromToken, logout, setRole }}>
+    <UserRoleContext.Provider value={{ role, user, isAuthenticated: !!user, login, register, loginFromToken, logout, setRole }}>
       {children}
     </UserRoleContext.Provider>
   );

@@ -39,7 +39,7 @@ export default function AppLogin() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, loginFromToken, setRole } = useUserRole();
+  const { login, register, loginFromToken, setRole } = useUserRole();
 
   // OAuth callback: backend redireciona para /login?token=...&refresh=...&oauth=1
   useEffect(() => {
@@ -136,15 +136,19 @@ export default function AppLogin() {
     }
     setLoading(true);
     try {
-      await login(docDigits, regPassword, "buyer");
+      await register(docDigits, regPassword, regName.trim() || undefined, "buyer");
       toast.success(t("auth.toastAccountCreated"));
       setSignUpOpen(false);
       setRegEmail("");
       setRegPassword("");
       setRegName("");
       navigate("/buyer");
-    } catch {
-      toast.error(t("auth.loginError", "Erro ao entrar. Tente novamente."));
+    } catch (err) {
+      const apiErr = err as ApiError;
+      const msg = apiErr?.status === 409
+        ? t("auth.documentAlreadyRegistered", "Este CPF/CNPJ já possui cadastro. Faça login.")
+        : t("auth.loginError", "Erro ao entrar. Tente novamente.");
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

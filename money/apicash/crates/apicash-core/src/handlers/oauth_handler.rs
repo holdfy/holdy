@@ -378,6 +378,7 @@ async fn find_or_create_user(
         avatar_url,
         document: None,
         role: "buyer".into(),
+        password_hash: None,
     };
     let created = repo.upsert(new_user).await?;
     repo.link_provider(created.id, provider, provider_id).await?;

@@ -78,3 +78,20 @@ export function validateCpfOrCnpj(value: string): boolean {
   if (d.length === 14) return validateCnpj(d);
   return false;
 }
+
+export type PixKeyType = "cpf" | "cnpj" | "email" | "phone" | "random" | null;
+
+/** Detecta o tipo de chave PIX pelo formato — usuário nunca precisa informar. */
+export function detectPixKeyType(rawKey: string): PixKeyType {
+  const key = rawKey.trim();
+  if (!key) return null;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) return "email";
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key)) return "random";
+  if (key.startsWith("+")) return "phone";
+  const digits = stripDoc(key);
+  if (digits.length !== key.length) return null; // mistura letras/símbolos fora dos formatos acima
+  if (digits.length === 11) return validateCpf(digits) ? "cpf" : "phone";
+  if (digits.length === 14) return validateCnpj(digits) ? "cnpj" : null;
+  if (digits.length === 10) return "phone";
+  return null;
+}

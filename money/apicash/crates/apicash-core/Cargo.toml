@@ -25,6 +25,7 @@ path = "src/main.rs"
 apicash-auth = { workspace = true }
 apicash-shared = { workspace = true }
 jsonwebtoken = { workspace = true }
+argon2 = { workspace = true }
 apicash-custody = { workspace = true }
 apicash-anchor = { workspace = true }
 apicash-antifraude = { workspace = true }

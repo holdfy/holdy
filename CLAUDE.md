@@ -162,3 +162,11 @@ Stellar amounts use 7 decimal places (e.g. `5000000` = 0.5 BRLx).
 
 - `matenter as funcionalidades do whatsapp` jamais alerar uma funcionalidade que o whatsapp utilize do codigo para atender a fluxo web ou de apis, so fazer isso se for um pedido explicito.
 
+
+
+# Estilo de resposta e durante a execução
+- Seja direto e conciso. Não explique o óbvio.
+- Não repita o que já foi pedido.
+- Prefira código pronto a explicações longas.
+- Não adicione resumos ao final das respostas.
+- Não ficar mostrando que o que esta fazendo, apenas entregar

@@ -16,6 +16,7 @@ pub struct OAuthUser {
     pub avatar_url: Option<String>,
     pub document: Option<String>,
     pub role: String,
+    pub password_hash: Option<String>,
 }
 
 #[async_trait]
@@ -24,8 +25,18 @@ pub trait UserRepository: Send + Sync {
     async fn find_by_provider(&self, provider: &str, provider_id: &str) -> Option<OAuthUser>;
     /// Busca usuário pelo email.
     async fn find_by_email(&self, email: &str) -> Option<OAuthUser>;
+    /// Busca usuário pelo CPF/CNPJ (cadastro self-service com senha).
+    async fn find_by_document(&self, document: &str) -> Option<OAuthUser>;
     /// Cria ou atualiza usuário. Retorna o usuário com id preenchido.
     async fn upsert(&self, user: OAuthUser) -> Result<OAuthUser, String>;
+    /// Cria usuário novo com CPF/CNPJ + hash de senha (cadastro self-service).
+    async fn create_with_password(
+        &self,
+        document: &str,
+        password_hash: &str,
+        role: &str,
+        name: Option<&str>,
+    ) -> Result<OAuthUser, String>;
     /// Vincula um provedor OAuth a um usuário existente.
     async fn link_provider(&self, user_id: Uuid, provider: &str, provider_id: &str) -> Result<(), String>;
     /// Vincula documento (CPF/CNPJ) ao usuário social.
@@ -42,6 +53,8 @@ pub struct InMemoryUserRepository {
     providers: Arc<RwLock<HashMap<(String, String), Uuid>>>,
     // email → user_id
     emails: Arc<RwLock<HashMap<String, Uuid>>>,
+    // document → user_id
+    documents: Arc<RwLock<HashMap<String, Uuid>>>,
 }
 
 impl InMemoryUserRepository {
@@ -67,6 +80,13 @@ impl UserRepository for InMemoryUserRepository {
         users.get(user_id).cloned()
     }
 
+    async fn find_by_document(&self, document: &str) -> Option<OAuthUser> {
+        let documents = self.documents.read().await;
+        let user_id = documents.get(document)?;
+        let users = self.users.read().await;
+        users.get(user_id).cloned()
+    }
+
     async fn upsert(&self, mut user: OAuthUser) -> Result<OAuthUser, String> {
         if user.id == Uuid::nil() {
             user.id = Uuid::new_v4();
@@ -75,6 +95,37 @@ impl UserRepository for InMemoryUserRepository {
             let mut emails = self.emails.write().await;
             emails.insert(email.clone(), user.id);
         }
+        if let Some(ref document) = user.document {
+            let mut documents = self.documents.write().await;
+            documents.insert(document.clone(), user.id);
+        }
+        let mut users = self.users.write().await;
+        users.insert(user.id, user.clone());
+        Ok(user)
+    }
+
+    async fn create_with_password(
+        &self,
+        document: &str,
+        password_hash: &str,
+        role: &str,
+        name: Option<&str>,
+    ) -> Result<OAuthUser, String> {
+        if self.find_by_document(document).await.is_some() {
+            return Err("documento já cadastrado".into());
+        }
+        let user = OAuthUser {
+            id: Uuid::new_v4(),
+            email: None,
+            name: name.map(str::to_string),
+            avatar_url: None,
+            document: Some(document.to_string()),
+            role: role.to_string(),
+            password_hash: Some(password_hash.to_string()),
+        };
+        let mut documents = self.documents.write().await;
+        documents.insert(document.to_string(), user.id);
+        drop(documents);
         let mut users = self.users.write().await;
         users.insert(user.id, user.clone());
         Ok(user)
@@ -110,12 +161,13 @@ impl PostgresUserRepository {
 
 fn row_to_oauth_user(row: sqlx::postgres::PgRow) -> OAuthUser {
     OAuthUser {
-        id:         row.get("id"),
-        email:      row.get("email"),
-        name:       row.get("name"),
-        avatar_url: row.get("avatar_url"),
-        document:   row.get("document"),
-        role:       row.get("role"),
+        id:            row.get("id"),
+        email:         row.get("email"),
+        name:          row.get("name"),
+        avatar_url:    row.get("avatar_url"),
+        document:      row.get("document"),
+        role:          row.get("role"),
+        password_hash: row.get("password_hash"),
     }
 }
 
@@ -124,7 +176,7 @@ impl UserRepository for PostgresUserRepository {
     async fn find_by_provider(&self, provider: &str, provider_id: &str) -> Option<OAuthUser> {
         sqlx::query(
             r#"
-            SELECT u.id, u.email, u.name, u.avatar_url, u.document, u.role
+            SELECT u.id, u.email, u.name, u.avatar_url, u.document, u.role, u.password_hash
             FROM users u
             JOIN user_social_providers p ON p.user_id = u.id
             WHERE p.provider = $1 AND p.provider_id = $2
@@ -141,9 +193,21 @@ impl UserRepository for PostgresUserRepository {
 
     async fn find_by_email(&self, email: &str) -> Option<OAuthUser> {
         sqlx::query(
-            "SELECT id, email, name, avatar_url, document, role FROM users WHERE email = $1",
+            "SELECT id, email, name, avatar_url, document, role, password_hash FROM users WHERE email = $1",
         )
         .bind(email)
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten()
+        .map(row_to_oauth_user)
+    }
+
+    async fn find_by_document(&self, document: &str) -> Option<OAuthUser> {
+        sqlx::query(
+            "SELECT id, email, name, avatar_url, document, role, password_hash FROM users WHERE document = $1",
+        )
+        .bind(document)
         .fetch_optional(&self.pool)
         .await
         .ok()
@@ -159,7 +223,7 @@ impl UserRepository for PostgresUserRepository {
             ON CONFLICT (email) DO UPDATE
               SET name       = COALESCE(EXCLUDED.name, users.name),
                   avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url)
-            RETURNING id, email, name, avatar_url, document, role
+            RETURNING id, email, name, avatar_url, document, role, password_hash
             "#,
         )
         .bind(user.id)
@@ -171,6 +235,38 @@ impl UserRepository for PostgresUserRepository {
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())?;
+        Ok(row_to_oauth_user(row))
+    }
+
+    async fn create_with_password(
+        &self,
+        document: &str,
+        password_hash: &str,
+        role: &str,
+        name: Option<&str>,
+    ) -> Result<OAuthUser, String> {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO users (id, document, password_hash, role, name)
+            VALUES (gen_random_uuid(), $1, $2, $3, $4)
+            RETURNING id, email, name, avatar_url, document, role, password_hash
+            "#,
+        )
+        .bind(document)
+        .bind(password_hash)
+        .bind(role)
+        .bind(name)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            if e.as_database_error()
+                .is_some_and(|d| d.is_unique_violation())
+            {
+                "documento já cadastrado".to_string()
+            } else {
+                e.to_string()
+            }
+        })?;
         Ok(row_to_oauth_user(row))
     }
 

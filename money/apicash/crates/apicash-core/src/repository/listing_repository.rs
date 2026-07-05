@@ -167,6 +167,25 @@ impl ListingRepository {
         Ok(row.map(|(phone,)| phone))
     }
 
+    /// Recupera o WhatsApp já conhecido para um CPF/CNPJ (contato criado via bot do WhatsApp,
+    /// mesmo documento usado para login no site) — usado para pré-preencher o formulário do site.
+    /// Contatos nativos do WhatsApp guardam o número no próprio `peer_key` (não na coluna `phone`,
+    /// reservada aos contatos `web:{user_id}` criados via `upsert_phone`).
+    pub async fn phone_for_document(&self, document: &str) -> Result<Option<String>, sqlx::Error> {
+        let rows: Vec<(String, Option<String>)> = sqlx::query_as(
+            "SELECT peer_key, phone FROM wa_contacts WHERE document = $1 ORDER BY updated_at DESC",
+        )
+        .bind(document)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().find_map(|(peer_key, phone)| {
+            phone.or_else(|| {
+                (!peer_key.starts_with("web:") && peer_key.chars().all(|c| c.is_ascii_digit()))
+                    .then_some(peer_key)
+            })
+        }))
+    }
+
     /// Salva (ou atualiza) o número de WhatsApp de um usuário do site no wa_contacts.
     pub async fn upsert_phone(&self, user_id: Uuid, phone: &str) -> Result<(), sqlx::Error> {
         let peer_key = format!("web:{user_id}");

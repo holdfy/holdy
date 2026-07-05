@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, Loader2, CheckCircle2, User, Store, AlertCircle } from "lucide-react";
+import { Shield, ArrowLeft, Copy, Clock, Lock, HelpCircle, Loader2, CheckCircle2, User, Store, AlertCircle, Phone } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -53,15 +53,18 @@ function PartyCard({
   label,
   document,
   info,
+  phone,
 }: {
   icon: React.ReactNode;
   label: string;
   document: string;
   info: PartyInfo;
+  phone?: string | null;
 }) {
   const maskedDoc = document.replace(/\D/g, "").length === 11
     ? document.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
     : document.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  const maskedPhone = phone && maskPhone(phone.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, ""));
 
   return (
     <div className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
@@ -90,6 +93,12 @@ function PartyCard({
               <p className="text-xs text-muted-foreground">Não foi possível consultar a Receita Federal</p>
             )}
           </>
+        )}
+        {maskedPhone && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+            <Phone className="h-3 w-3 shrink-0" />
+            <span>{maskedPhone}</span>
+          </div>
         )}
       </div>
     </div>
@@ -149,6 +158,22 @@ export default function AppPayment() {
     if (!buyerDocFromJwt || buyerDocFromJwt.length < 11) return;
     setBuyerInfo(prev => ({ ...prev, loading: true }));
     lookupParty(buyerDocFromJwt).then(setBuyerInfo);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-preenche o WhatsApp do comprador com o número já conhecido (perfil salvo
+  // ou contato do bot de WhatsApp com o mesmo CPF) — evita digitação manual.
+  useEffect(() => {
+    if (!buyerDocFromJwt) return;
+    api.getProfile()
+      .then(profile => {
+        if (!profile.phone) return;
+        const raw = profile.phone.replace(/\D/g, "");
+        // Contatos de WhatsApp guardam com DDI (55) — o campo local não usa DDI.
+        const local = raw.length > 11 && raw.startsWith("55") ? raw.slice(2) : raw;
+        setBuyerPhone(maskPhone(local));
+      })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -274,6 +299,16 @@ export default function AppPayment() {
         <p className="text-sm text-muted-foreground mt-1">{t("payment.helpDesc")}</p>
       </div>
 
+      {/* Valor — sempre bem visível, antes de qualquer outro detalhe */}
+      {!pixBrCode && proposalData?.amount && (
+        <div className="vault-card rounded-2xl p-6 text-center">
+          <p className="text-xs font-semibold tracking-wider text-white/70 uppercase">{t("payment.amount")}</p>
+          <p className="text-5xl font-display font-bold text-white mt-1">
+            {formatCurrency(parseFloat(proposalData.amount))}
+          </p>
+        </div>
+      )}
+
       {/* Produto vinculado à proposta */}
       {!pixBrCode && proposalData?.listing_photo && (
         <div className="bg-card rounded-2xl overflow-hidden border border-border">
@@ -285,9 +320,6 @@ export default function AppPayment() {
           {proposalData.description && (
             <div className="px-4 py-3">
               <p className="text-sm font-semibold line-clamp-2 text-foreground">{proposalData.description}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                R$ {parseFloat(proposalData.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-              </p>
             </div>
           )}
         </div>
@@ -313,6 +345,7 @@ export default function AppPayment() {
               label={t("payment.partySeller", "Vendedor")}
               document={proposalData.seller_document}
               info={sellerInfo}
+              phone={proposalData.seller_phone}
             />
           )}
 
@@ -348,48 +381,50 @@ export default function AppPayment() {
         <div className="bg-card rounded-2xl p-6 border border-border space-y-4">
           <p className="font-semibold text-sm">{t("payment.enterProposal", "Proposta de pagamento seguro")}</p>
 
-          {/* CPF/CNPJ — pré-preenchido do JWT quando disponível */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cpf">
-              {t("payment.cpfLabel", "Seu CPF ou CNPJ")}
-              <span className="ml-1 text-destructive text-xs font-semibold">*</span>
-            </Label>
-            <Input
-              id="cpf"
-              placeholder="000.000.000-00"
-              value={cpf}
-              onChange={(e) => {
-                setCpf(maskCpfCnpj(e.target.value));
-                setCpfError(null);
-                setDocInfo(null);
-              }}
-              onBlur={handleCpfBlur}
-              inputMode="numeric"
-              maxLength={18}
-              className={cpfError ? "border-destructive" : ""}
-            />
-            {cpfError && (
-              <div className="flex items-center gap-1.5 text-xs text-destructive">
-                <AlertCircle className="h-3 w-3 shrink-0" />
-                <span>{cpfError}</span>
-              </div>
-            )}
-            {docLoading && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Consultando Receita Federal…</span>
-              </div>
-            )}
-            {docInfo && !docLoading && (docInfo.name || docInfo.situation) && (
-              <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-xl p-3">
-                <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                <div className="text-xs space-y-0.5">
-                  {docInfo.name && <p className="font-semibold text-foreground">{docInfo.name}</p>}
-                  {docInfo.situation && <p className="text-muted-foreground">Situação: {docInfo.situation}</p>}
+          {/* CPF/CNPJ — já vem da base (JWT) quando o comprador está logado; só pede digitação como fallback */}
+          {buyerDocFromJwt.length < 11 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cpf">
+                {t("payment.cpfLabel", "Seu CPF ou CNPJ")}
+                <span className="ml-1 text-destructive text-xs font-semibold">*</span>
+              </Label>
+              <Input
+                id="cpf"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={(e) => {
+                  setCpf(maskCpfCnpj(e.target.value));
+                  setCpfError(null);
+                  setDocInfo(null);
+                }}
+                onBlur={handleCpfBlur}
+                inputMode="numeric"
+                maxLength={18}
+                className={cpfError ? "border-destructive" : ""}
+              />
+              {cpfError && (
+                <div className="flex items-center gap-1.5 text-xs text-destructive">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{cpfError}</span>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+              {docLoading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Consultando Receita Federal…</span>
+                </div>
+              )}
+              {docInfo && !docLoading && (docInfo.name || docInfo.situation) && (
+                <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-xl p-3">
+                  <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="text-xs space-y-0.5">
+                    {docInfo.name && <p className="font-semibold text-foreground">{docInfo.name}</p>}
+                    {docInfo.situation && <p className="text-muted-foreground">Situação: {docInfo.situation}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* WhatsApp do comprador — obrigatório para rastreio */}
           <div className="space-y-1.5">

@@ -1476,6 +1476,34 @@ pub struct UpdatePhoneRequest {
     pub phone: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ProfileResponse {
+    pub phone: Option<String>,
+    pub pix_key: Option<String>,
+}
+
+/// `GET /profile` — dados já conhecidos do usuário autenticado (phone, pix_key), para
+/// pré-preencher formulários (ex.: WhatsApp do comprador na tela de pagamento).
+#[instrument(skip(state, claims))]
+pub async fn get_profile(
+    State(state): State<Arc<AppState>>,
+    Extension(claims): Extension<JwtClaims>,
+) -> Result<Json<ProfileResponse>, ApiError> {
+    let user_id = claims.current_user_id();
+    let repo = state
+        .listing_repo
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("listing_repo não disponível"))?;
+
+    let mut phone = repo.get_phone(user_id).await.unwrap_or(None);
+    if phone.is_none() && !claims.document.is_empty() {
+        phone = repo.phone_for_document(&claims.document).await.unwrap_or(None);
+    }
+    let pix_key = repo.pix_key_for_user(user_id).await;
+
+    Ok(Json(ProfileResponse { phone, pix_key }))
+}
+
 /// `PUT /profile/pix-key` — salva chave PIX do usuário autenticado para off-ramp automático.
 #[instrument(skip(state, claims))]
 pub async fn update_pix_key(

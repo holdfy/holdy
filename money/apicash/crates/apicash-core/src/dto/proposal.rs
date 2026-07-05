@@ -119,6 +119,9 @@ pub struct ProposalResponse {
     /// First photo URL from the linked listing, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub listing_photo: Option<String>,
+    /// Seller's WhatsApp — shown to buyer for contact/confirmation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seller_phone: Option<String>,
 }
 
 impl From<&StoredProposal> for ProposalResponse {
@@ -135,6 +138,7 @@ impl From<&StoredProposal> for ProposalResponse {
             order_id: p.order_id,
             seller_document: p.seller_document.clone(),
             listing_photo: None,
+            seller_phone: None,
         }
     }
 }

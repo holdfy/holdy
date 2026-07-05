@@ -57,6 +57,7 @@ export interface ProposalResponse {
   order_id: string | null;
   seller_document?: string | null;
   listing_photo?: string | null;
+  seller_phone?: string | null;
 }
 
 export interface AcceptProposalResponse {
@@ -96,6 +97,11 @@ export interface ReleaseCustodyRequest {
 export interface ApiError {
   error: string;
   status: number;
+}
+
+export interface ProfileResponse {
+  phone: string | null;
+  pix_key: string | null;
 }
 
 export interface WalletResponse {
@@ -282,6 +288,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+
+  register: (document: string, password: string, name?: string) =>
+    request<LoginResponse>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ document, password, name, role: "buyer" }),
+    }),
+
+  getProfile: () => request<ProfileResponse>("/profile"),
 
   // Orders
   createOrder: (data: CreateOrderRequest) =>

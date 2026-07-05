@@ -73,6 +73,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             post(proposal_handler::reject_proposal),
         )
         // Profile: chave PIX, WhatsApp e vínculo de documento pós-login social
+        .route("/profile", axum::routing::get(order_handler::get_profile))
         .route("/profile/pix-key", axum::routing::put(order_handler::update_pix_key))
         .route("/profile/phone", axum::routing::put(order_handler::update_phone))
         .route("/auth/profile/link-document", post(oauth_handler::link_document))

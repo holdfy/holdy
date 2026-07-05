@@ -114,7 +114,11 @@ pub async fn get_proposal(
     if !state.auth.config().auth_disabled {
         let actor = require_claims(claims)?;
         let actor_id = actor.current_user_id();
-        if actor_id != proposal.seller_id && actor_id != proposal.buyer_id {
+        // nil buyer_id = open proposal — any authenticated buyer may preview it (same rule as accept_proposal)
+        let allowed = actor_id == proposal.seller_id
+            || actor_id == proposal.buyer_id
+            || proposal.buyer_id.is_nil();
+        if !allowed {
             return Err(ApiError::forbidden(
                 "only the seller or buyer of this proposal can view it",
             ));
@@ -123,11 +127,22 @@ pub async fn get_proposal(
 
     let mut resp = ProposalResponse::from(&proposal);
 
-    // Attach first listing photo — non-critical, soft failure
-    if let (Some(lid), Some(repo)) = (proposal.listing_id, &state.listing_repo) {
-        if let Ok(Some(listing)) = repo.get_listing(lid).await {
-            resp.listing_photo = listing.photos.into_iter().next();
+    if let Some(repo) = &state.listing_repo {
+        // Attach first listing photo — non-critical, soft failure
+        if let Some(lid) = proposal.listing_id {
+            if let Ok(Some(listing)) = repo.get_listing(lid).await {
+                resp.listing_photo = listing.photos.into_iter().next();
+            }
         }
+
+        // Seller's WhatsApp — by user_id first, then by document (bot contact) — non-critical.
+        let mut phone = repo.get_phone(proposal.seller_id).await.unwrap_or(None);
+        if phone.is_none() {
+            if let Some(doc) = &proposal.seller_document {
+                phone = repo.phone_for_document(doc).await.unwrap_or(None);
+            }
+        }
+        resp.seller_phone = phone;
     }
 
     Ok(Json(resp))

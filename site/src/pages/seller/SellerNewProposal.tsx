@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ArrowLeft, Copy, Check, Shield, Loader2, Link2, CheckCircle2, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import type { ApiError, ImportedProductDraft } from "@/lib/api-client";
 import { useUserRole } from "@/contexts/UserRoleContext";
+import { getPublicSiteUrl } from "@/lib/utils";
+import { detectPixKeyType } from "@/lib/format";
 
 export default function SellerNewProposal() {
   const { t } = useTranslation();
@@ -39,9 +41,17 @@ export default function SellerNewProposal() {
       .catch(() => setSellerKyc({ name: null, situation: null, loading: false, error: true }));
   }, [sellerDoc]);
 
-  const handlePreviewListing = async () => {
-    const url = listingUrl.trim();
-    if (!url) return;
+  // Pré-preenche a chave PIX com a última usada pelo vendedor — ele pode trocar livremente.
+  useEffect(() => {
+    api.getProfile()
+      .then(profile => { if (profile.pix_key) setPixKey(profile.pix_key); })
+      .catch(() => {});
+  }, []);
+
+  const pixKeyType = useMemo(() => detectPixKeyType(pixKey), [pixKey]);
+  const pixKeyTypeLabel = pixKeyType && t(`seller.pixKeyType.${pixKeyType}`);
+
+  const handleAutoImportListing = async (url: string) => {
     setIsPreviewLoading(true);
     setImportedDraft(null);
     try {
@@ -58,6 +68,17 @@ export default function SellerNewProposal() {
       setIsPreviewLoading(false);
     }
   };
+
+  useEffect(() => {
+    const url = listingUrl.trim();
+    if (!url || listingImported || isPreviewLoading) return;
+    if (!/^https?:\/\//i.test(url) && !/^www\./i.test(url)) return;
+    const timer = setTimeout(() => {
+      handleAutoImportListing(url);
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingUrl]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -92,7 +113,7 @@ export default function SellerNewProposal() {
       });
     },
     onSuccess: (data) => {
-      const link = `${window.location.origin}/buyer/payment/${data.id}`;
+      const link = `${getPublicSiteUrl()}/buyer/payment/${data.id}`;
       setProposalLink(link);
       toast.success(t("seller.proposalCreated", "Proposta criada! Compartilhe o link com o comprador."));
     },
@@ -209,30 +230,20 @@ export default function SellerNewProposal() {
                     setListingImported(false);
                     setImportedDraft(null);
                   }}
-                  className="pl-9"
+                  className="pl-9 pr-9"
                   autoComplete="off"
                 />
-                {listingImported && (
+                {isPreviewLoading ? (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+                ) : listingImported ? (
                   <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                )}
+                ) : null}
               </div>
-              {listingUrl.trim() && !listingImported && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10 shrink-0 px-3"
-                  onClick={handlePreviewListing}
-                  disabled={isPreviewLoading}
-                >
-                  {isPreviewLoading
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : t("seller.previewBtn", "Pré-visualizar")}
-                </Button>
-              )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {t("seller.listingUrlHint", "Título e valor serão preenchidos automaticamente.")}
+              {isPreviewLoading
+                ? t("seller.listingUrlImporting", "Importando dados do anúncio...")
+                : t("seller.listingUrlHint", "Cole o link e os campos serão preenchidos automaticamente.")}
             </p>
 
             {importedDraft && (
@@ -294,6 +305,11 @@ export default function SellerNewProposal() {
               onChange={(e) => setPixKey(e.target.value)}
               autoComplete="off"
             />
+            {pixKeyTypeLabel && (
+              <p className="text-xs text-secondary font-medium">
+                {t("seller.pixKeyDetected", "Tipo detectado: {{type}}", { type: pixKeyTypeLabel })}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               {t("seller.pixKeyHint", "O PIX será enviado automaticamente após o comprador confirmar o recebimento.")}
             </p>
@@ -351,7 +367,6 @@ export default function SellerNewProposal() {
               setProposalLink(null);
               setAmount("");
               setDescription("");
-              setPixKey("");
               setListingUrl("");
               setListingId(undefined);
               setListingImported(false);

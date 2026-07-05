@@ -502,3 +502,10 @@ O `.gitignore` na **raiz** aplica-se a todo o monorepo. **Não versionar:**
 - `*.tar.gz`, certificados (`*.pem`, `*.key`)
 
 Templates de referência: `money/.env.example`, `**/.env.example`.
+
+
+
+
+cargo install --git https://github.com/rtk-ai/rtk
+rtk init -g          # configura hook pro Claude Code
+rtk gain             # confirma que instalou o certo
