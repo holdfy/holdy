@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use rusqlite::Connection;
-use whatsapp_rust::Jid;
+use whatsapp_rust::{Jid, Server};
 
 use crate::utils::masking::mask_whatsapp_peer;
 
@@ -77,8 +77,7 @@ pub fn canonical_session_peer_key(peer_raw: String, sqlite_uri: Option<&str>) ->
 /// Chave estável quando o servidor JID é `s.whatsapp.net`: só dígitos do PN.
 #[must_use]
 pub fn peer_key_from_jid(sender: &Jid) -> String {
-    let server = sender.server.as_ref();
-    if server == "s.whatsapp.net" {
+    if sender.server == Server::Pn {
         sender.user.chars().filter(|c| c.is_ascii_digit()).collect()
     } else {
         sender.to_string()
@@ -113,7 +112,10 @@ pub async fn resolve_delivery_jid(
     let pn = crate::handlers::holdfy::canonical_peer_key(p)
         .ok_or_else(|| format!("número inválido ({})", mask_whatsapp_peer(p)))?;
 
-    match client.contacts().is_on_whatsapp(&[&pn]).await {
+    // Box::pin: contorna limitação do rustc (HRTB "not general enough") no fechamento
+    // interno do is_on_whatsapp/persist_lid_mappings da lib quando aguardado dentro de
+    // futuros spawnados (tokio::spawn) em outros pontos do crate.
+    match Box::pin(client.contacts().is_on_whatsapp(&[Jid::pn(pn.as_str())])).await {
         Ok(results) => {
             if let Some(r) = results.first() {
                 if r.is_registered {

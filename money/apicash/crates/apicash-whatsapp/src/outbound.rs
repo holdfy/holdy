@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use wacore::download::MediaType;
 use waproto::whatsapp as wa;
+use whatsapp_rust::UploadOptions;
 use whatsapp_cloud_api::models::{Interactive, InteractiveActionButton, Message, Text};
 use whatsapp_cloud_api::WhatsappClient;
 
@@ -67,14 +68,17 @@ impl Outbound {
                                     error = %e,
                                     peer = %mask_whatsapp_peer(to),
                                     delivery = %jid,
+                                    body = %body,
                                     "whatsapp-rust: send_text falhou"
                                 );
                                 false
                             }
-                            Ok(_) => {
+                            Ok(r) => {
                                 tracing::info!(
                                     peer = %mask_whatsapp_peer(to),
                                     delivery = %jid,
+                                    message_id = %r.message_id,
+                                    body = %body,
                                     "whatsapp-rust: send_text ok"
                                 );
                                 true
@@ -109,16 +113,16 @@ impl Outbound {
         match self {
             Outbound::Rust { client, .. } => match resolve_delivery_jid(client.as_ref(), to).await {
                 Ok(jid) => {
-                    match client.upload(bytes.to_vec(), MediaType::Image).await {
+                    match client.upload(bytes.to_vec(), MediaType::Image, UploadOptions::default()).await {
                         Ok(upload) => {
                             let m = wa::Message {
                                 image_message: Some(Box::new(wa::message::ImageMessage {
                                     mimetype: Some("image/png".to_string()),
                                     url: Some(upload.url),
                                     direct_path: Some(upload.direct_path),
-                                    media_key: Some(upload.media_key),
-                                    file_enc_sha256: Some(upload.file_enc_sha256),
-                                    file_sha256: Some(upload.file_sha256),
+                                    media_key: Some(upload.media_key.to_vec()),
+                                    file_enc_sha256: Some(upload.file_enc_sha256.to_vec()),
+                                    file_sha256: Some(upload.file_sha256.to_vec()),
                                     file_length: Some(upload.file_length),
                                     caption: caption.map(|s| s.to_string()),
                                     ..Default::default()
@@ -200,16 +204,16 @@ impl Outbound {
         match self {
             Outbound::Rust { client, .. } => match resolve_delivery_jid(client.as_ref(), to).await {
                 Ok(jid) => {
-                    match client.upload(bytes.to_vec(), MediaType::Video).await {
+                    match client.upload(bytes.to_vec(), MediaType::Video, UploadOptions::default()).await {
                         Ok(upload) => {
                             let m = wa::Message {
                                 video_message: Some(Box::new(wa::message::VideoMessage {
                                     mimetype: Some("video/mp4".to_string()),
                                     url: Some(upload.url),
                                     direct_path: Some(upload.direct_path),
-                                    media_key: Some(upload.media_key),
-                                    file_enc_sha256: Some(upload.file_enc_sha256),
-                                    file_sha256: Some(upload.file_sha256),
+                                    media_key: Some(upload.media_key.to_vec()),
+                                    file_enc_sha256: Some(upload.file_enc_sha256.to_vec()),
+                                    file_sha256: Some(upload.file_sha256.to_vec()),
                                     file_length: Some(upload.file_length),
                                     caption: caption.map(|s| s.to_string()),
                                     ..Default::default()

@@ -404,6 +404,10 @@ pub fn ask_listing_url() -> &'static str {
      Sem anúncio? Responda *pular*."
 }
 
+pub fn ask_listing_url_retry() -> &'static str {
+    "🤔 Isso não parece um link. Manda o *link do anúncio* (começando com http:// ou https://) ou responda *pular* pra seguir sem anúncio."
+}
+
 pub fn importing_product() -> &'static str {
     "🔍 Buscando produto no link..."
 }

@@ -45,7 +45,7 @@ class EndpointStore {
   static const SavedEndpoint builtIn = SavedEndpoint(
     id: builtInId,
     name: 'SaveInCloud (servidor)',
-    url: 'https://holdfy-dev.sp1.br.saveincloud.net.br/svc/tracking',
+    url: 'https://holdfy.com.br/svc/tracking',
     builtIn: true,
   );
 

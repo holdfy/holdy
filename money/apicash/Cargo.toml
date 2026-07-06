@@ -92,11 +92,11 @@ async-nats = "0.38"
 openssl = { version = "0.10", features = ["vendored"] }
 
 # WhatsApp — `whatsapp-rust` (multi-device). `apicash-whatsapp` ativa `sqlite-storage` localmente.
-whatsapp-rust = { version = "0.5", default-features = false, features = ["moka-cache", "tokio-transport", "tokio-runtime", "ureq-client", "tokio-native", "signal"] }
-whatsapp-rust-tokio-transport = { version = "0.5", default-features = false }
-whatsapp-rust-ureq-http-client = { version = "0.5", default-features = false }
-wacore = { version = "0.5.0", default-features = false }
-waproto = { version = "0.5.0", default-features = false }
+whatsapp-rust = { version = "0.6", default-features = false, features = ["moka-cache", "tokio-transport", "tokio-runtime", "ureq-client", "tokio-native", "signal"] }
+whatsapp-rust-tokio-transport = { version = "0.6", default-features = false }
+whatsapp-rust-ureq-http-client = { version = "0.6", default-features = false }
+wacore = { version = "0.6.0", default-features = false }
+waproto = { version = "0.6.0", default-features = false }
 whatsapp-cloud-api = "0.5"
 
 # UI (admin) — SSR compila no host; CSR/wasm será configurado depois
@@ -129,6 +129,10 @@ apicash-whatsapp = { path = "crates/apicash-whatsapp" }
 # sqlx 0.8 isso impede unificar `links = "sqlite3"`. O patch vende o crate com libsqlite3-sys 0.30.1.
 [patch.crates-io]
 whatsapp-rust-sqlite-storage = { path = "patches/whatsapp-rust-sqlite-storage" }
+# Corrige bug de rustc "implementation of FnOnce/Send/Iterator is not general enough"
+# em Contacts::persist_lid_mappings (lifetime genérica em iterator awaited dentro de
+# future spawnado) — ver patches/whatsapp-rust/src/features/contacts.rs.
+whatsapp-rust = { path = "patches/whatsapp-rust" }
 
 # Binários de serviço: otimização e binários menores em produção.
 [profile.release]

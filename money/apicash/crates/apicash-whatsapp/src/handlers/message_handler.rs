@@ -944,8 +944,8 @@ impl MessageHandler {
                 }
             }
         } else {
-            // Resposta não reconhecida — pede de novo
-            self.outbound.send_text(seller_peer, message_templates::ask_listing_url()).await;
+            // Resposta não reconhecida como link — avisa e pede de novo (não repete a msg igual, senão parece travado)
+            self.outbound.send_text(seller_peer, message_templates::ask_listing_url_retry()).await;
             session.state = OrderFlowState::AwaitingListingUrl { draft };
             session.touch();
             self.sessions.update(seller_peer, session.clone()).await;
@@ -1663,6 +1663,7 @@ impl MessageHandler {
             user_id = %session.user_id,
             state = ?session.state,
             body_len = ev.body.len(),
+            body = %body,
             "whatsapp: mensagem recebida"
         );
 

@@ -17,7 +17,7 @@ class ApiConfig {
   // Para dev local sobrescreva com --dart-define=LOGISTICA_API_BASE_URL=http://192.168.33.109:8092
   static const String _dartDefineBaseUrl = String.fromEnvironment(
     'LOGISTICA_API_BASE_URL',
-    defaultValue: 'https://holdfy-dev.sp1.br.saveincloud.net.br/svc/tracking',
+    defaultValue: 'https://holdfy.com.br/svc/tracking',
   );
 
   static const String _dartDefineHost = String.fromEnvironment(

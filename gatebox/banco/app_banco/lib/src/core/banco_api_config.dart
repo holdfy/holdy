@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 ///
 /// Prioridade:
 /// 1. `BANCO_API_BASE_URL` — URL completa (produção HTTPS via NGINX).
-///    Exemplo: `flutter build apk --dart-define=BANCO_API_BASE_URL=https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco`
+///    Exemplo: `flutter build apk --dart-define=BANCO_API_BASE_URL=https://holdfy.com.br/svc/banco`
 /// 2. Override em tempo de execução ([setRuntimeEndpoint]) — gravado nas preferências pelo ecrã Setup.
 /// 3. Compile-time host+porta: `--dart-define=BANCO_API_HOST=192.168.1.10 --dart-define=BANCO_API_PORT=8091`
 /// 4. Valor por plataforma:
@@ -23,7 +23,7 @@ class BancoApiConfig {
   // Sobrescreva com --dart-define=BANCO_API_BASE_URL=http://192.168.33.109:8091 para dev local.
   static const String _dartDefineBaseUrl = String.fromEnvironment(
     'BANCO_API_BASE_URL',
-    defaultValue: 'https://holdfy-dev.sp1.br.saveincloud.net.br/svc/banco',
+    defaultValue: 'https://holdfy.com.br/svc/banco',
   );
 
   static const String _dartDefineHost = String.fromEnvironment(

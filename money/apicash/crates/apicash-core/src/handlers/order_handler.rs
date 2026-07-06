@@ -1459,9 +1459,67 @@ pub async fn set_tracking(
         } else {
             tracing::info!(order_id = %id, ?buyer_peer, ?seller_peer, "tracking: buyer/seller peers registrados");
         }
+
+        // Paridade com o fluxo nativo do WhatsApp (register_seller_tracking): avisa
+        // comprador e vendedor na hora, sem esperar o polling de 30min do tracking_monitor.
+        spawn_whatsapp_tracking_registered_notify(id, code.clone(), buyer_peer, seller_peer);
     }
     info!(order_id = %id, code = %code, "tracking registrado");
+
     Ok(Json(SetTrackingResponse { order_id: id, tracking_code: code }))
+}
+
+/// POST assíncrono para `/internal/tracking-step-notify` (apicash-whatsapp) — avisa
+/// imediatamente que o rastreio foi vinculado ao pedido, em vez de esperar o próximo
+/// ciclo do `tracking_monitor` (30min por padrão).
+fn spawn_whatsapp_tracking_registered_notify(
+    order_id: Uuid,
+    code: String,
+    buyer_peer: String,
+    seller_peer: String,
+) {
+    tokio::spawn(async move {
+        let api_key = std::env::var("APICASH_API_KEY").unwrap_or_default();
+        if api_key.trim().is_empty() {
+            tracing::warn!(order_id = %order_id, "tracking: APICASH_API_KEY ausente, aviso WhatsApp não enviado");
+            return;
+        }
+        let wa_base = std::env::var("APICASH_WHATSAPP_URL")
+            .unwrap_or_else(|_| "http://127.0.0.1:3010".into());
+        let url = format!("{}/internal/tracking-step-notify", wa_base.trim_end_matches('/'));
+        let body = serde_json::json!({
+            "seller_phone": seller_peer,
+            "buyer_phone": if buyer_peer.is_empty() { None } else { Some(buyer_peer.as_str()) },
+            "order_id": order_id.to_string(),
+            "tracking_code": code,
+            "step_label": "Código de rastreio registrado",
+            "description": "O vendedor registrou o código de rastreio para o seu pedido.",
+        });
+        let client = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+        {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        match client
+            .post(&url)
+            .header("x-api-key", api_key.trim())
+            .json(&body)
+            .send()
+            .await
+        {
+            Ok(resp) if resp.status().is_success() => {
+                tracing::info!(order_id = %order_id, code = %code, "tracking: aviso WhatsApp enviado (registro)");
+            }
+            Ok(resp) => {
+                tracing::warn!(order_id = %order_id, status = %resp.status(), "tracking: aviso WhatsApp falhou");
+            }
+            Err(e) => {
+                tracing::warn!(order_id = %order_id, error = %e, "tracking: erro de rede ao avisar WhatsApp");
+            }
+        }
+    });
 }
 
 // ─── Profile endpoints ─────────────────────────────────────────────────────────

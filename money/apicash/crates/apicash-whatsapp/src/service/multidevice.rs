@@ -1,16 +1,18 @@
 //! Arranque do cliente **whatsapp-rust** (multi-device) e encaminhamento para a fila interna.
 
+use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock, Mutex};
 
 use image::Luma;
 use qrcode::render::unicode::Dense1x2;
 use qrcode::{EcLevel, QrCode};
 use tokio::sync::mpsc;
+use wacore::store::DevicePropsOverride;
 use wacore::types::events::Event;
 use waproto::whatsapp::device_props::PlatformType;
 use whatsapp_rust::bot::Bot;
-use whatsapp_rust::pair_code::{PairCodeOptions, PlatformId};
+use whatsapp_rust::pair_code::PairCodeOptions;
 use whatsapp_rust::store::{Backend, SqliteStore};
 use whatsapp_rust::TokioRuntime;
 use whatsapp_rust_tokio_transport::TokioWebSocketTransportFactory;
@@ -19,6 +21,27 @@ use whatsapp_rust_ureq_http_client::UreqHttpClient;
 use crate::models::WhatsAppEvent;
 use crate::utils::incoming_wa::{parse_incoming_message, IncomingBody};
 use crate::wa_peer::{canonical_session_peer_key, peer_key_from_jid};
+
+/// WhatsApp pode reentregar a mesma mensagem (retry-receipt, offline sync, etc.) — dedupe por
+/// `info.id` pra não processar o mesmo comando duas vezes (cada vez lendo um estado de sessão
+/// diferente, já que a 1ª entrega muda o estado antes da 2ª rodar).
+static SEEN_MESSAGE_IDS: LazyLock<Mutex<(VecDeque<String>, HashSet<String>)>> =
+    LazyLock::new(|| Mutex::new((VecDeque::new(), HashSet::new())));
+
+fn already_processed(mid: &str) -> bool {
+    let mut guard = SEEN_MESSAGE_IDS.lock().unwrap_or_else(|e| e.into_inner());
+    let (queue, set) = &mut *guard;
+    if !set.insert(mid.to_string()) {
+        return true;
+    }
+    queue.push_back(mid.to_string());
+    if queue.len() > 500 {
+        if let Some(old) = queue.pop_front() {
+            set.remove(&old);
+        }
+    }
+    false
+}
 
 fn best_qr_for_payload(payload: &[u8]) -> Option<QrCode> {
     [EcLevel::L, EcLevel::M, EcLevel::Q, EcLevel::H]
@@ -102,17 +125,16 @@ pub async fn start_multidevice_bridge(
 
     // wacore usa os = "rust" por defeito — isso é o que o WhatsApp mostra como nome do aparelho.
     builder = builder.with_device_props(
-        Some(device_label.clone()),
-        None,
-        Some(PlatformType::Chrome),
+        DevicePropsOverride::new()
+            .with_os(device_label.clone())
+            .with_platform_type(PlatformType::Chrome),
     );
 
     if let Some(phone) = pair_phone.filter(|s| !s.is_empty()) {
         builder = builder.with_pair_code(PairCodeOptions {
             phone_number: phone,
             custom_code: pair_custom_code.filter(|s| !s.is_empty()),
-            platform_id: PlatformId::Chrome,
-            platform_display: format!("{device_label} (Linux)"),
+            // platform_id: None (padrão) — deriva automaticamente de device_props (Chrome, acima).
             ..Default::default()
         });
     }
@@ -125,7 +147,7 @@ pub async fn start_multidevice_bridge(
             let sqlite_for_resolve = wa_sqlite_uri.clone();
             let tx = tx_ev.clone();
             async move {
-                match event {
+                match event.as_ref() {
                     Event::PairingQrCode { code, timeout } => {
                         tracing::info!(
                             timeout_secs = timeout.as_secs(),
@@ -175,6 +197,10 @@ pub async fn start_multidevice_bridge(
                             tracing::debug!("whatsapp-rust: ignorada mensagem de grupo");
                             return;
                         }
+                        if already_processed(&info.id) {
+                            tracing::warn!(mid = %info.id, "whatsapp-rust: mensagem duplicada (reentrega) ignorada");
+                            return;
+                        }
                         let peer = canonical_session_peer_key(
                             peer_key_from_jid(&info.source.sender),
                             Some(sqlite_for_resolve.as_str()),
@@ -208,7 +234,27 @@ pub async fn start_multidevice_bridge(
                     Event::PairError(e) => {
                         tracing::error!(?e, "whatsapp-rust: erro de pairing");
                     }
-                    _ => {}
+                    Event::Receipt(r) => {
+                        tracing::info!(?r, "whatsapp-rust: receipt (confirmação/leitura)");
+                    }
+                    Event::UndecryptableMessage(u) => {
+                        tracing::error!(?u, "whatsapp-rust: mensagem NÃO decodificável");
+                    }
+                    Event::TemporaryBan(b) => {
+                        tracing::error!(?b, "whatsapp-rust: CONTA COM BAN TEMPORÁRIO");
+                    }
+                    Event::ConnectFailure(f) => {
+                        tracing::error!(?f, "whatsapp-rust: falha de conexão");
+                    }
+                    Event::StreamError(e) => {
+                        tracing::error!(?e, "whatsapp-rust: stream error");
+                    }
+                    Event::LoggedOut(l) => {
+                        tracing::error!(?l, "whatsapp-rust: sessão deslogada pelo servidor");
+                    }
+                    other => {
+                        tracing::info!(?other, "whatsapp-rust: evento não tratado explicitamente");
+                    }
                 }
             }
         })
