@@ -87,6 +87,9 @@ pub struct CreateTrackerRequest {
     pub seller_phone: Option<String>,
     #[serde(default)]
     pub buyer_phone: Option<String>,
+    /// Código explícito (ex.: já registrado pelo vendedor no site) — se ausente, gera um novo.
+    #[serde(default)]
+    pub tracking_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

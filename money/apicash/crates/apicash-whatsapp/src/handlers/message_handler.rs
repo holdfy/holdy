@@ -544,6 +544,67 @@ impl MessageHandler {
             if sp.is_empty() { db_seller } else { Some(sp.to_string()) }
         };
 
+        let label_lc = step_label.to_lowercase();
+        let is_delivered = label_lc.contains("entregue") || label_lc.contains("delivered");
+
+        // Etapa de entrega: dispara o MESMO fluxo interativo confirmar/disputa do
+        // tracking_monitor (polling), em vez de um texto simples — sem os botões o
+        // comprador não tem como acionar a liberação do pagamento nem abrir disputa.
+        if is_delivered {
+            let order_uuid = order_id.and_then(|s| uuid::Uuid::parse_str(s.trim()).ok());
+
+            let amount_opt: Option<String> = if let (Some(pool), Some(oid)) = (&self.pg_pool, order_uuid) {
+                sqlx::query_scalar::<_, String>("SELECT ROUND(amount, 2)::text FROM orders WHERE id = $1")
+                    .bind(oid)
+                    .fetch_optional(pool.as_ref())
+                    .await
+                    .ok()
+                    .flatten()
+            } else {
+                None
+            };
+
+            if let Some(bp) = resolved_buyer.as_deref() {
+                let confirm_body = match order_uuid {
+                    Some(oid) => message_templates::tracking_delivered_ask_confirm(
+                        &oid,
+                        amount_opt.as_deref(),
+                        tracking_code,
+                    ),
+                    None => format!(
+                        "🎉 *Seu pedido chegou!*\nRastreio `{tracking_code}`\n\n\
+                         Está tudo certo com o produto?\n\n\
+                         ✅ Se sim — confirme o recebimento e o pagamento será liberado ao vendedor.\n\
+                         ⚠️ Se houver algum problema — abra uma disputa."
+                    ),
+                };
+                self.outbound.send_interactive_confirm_receipt(bp, &confirm_body).await;
+                tracing::info!(
+                    peer = %mask_whatsapp_peer(bp),
+                    code = %tracking_code,
+                    "tracking step: confirmação de entrega (comprador) enviada"
+                );
+            } else {
+                tracing::warn!(
+                    code = %tracking_code,
+                    "tracking step: entrega sem buyer_peer, comprador não notificado"
+                );
+            }
+
+            if let Some(sp) = resolved_seller.as_deref() {
+                let order_short = order_id.unwrap_or("").to_string();
+                self.outbound
+                    .send_text(sp, &message_templates::tracking_delivered_seller_await(tracking_code, &order_short))
+                    .await;
+                tracing::info!(
+                    peer = %mask_whatsapp_peer(sp),
+                    code = %tracking_code,
+                    "tracking step: aviso de entrega (vendedor) enviado"
+                );
+            }
+            return;
+        }
+
         let mut msg = String::from("📦 *Atualização de rastreio*");
         if let Some(oid) = order_id.filter(|s| !s.trim().is_empty()) {
             msg.push_str(&format!("\nPedido: `{oid}`"));
@@ -563,11 +624,8 @@ impl MessageHandler {
             );
         }
 
-        // Vendedor recebe aviso nos status críticos: entrega, retorno, devolução e problema.
-        let label_lc = step_label.to_lowercase();
-        let is_critical = label_lc.contains("entregue")
-            || label_lc.contains("delivered")
-            || label_lc.contains("retorno")
+        // Vendedor recebe aviso nos status críticos: retorno, devolução e problema (entrega já tratada acima).
+        let is_critical = label_lc.contains("retorno")
             || label_lc.contains("return")
             || label_lc.contains("devolvido")
             || label_lc.contains("returned")
@@ -683,6 +741,111 @@ impl MessageHandler {
             buyer_count = buyer_orders.len(),
             seller_count = seller_orders.len(),
             "handle_my_orders: histórico enviado"
+        );
+    }
+
+    /// Comando global "show me stellar" — se o usuário está no meio de uma transação
+    /// (session.active_order_id), mostra só o pedido atual; senão, mostra os últimos 3.
+    async fn handle_show_stellar(&self, peer: &str, user_id: Uuid, active_order_id: Option<Uuid>) {
+        let Some(pool) = &self.pg_pool else {
+            self.outbound
+                .send_text(peer, "Não consegui buscar suas transações Stellar agora. Tente novamente em instantes.")
+                .await;
+            return;
+        };
+
+        let network = std::env::var("APICASH_STELLAR_NETWORK")
+            .or_else(|_| std::env::var("STELLAR_NETWORK"))
+            .unwrap_or_else(|_| "simulated".to_string());
+        let explorer_base = match network.as_str() {
+            "mainnet" => "https://stellar.expert/explorer/public",
+            _ => "https://stellar.expert/explorer/testnet",
+        };
+
+        let rows = if let Some(order_id) = active_order_id {
+            sqlx::query(
+                r#"
+                SELECT o.id::text AS order_id, COALESCE(o.soroban_mode, 'simulated') AS soroban_mode,
+                       o.soroban_escrow_contract_id, o.soroban_lock_tx_hash, o.created_at
+                FROM orders o
+                WHERE o.id = $1 AND (o.buyer_id = $2 OR o.seller_id = $2)
+                "#,
+            )
+            .bind(order_id)
+            .bind(user_id)
+            .fetch_all(pool.as_ref())
+            .await
+        } else {
+            sqlx::query(
+                r#"
+                SELECT o.id::text AS order_id, COALESCE(o.soroban_mode, 'simulated') AS soroban_mode,
+                       o.soroban_escrow_contract_id, o.soroban_lock_tx_hash, o.created_at
+                FROM orders o
+                WHERE (o.buyer_id = $1 OR o.seller_id = $1)
+                  AND (o.soroban_mode IS NOT NULL OR o.soroban_lock_tx_hash IS NOT NULL)
+                ORDER BY o.created_at DESC
+                LIMIT 3
+                "#,
+            )
+            .bind(user_id)
+            .fetch_all(pool.as_ref())
+            .await
+        };
+
+        let rows = match rows {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!(error = %e, %user_id, "handle_show_stellar: query falhou");
+                self.outbound
+                    .send_text(peer, "Não consegui buscar suas transações Stellar agora. Tente novamente em instantes.")
+                    .await;
+                return;
+            }
+        };
+
+        if rows.is_empty() {
+            let msg = if active_order_id.is_some() {
+                "Este pedido ainda não tem transação Stellar registada."
+            } else {
+                "Você ainda não tem transações Stellar registadas nos seus pedidos."
+            };
+            self.outbound.send_text(peer, msg).await;
+            return;
+        }
+
+        let header = if active_order_id.is_some() {
+            "🔗 *Transação Stellar deste pedido*"
+        } else {
+            "🔗 *Suas últimas transações Stellar*"
+        };
+        let mut msg = String::from(header);
+        for row in &rows {
+            let order_id: String = row.try_get("order_id").unwrap_or_default();
+            let mode: String = row.try_get("soroban_mode").unwrap_or_default();
+            let lock_hash: Option<String> = row.try_get("soroban_lock_tx_hash").unwrap_or(None);
+            let contract: Option<String> = row.try_get("soroban_escrow_contract_id").unwrap_or(None);
+            let order_short = order_id.chars().take(8).collect::<String>();
+
+            msg.push_str(&format!("\n\nPedido `{order_short}`"));
+            match lock_hash.as_deref().filter(|h| !h.starts_with("mock")) {
+                Some(hash) => {
+                    msg.push_str(&format!("\n🔒 Lock (escrow): {explorer_base}/tx/{hash}"));
+                }
+                None => {
+                    msg.push_str("\n🔒 Lock: ainda em modo simulado (sem transação on-chain real).");
+                }
+            }
+            if let Some(c) = contract.as_deref().filter(|_| mode == "real") {
+                msg.push_str(&format!("\n📄 Contrato escrow: {explorer_base}/contract/{c}"));
+            }
+        }
+        self.outbound.send_text(peer, &msg).await;
+        tracing::info!(
+            peer = %crate::utils::masking::mask_whatsapp_peer(peer),
+            %user_id,
+            count = rows.len(),
+            scoped_to_active_order = active_order_id.is_some(),
+            "handle_show_stellar: transações enviadas"
         );
     }
 
@@ -1750,6 +1913,11 @@ impl MessageHandler {
         }
         if order_flow::is_my_orders(body) {
             self.handle_my_orders(&peer, &session).await;
+            return Ok(());
+        }
+
+        if order_flow::is_show_stellar(body) {
+            self.handle_show_stellar(&peer, session.user_id, session.active_order_id).await;
             return Ok(());
         }
 

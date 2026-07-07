@@ -33,7 +33,20 @@ impl TrackerStore {
     }
 
     pub fn create(&self, req: CreateTrackerRequest) -> Tracker {
-        let code = generate_tracking_code();
+        let explicit_code = req
+            .tracking_code
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_uppercase());
+        let code = explicit_code.unwrap_or_else(generate_tracking_code);
+
+        // Idempotente: se já existe (ex.: vendedor reenviou o mesmo código do site), devolve
+        // o tracker existente sem apagar eventos/progresso já registrados.
+        if let Some(existing) = self.inner.read().expect("tracker store poisoned").get(&code) {
+            return enrich_tracker(existing.clone());
+        }
+
         let now = Utc::now();
         let tracker = Tracker {
             id: Uuid::new_v4(),

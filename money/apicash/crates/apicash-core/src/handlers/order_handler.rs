@@ -1462,11 +1462,67 @@ pub async fn set_tracking(
 
         // Paridade com o fluxo nativo do WhatsApp (register_seller_tracking): avisa
         // comprador e vendedor na hora, sem esperar o polling de 30min do tracking_monitor.
-        spawn_whatsapp_tracking_registered_notify(id, code.clone(), buyer_peer, seller_peer);
+        spawn_whatsapp_tracking_registered_notify(id, code.clone(), buyer_peer.clone(), seller_peer.clone());
+
+        // Em modo simulado (sem conta real de transportadora), cria o tracker no
+        // LogisticaHoldFy com o MESMO código — sem isso, tanto o polling do
+        // tracking_monitor quanto a consulta manual no site nunca encontram o
+        // rastreio (404), e a entrega nunca dispara liberação de pagamento/disputa.
+        if apicash_logistics::tracking::is_tracking_simulated() {
+            spawn_create_simulated_tracker(id, code.clone(), buyer_peer, seller_peer);
+        }
     }
     info!(order_id = %id, code = %code, "tracking registrado");
 
     Ok(Json(SetTrackingResponse { order_id: id, tracking_code: code }))
+}
+
+/// Resolve a URL base do simulador LogisticaHoldFy — mesma convenção usada por
+/// `apicash_logistics::tracking::HoldfySimulatorProvider`.
+fn logistica_simulator_base_url() -> String {
+    std::env::var("APICASH_TRACKING_SIMULATOR_URL")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            let host = std::env::var("MONEY_LAN_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+            let port = std::env::var("LOGISTICA_HTTP_PORT").unwrap_or_else(|_| "8092".into());
+            format!("http://{}:{port}", host.trim())
+        })
+        .trim_end_matches('/')
+        .to_string()
+}
+
+/// POST assíncrono para `/trackers` (logistica-holdfy) — cria o tracker simulado com o
+/// mesmo código que o vendedor registrou no site, idempotente (backend ignora se já existe).
+fn spawn_create_simulated_tracker(order_id: Uuid, code: String, buyer_peer: String, seller_peer: String) {
+    tokio::spawn(async move {
+        let url = format!("{}/trackers", logistica_simulator_base_url());
+        let body = serde_json::json!({
+            "tracking_code": code,
+            "order_id": order_id.to_string(),
+            "seller_phone": if seller_peer.is_empty() { None } else { Some(seller_peer.as_str()) },
+            "buyer_phone": if buyer_peer.is_empty() { None } else { Some(buyer_peer.as_str()) },
+        });
+        let client = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+        {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        match client.post(&url).json(&body).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                tracing::info!(order_id = %order_id, code = %code, "tracking: tracker simulado criado no LogisticaHoldFy");
+            }
+            Ok(resp) => {
+                tracing::warn!(order_id = %order_id, status = %resp.status(), "tracking: falha ao criar tracker simulado");
+            }
+            Err(e) => {
+                tracing::warn!(order_id = %order_id, error = %e, "tracking: erro de rede ao criar tracker simulado");
+            }
+        }
+    });
 }
 
 /// POST assíncrono para `/internal/tracking-step-notify` (apicash-whatsapp) — avisa

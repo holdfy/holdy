@@ -344,9 +344,11 @@ impl GatewayHttpService for BlindPayHttpService {
             payin_quote_id: quote.id.clone(),
             customer_id,
         };
+        // "payins/evm" is the only working create-payin path even for Stellar wallets;
+        // "payins/stellar" 404s despite the wallet's network.
         let payin_res = self
             .client
-            .post(self.url("payins/stellar"))
+            .post(self.url("payins/evm"))
             .bearer_auth(&key)
             .json(&payin_req)
             .send()

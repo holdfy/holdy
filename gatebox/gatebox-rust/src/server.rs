@@ -451,7 +451,7 @@ impl App {
                 (fallback, Some(pool), None)
             } else {
                 let publisher = Arc::new(RabbitMQPaymentPublisher::new(producer_pool)) as Arc<dyn gatebox_rust::core::messaging::PaymentPublisher>;
-                let async_svc = Arc::new(PixPrincipalServiceAsync::new(
+                let mut async_svc_builder = PixPrincipalServiceAsync::new(
                     transaction_repo.clone(),
                     accounts_repo.clone(),
                     account_rules_repo.clone(),
@@ -460,7 +460,24 @@ impl App {
                     publisher,
                     gateway_name.clone(),
                     default_partners_id,
-                ));
+                );
+                if has_gateway {
+                    let (qr_gw, qr_cid, qr_csec) = if has_blindpay {
+                        (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                         String::new(), String::new())
+                    } else if has_seventrust {
+                        (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                         seventrust_client_id.clone(), seventrust_client_secret.clone())
+                    } else if has_next {
+                        (Arc::new(gatebox_rust::core::gateways::services::NextHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                         next_client_id.clone(), next_client_secret.clone())
+                    } else {
+                        (Arc::new(gatebox_rust::core::gateways::services::SulcredHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                         sulcred_client_id.clone(), sulcred_client_secret.clone())
+                    };
+                    async_svc_builder = async_svc_builder.with_gateway(qr_gw, qr_cid, qr_csec);
+                }
+                let async_svc = Arc::new(async_svc_builder);
                 let handler: Arc<dyn gatebox_rust::core::messaging::MessageHandler> = if has_gateway {
                     let (gw, cid, csec, gw_name) = if has_blindpay {
                         (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
@@ -535,7 +552,7 @@ impl App {
                     (fallback, None, Some(tx))
                 } else {
                     let publisher = Arc::new(PulsarPaymentPublisher::new(producer_pool)) as Arc<dyn gatebox_rust::core::messaging::PaymentPublisher>;
-                    let async_svc = Arc::new(PixPrincipalServiceAsync::new(
+                    let mut async_svc_builder = PixPrincipalServiceAsync::new(
                         transaction_repo.clone(),
                         accounts_repo.clone(),
                         account_rules_repo.clone(),
@@ -544,7 +561,24 @@ impl App {
                         publisher,
                         gateway_name.clone(),
                         default_partners_id,
-                    ));
+                    );
+                    if has_gateway {
+                        let (qr_gw, qr_cid, qr_csec) = if has_blindpay {
+                            (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             String::new(), String::new())
+                        } else if has_seventrust {
+                            (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             seventrust_client_id.clone(), seventrust_client_secret.clone())
+                        } else if has_next {
+                            (Arc::new(gatebox_rust::core::gateways::services::NextHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             next_client_id.clone(), next_client_secret.clone())
+                        } else {
+                            (Arc::new(gatebox_rust::core::gateways::services::SulcredHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             sulcred_client_id.clone(), sulcred_client_secret.clone())
+                        };
+                        async_svc_builder = async_svc_builder.with_gateway(qr_gw, qr_cid, qr_csec);
+                    }
+                    let async_svc = Arc::new(async_svc_builder);
                     let handler: Arc<dyn gatebox_rust::core::messaging::MessageHandler> = if has_gateway {
                     let (gw, cid, csec, gw_name) = if has_blindpay {
                         (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
@@ -600,7 +634,7 @@ impl App {
             match NatsPaymentPublisher::new(&nats_url).await {
                 Ok(nats_publisher) => {
                     let publisher = Arc::new(nats_publisher) as Arc<dyn gatebox_rust::core::messaging::PaymentPublisher>;
-                    let async_svc = Arc::new(PixPrincipalServiceAsync::new(
+                    let mut async_svc_builder = PixPrincipalServiceAsync::new(
                         transaction_repo.clone(),
                         accounts_repo.clone(),
                         account_rules_repo.clone(),
@@ -609,7 +643,24 @@ impl App {
                         publisher,
                         gateway_name.clone(),
                         default_partners_id,
-                    ));
+                    );
+                    if has_gateway {
+                        let (qr_gw, qr_cid, qr_csec) = if has_blindpay {
+                            (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             String::new(), String::new())
+                        } else if has_seventrust {
+                            (Arc::new(gatebox_rust::core::gateways::services::SevenTrustHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             seventrust_client_id.clone(), seventrust_client_secret.clone())
+                        } else if has_next {
+                            (Arc::new(gatebox_rust::core::gateways::services::NextHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             next_client_id.clone(), next_client_secret.clone())
+                        } else {
+                            (Arc::new(gatebox_rust::core::gateways::services::SulcredHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,
+                             sulcred_client_id.clone(), sulcred_client_secret.clone())
+                        };
+                        async_svc_builder = async_svc_builder.with_gateway(qr_gw, qr_cid, qr_csec);
+                    }
+                    let async_svc = Arc::new(async_svc_builder);
                     let handler: Arc<dyn gatebox_rust::core::messaging::MessageHandler> = if has_gateway {
                         let (gw, cid, csec, gw_name) = if has_blindpay {
                             (Arc::new(gatebox_rust::core::gateways::services::BlindPayHttpService::default()) as Arc<dyn gatebox_rust::core::gateways::services::GatewayHttpService>,

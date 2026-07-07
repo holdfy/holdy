@@ -20,12 +20,14 @@ pub struct BlindPayPayinQuoteRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlindPayPayinQuoteResponse {
     pub id: String,
-    pub request_amount: Option<f64>,
-    pub fiat_amount: Option<f64>,
-    pub token_amount: Option<String>,
-    pub expires_at: Option<String>,
-    pub status: Option<String>,
-    pub payment_method: Option<String>,
+    pub expires_at: Option<i64>,
+    pub commercial_quotation: Option<f64>,
+    pub blindpay_quotation: Option<f64>,
+    pub partner_fee_amount: Option<f64>,
+    pub receiver_amount: Option<f64>,
+    pub sender_amount: Option<f64>,
+    pub flat_fee: Option<f64>,
+    pub billing_fee_amount: Option<f64>,
 }
 
 // --- Payin (creates PIX QR code) ---

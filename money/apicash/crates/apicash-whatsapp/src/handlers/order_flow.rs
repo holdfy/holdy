@@ -52,6 +52,24 @@ pub fn is_cancel(cmd: &str) -> bool {
     )
 }
 
+/// Comando global: usuário quer ver as transações Stellar do(s) seu(s) pedido(s).
+pub fn is_show_stellar(cmd: &str) -> bool {
+    matches!(
+        normalize_cmd(cmd).as_str(),
+        "show me stellar"
+            | "show stellar"
+            | "stellar"
+            | "ver stellar"
+            | "mostrar stellar"
+            | "ver transação stellar"
+            | "ver transações stellar"
+            | "ver transacao stellar"
+            | "ver transacoes stellar"
+            | "mostrar transações stellar"
+            | "mostrar transacoes stellar"
+    )
+}
+
 pub fn is_skip(cmd: &str) -> bool {
     matches!(
         normalize_cmd(cmd).as_str(),

@@ -5,12 +5,13 @@ use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
 use rust_decimal::Decimal;
 
+use crate::core::gateways::services::{CreateDynamicQrcodeRequest, GatewayHttpService};
 use crate::core::messaging::PaymentPublisher;
 use crate::model::Transaction;
 use crate::transaction::TransactionRepository;
 
 use super::service::{PixPrincipalService, SendPixRequest, SendPixResponse};
-use super::service::{synthetic_pix_qrcode_response, GenerateQrCodeRequest, GenerateQrCodeResponse};
+use super::service::{GenerateQrCodeRequest, GenerateQrCodeResponse};
 
 /// Fee calculation result (Go: fixed, percent, markup, net_amount, rate, total_amount).
 #[derive(Debug, Clone)]
@@ -185,6 +186,9 @@ pub struct PixPrincipalServiceAsync {
     publisher: Arc<dyn PaymentPublisher>,
     gateway_name: String,
     default_partners_id: i64,
+    gateway: Option<Arc<dyn GatewayHttpService>>,
+    gateway_client_id: String,
+    gateway_client_secret: String,
 }
 
 impl PixPrincipalServiceAsync {
@@ -207,7 +211,24 @@ impl PixPrincipalServiceAsync {
             publisher,
             gateway_name,
             default_partners_id,
+            gateway: None,
+            gateway_client_id: String::new(),
+            gateway_client_secret: String::new(),
         }
+    }
+
+    /// Enables real dynamic QR code generation via the gateway HTTP service
+    /// (falls back to the synthetic QR if the gateway call fails).
+    pub fn with_gateway(
+        mut self,
+        gateway: Arc<dyn GatewayHttpService>,
+        client_id: String,
+        client_secret: String,
+    ) -> Self {
+        self.gateway = Some(gateway);
+        self.gateway_client_id = client_id;
+        self.gateway_client_secret = client_secret;
+        self
     }
 }
 
@@ -355,6 +376,37 @@ impl PixPrincipalService for PixPrincipalServiceAsync {
     }
 
     async fn generate_qr_code(&self, req: GenerateQrCodeRequest) -> Result<GenerateQrCodeResponse, Box<dyn std::error::Error + Send + Sync>> {
-        synthetic_pix_qrcode_response(req, &self.gateway_name)
+        let gateway = self
+            .gateway
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("no PIX gateway configured for dynamic QR code generation"))?;
+
+        let token = gateway
+            .get_token_out(&self.gateway_client_id, &self.gateway_client_secret)
+            .await?
+            .access_token;
+        let gw_req = CreateDynamicQrcodeRequest {
+            payer_name: req.payer_name,
+            payer_document: req.payer_document,
+            description: req.description,
+            amount: req.amount,
+            expiration_seconds: req.expiration_seconds,
+            pix_key: req.pix_key.unwrap_or_default(),
+            reference: Some(req.reference),
+        };
+        let gw_resp = gateway.create_dynamic_qrcode(&token, &gw_req).await?;
+
+        let mut data = std::collections::HashMap::new();
+        data.insert("txId".to_string(), serde_json::Value::String(gw_resp.txid.clone().unwrap_or_default()));
+        data.insert("location".to_string(), serde_json::Value::String(gw_resp.location.clone().unwrap_or_default()));
+        Ok(GenerateQrCodeResponse {
+            status_code: 200,
+            qr_code: gw_resp.pix_copia_e_cola,
+            tx_id: gw_resp.txid.unwrap_or_default(),
+            expires_at: String::new(),
+            transaction_id: String::new(),
+            gateway: self.gateway_name.clone(),
+            data,
+        })
     }
 }
