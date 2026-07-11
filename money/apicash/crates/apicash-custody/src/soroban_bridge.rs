@@ -170,6 +170,11 @@ pub struct LiveSorobanBridge {
     source_secret: Option<String>,
     stellar_bin: String,
     strict_live: bool,
+    // Chamadas concorrentes assinadas pela mesma conta Stellar (buyer/deployer, compartilhada
+    // entre pedidos em dev/testnet) competem pelo sequence number da conta e falham com
+    // TxBadSeq / transaction submission timeout. O `stellar` CLI não faz essa coordenação
+    // sozinho, então serializamos aqui: só uma invocação on-chain por vez.
+    chain_lock: tokio::sync::Mutex<()>,
 }
 
 #[cfg(feature = "soroban")]
@@ -193,6 +198,7 @@ impl LiveSorobanBridge {
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .unwrap_or(false)
                 || require_testnet_on_chain(),
+            chain_lock: tokio::sync::Mutex::new(()),
         }
     }
 
@@ -234,6 +240,7 @@ impl LiveSorobanBridge {
         if let Some(s) = self.buyer_source() {
             cmd.args(["--source", &s, "--sign-with-key", &s]);
         }
+        let _guard = self.chain_lock.lock().await;
         let out = cmd
             .output()
             .await
@@ -291,6 +298,7 @@ impl LiveSorobanBridge {
             "--amount",
             &params.amount_stroops.to_string(),
         ]);
+        let _guard = self.chain_lock.lock().await;
         let out = cmd
             .output()
             .await
@@ -388,6 +396,7 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
             "--order_id",
             &order_key.to_string(),
         ]);
+        let _guard = self.chain_lock.lock().await;
         let out = cmd
             .output()
             .await
@@ -439,6 +448,7 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
             cmd.args(["--source", &s, "--sign-with-key", &s]);
         }
         cmd.args(["--", "release", "--order_id", &order_key.to_string()]);
+        let _guard = self.chain_lock.lock().await;
         let out = cmd
             .output()
             .await
@@ -502,6 +512,7 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
             "--opened_by",
             &opened_by,
         ]);
+        let _guard = self.chain_lock.lock().await;
         let out = cmd
             .output()
             .await
