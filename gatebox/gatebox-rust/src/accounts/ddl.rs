@@ -1,14 +1,19 @@
 pub const SQL_LIST: &str = r#"
-    SELECT id, account_number, branch, account_type_id, account_status_id,
-           deleted_at, authentication_id
-    FROM accounts
-    ORDER BY id LIMIT $1 OFFSET $2
+    SELECT a.id, a.account_number, a.branch, a.account_type_id, a.account_status_id,
+           a.deleted_at, a.authentication_id,
+           c.type_person_id
+    FROM accounts a
+    LEFT JOIN customer c ON c.authentication_id = a.authentication_id AND c.deleted_at IS NULL
+    ORDER BY a.id LIMIT $1 OFFSET $2
 "#;
 
 pub const SQL_GET_BY_ID: &str = r#"
-    SELECT id, account_number, branch, account_type_id, account_status_id,
-           deleted_at, authentication_id
-    FROM accounts WHERE id = $1
+    SELECT a.id, a.account_number, a.branch, a.account_type_id, a.account_status_id,
+           a.deleted_at, a.authentication_id,
+           c.type_person_id
+    FROM accounts a
+    LEFT JOIN customer c ON c.authentication_id = a.authentication_id AND c.deleted_at IS NULL
+    WHERE a.id = $1
 "#;
 
 pub const SQL_GET_BY_AUTHENTICATION_ID: &str = r#"

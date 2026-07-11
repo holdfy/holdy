@@ -109,6 +109,26 @@ export default function AdminPixTransactionDetail() {
                 <MDTypography variant="button" color="text">End-to-end</MDTypography>
                 <MDTypography variant="caption" sx={{ wordBreak: "break-all" }}>{tx.endtoend_id || "-"}</MDTypography>
               </MDBox>
+              {tx.gateway_tx_id && (
+                <MDBox>
+                  <MDTypography variant="button" color="text">Gateway TX</MDTypography>
+                  <MDTypography variant="caption" sx={{ wordBreak: "break-all" }}>{tx.gateway_tx_id}</MDTypography>
+                </MDBox>
+              )}
+              {tx.chain_tx_hash && (
+                <MDBox>
+                  <MDTypography variant="button" color="text">Hash on-chain</MDTypography>
+                  <MDTypography variant="caption" sx={{ wordBreak: "break-all" }}>
+                    <a
+                      href={`https://stellar.expert/explorer/testnet/tx/${tx.chain_tx_hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {tx.chain_tx_hash}
+                    </a>
+                  </MDTypography>
+                </MDBox>
+              )}
             </MDBox>
 
             {canCancel && (

@@ -348,6 +348,8 @@ impl PixPrincipalService for PixPrincipalServiceAsync {
             try_count: 0,
             deleted_at: None,
             endtoend_id_temp: String::new(),
+            gateway_tx_id: String::new(),
+            chain_tx_hash: String::new(),
             full_count: None,
         };
 

@@ -1,3 +1,4 @@
+pub mod blindpay_webhook;
 pub mod provider_selector;
 pub mod service;
 pub mod service_async;
@@ -15,4 +16,5 @@ pub use webhook_service::{
     PixWebhookService, PixWebhookServiceImpl, ReceivePixInRequest, ReceivePixInResponse,
     ReceivePixOutRequest, ReceivePixOutResponse, SendReversalRequest, SendReversalResponse,
 };
+pub use blindpay_webhook::BlindPayWebhookState;
 pub use handler::{register, PixPrincipalState};

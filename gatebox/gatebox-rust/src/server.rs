@@ -813,6 +813,16 @@ impl App {
             webhook_service: Some(webhook_svc.clone()),
             qr_cache: qr_cache_early.clone(),
         };
+        let blindpay_webhook_state = if has_blindpay {
+            Some(gatebox_rust::core::pix_principal::BlindPayWebhookState {
+                webhook_service: webhook_svc.clone(),
+                transaction_repo: transaction_repo.clone(),
+                webhook_secret: std::env::var("BLINDPAY_WEBHOOK_SECRET").ok().filter(|s| !s.trim().is_empty()),
+                credit_pix_key: std::env::var("GATEBOX_DEFAULT_PIX_KEY").unwrap_or_default(),
+            })
+        } else {
+            None
+        };
         let p2p_svc: Arc<dyn gatebox_rust::p2p::P2PService> = Arc::new(
             gatebox_rust::p2p::P2PServiceImpl::new(
                 transaction_repo.clone(),
@@ -843,7 +853,7 @@ impl App {
             .nest("/v1/admin/disputes", gatebox_rust::disputes::admin_routes(dispute_state.clone()))
             .nest("/v1", gatebox_rust::disputes::customer_routes(dispute_state))
             .nest("/v1/backoffice", backoffice::routes(backoffice_state))
-            .nest("/v1/pix", gatebox_rust::core::pix_principal::register(pix_principal_state))
+            .nest("/v1/pix", gatebox_rust::core::pix_principal::register(pix_principal_state, blindpay_webhook_state))
             .nest("/v1/customers", gatebox_rust::modules::customers::routes(customers_state))
             .nest("/v1/account_rules", account_rules::routes(account_rules_svc))
             .nest("/v1/accounts", accounts::routes(accounts_svc))

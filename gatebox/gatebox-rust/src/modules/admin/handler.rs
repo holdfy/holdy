@@ -568,6 +568,8 @@ async fn holdfy_list_transactions(
                 "gateway":       r.try_get::<Option<String>,_>("gateway").ok().flatten().unwrap_or_default(),
                 "created_at":    r.try_get::<Option<chrono::DateTime<chrono::Utc>>,_>("created_at").ok().flatten(),
                 "network":       &network,
+                "gateway_tx_id": r.try_get::<Option<String>,_>("gateway_tx_id").ok().flatten().unwrap_or_default(),
+                "chain_tx_hash": r.try_get::<Option<String>,_>("chain_tx_hash").ok().flatten().unwrap_or_default(),
             })
         })
         .collect();

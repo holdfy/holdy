@@ -54,6 +54,17 @@ function shortRef(ref) {
   return clean.length > 12 ? clean.slice(0, 8) + "…" : clean;
 }
 
+function shortHash(hash) {
+  if (!hash) return "—";
+  return hash.length > 14 ? `${hash.slice(0, 6)}…${hash.slice(-6)}` : hash;
+}
+
+function stellarExplorerUrl(network, hash) {
+  if (!hash) return null;
+  const net = network === "mainnet" ? "public" : "testnet";
+  return `https://stellar.expert/explorer/${net}/tx/${hash}`;
+}
+
 function NetworkBadge({ network }) {
   if (!network || network === "simulated")
     return <Chip label="Simulado" size="small" sx={{ bgcolor: "#6b7280", color: "#fff", fontWeight: 600, fontSize: 11 }} />;
@@ -165,6 +176,8 @@ export default function HoldfyTransactions() {
                     <TableCell>Ref. Pedido</TableCell>
                     <TableCell>Data / Hora</TableCell>
                     <TableCell>Gateway</TableCell>
+                    <TableCell>Gateway TX</TableCell>
+                    <TableCell>Hash on-chain</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -212,6 +225,29 @@ export default function HoldfyTransactions() {
 
                       <TableCell sx={{ color: "#6b7280", fontSize: 11 }}>
                         {row.gateway || "—"}
+                      </TableCell>
+
+                      <TableCell sx={{ fontFamily: "monospace", fontSize: 11 }}>
+                        <Tooltip title={row.gateway_tx_id || ""} placement="top">
+                          <span>{row.gateway_tx_id || "—"}</span>
+                        </Tooltip>
+                      </TableCell>
+
+                      <TableCell sx={{ fontFamily: "monospace", fontSize: 11 }}>
+                        {row.chain_tx_hash ? (
+                          <Tooltip title={row.chain_tx_hash} placement="top">
+                            <a
+                              href={stellarExplorerUrl(row.network, row.chain_tx_hash)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: "#2563eb" }}
+                            >
+                              {shortHash(row.chain_tx_hash)}
+                            </a>
+                          </Tooltip>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

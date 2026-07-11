@@ -3,7 +3,8 @@ pub const SQL_LIST: &str = r#"
            external_id, name, email, document_number, description, phone, amount, isbp,
            bank_name, branch, account, endtoend_id, pix_key_type_id, key, type_transaction_id,
            sub_type_transaction_id, remittance_information, status_transaction_id, msg_error,
-           telegram_notification, try_count, deleted_at, endtoend_id_temp
+           telegram_notification, try_count, deleted_at, endtoend_id_temp,
+           gateway_tx_id, chain_tx_hash
     FROM transaction ORDER BY id LIMIT $1 OFFSET $2
 "#;
 
@@ -13,7 +14,8 @@ pub const SQL_LIST_BY_ACCOUNT: &str = r#"
            external_id, name, email, document_number, description, phone, amount, isbp,
            bank_name, branch, account, endtoend_id, pix_key_type_id, key, type_transaction_id,
            sub_type_transaction_id, remittance_information, status_transaction_id, msg_error,
-           telegram_notification, try_count, deleted_at, endtoend_id_temp
+           telegram_notification, try_count, deleted_at, endtoend_id_temp,
+           gateway_tx_id, chain_tx_hash
     FROM transaction WHERE account_id = $1 ORDER BY id DESC LIMIT $2 OFFSET $3
 "#;
 pub const SQL_COUNT_BY_ACCOUNT: &str = r#"SELECT COUNT(*)::bigint FROM transaction WHERE account_id = $1"#;
@@ -22,7 +24,8 @@ pub const SQL_GET_BY_ID: &str = r#"
            external_id, name, email, document_number, description, phone, amount, isbp,
            bank_name, branch, account, endtoend_id, pix_key_type_id, key, type_transaction_id,
            sub_type_transaction_id, remittance_information, status_transaction_id, msg_error,
-           telegram_notification, try_count, deleted_at, endtoend_id_temp
+           telegram_notification, try_count, deleted_at, endtoend_id_temp,
+           gateway_tx_id, chain_tx_hash
     FROM transaction WHERE id = $1
 "#;
 pub const SQL_INSERT: &str = r#"
@@ -189,7 +192,8 @@ pub const SQL_LIST_P2P_BY_ACCOUNT: &str = r#"
            external_id, name, email, document_number, description, phone, amount, isbp,
            bank_name, branch, account, endtoend_id, pix_key_type_id, key, type_transaction_id,
            sub_type_transaction_id, remittance_information, status_transaction_id, msg_error,
-           telegram_notification, try_count, deleted_at, endtoend_id_temp
+           telegram_notification, try_count, deleted_at, endtoend_id_temp,
+           gateway_tx_id, chain_tx_hash
     FROM transaction
     WHERE account_id = $1 AND sub_type_transaction_id = 3
     ORDER BY id DESC
@@ -200,7 +204,7 @@ pub const SQL_LIST_P2P_BY_ACCOUNT: &str = r#"
 /// Params: account_id, invoice_id, partners_id, external_id, name, document_number, amount, key,
 ///         remittance_information, gateway, pix_operation_type,
 ///         requested_amount, net_amount, total_amount, fee_fixed, fee_percent_rate, fee_percent_amount, fee_total,
-///         partner_fixed_cash_in, partner_percent_cashin
+///         partner_fixed_cash_in, partner_percent_cashin, gateway_tx_id
 pub const SQL_INSERT_PIX_IN_CREDIT: &str = r#"
     INSERT INTO transaction (account_id, invoice_id, partners_id, transaction_id, charger_back_id, parent_id,
         external_id, name, document_number, description, phone, amount, isbp, bank_name, branch, account,
@@ -208,17 +212,23 @@ pub const SQL_INSERT_PIX_IN_CREDIT: &str = r#"
         remittance_information, status_transaction_id, msg_error, telegram_notification, try_count,
         gateway, pix_operation_type,
         requested_amount, net_amount, total_amount, fee_fixed, fee_percent_rate, fee_percent_amount, fee_total,
-        partner_fixed_cash_in, partner_percent_cashin, fees_calculated_at, fee_calculation_version)
+        partner_fixed_cash_in, partner_percent_cashin, fees_calculated_at, fee_calculation_version, gateway_tx_id)
     VALUES ($1, $2, $3, '', '', 0, $4, $5, $6, $9, '', $7, '', '', '', '', '', 0, $8, 2, 1, $9, 4, '', false, 0, $10, $11,
-        $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), 'v1.0')
+        $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), 'v1.0', $21)
     RETURNING id
+"#;
+
+/// Update chain_tx_hash for a transaction found by gateway_tx_id (payin/payout id at the gateway).
+pub const SQL_UPDATE_CHAIN_TX_HASH_BY_GATEWAY_TX_ID: &str = r#"
+    UPDATE transaction SET chain_tx_hash = $1 WHERE gateway_tx_id = $2
 "#;
 
 /// HoldFy transactions: PIX IN originados pelo APICash (description/remittance contém "HoldFy" ou external_id contém "order").
 /// Inclui created_at para mostrar data/hora. Params: limit $1, offset $2.
 pub const SQL_LIST_HOLDFY: &str = r#"
     SELECT id, name, document_number, amount, description, remittance_information,
-           external_id, status_transaction_id, gateway, created_at
+           external_id, status_transaction_id, gateway, created_at,
+           gateway_tx_id, chain_tx_hash
     FROM transaction
     WHERE deleted_at IS NULL
       AND (

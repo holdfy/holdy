@@ -35,6 +35,10 @@ pub struct Transaction {
     pub try_count: i64,
     pub deleted_at: Option<DateTime<Utc>>,
     pub endtoend_id_temp: String,
+    #[serde(default)]
+    pub gateway_tx_id: String,
+    #[serde(default)]
+    pub chain_tx_hash: String,
     #[serde(skip_serializing)]
     pub full_count: Option<i64>,
 }

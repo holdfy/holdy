@@ -6,6 +6,7 @@ use axum::{
 };
 use serde::Deserialize;
 
+use crate::core::pix_principal::blindpay_webhook::{self, BlindPayWebhookState};
 use crate::core::pix_principal::service::{GenerateQrCodeRequest, GenerateQrCodeResponse, PixPrincipalService, SendPixRequest, SendPixResponse};
 use crate::core::pix_principal::webhook_service::{
     PixWebhookService, ReceivePixInRequest, ReceivePixInResponse, ReceivePixOutRequest,
@@ -20,7 +21,7 @@ pub struct PixPrincipalState {
     pub qr_cache: QrRefCache,
 }
 
-pub fn register(state: PixPrincipalState) -> Router {
+pub fn register(state: PixPrincipalState, blindpay_webhook_state: Option<BlindPayWebhookState>) -> Router {
     let mut r = Router::new()
         .route("/send", post(send_pix))
         .route("/qrcode", post(generate_qrcode));
@@ -29,7 +30,17 @@ pub fn register(state: PixPrincipalState) -> Router {
             .route("/webhook/in", post(receive_pix_in))
             .route("/webhook/out", post(receive_pix_out));
     }
-    r.with_state(state)
+    let r = r.with_state(state);
+
+    match blindpay_webhook_state {
+        Some(bp_state) => {
+            let bp_router = Router::new()
+                .route("/webhook/blindpay", post(blindpay_webhook::receive_blindpay_webhook))
+                .with_state(bp_state);
+            r.merge(bp_router)
+        }
+        None => r,
+    }
 }
 
 async fn send_pix(

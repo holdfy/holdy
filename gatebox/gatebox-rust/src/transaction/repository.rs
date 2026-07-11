@@ -182,7 +182,15 @@ pub trait TransactionRepository: Send + Sync {
         fee_total: Decimal,
         partner_fixed_cash_in: Decimal,
         partner_percent_cashin: Decimal,
+        gateway_tx_id: &str,
     ) -> Result<i64, RepositoryError>;
+    /// Update chain_tx_hash for the transaction whose gateway_tx_id matches (set once the
+    /// gateway reports the on-chain settlement, possibly after the credit was already posted).
+    async fn update_chain_tx_hash_by_gateway_tx_id(
+        &self,
+        gateway_tx_id: &str,
+        chain_tx_hash: &str,
+    ) -> Result<(), RepositoryError>;
 }
 
 pub struct TransactionRepositoryImpl {
@@ -228,6 +236,8 @@ struct Row {
     try_count: i64,
     deleted_at: Option<DateTime<Utc>>,
     endtoend_id_temp: String,
+    gateway_tx_id: Option<String>,
+    chain_tx_hash: Option<String>,
 }
 
 fn to_transaction(r: Row) -> Transaction {
@@ -262,6 +272,8 @@ fn to_transaction(r: Row) -> Transaction {
         try_count: r.try_count,
         deleted_at: r.deleted_at,
         endtoend_id_temp: r.endtoend_id_temp,
+        gateway_tx_id: r.gateway_tx_id.unwrap_or_default(),
+        chain_tx_hash: r.chain_tx_hash.unwrap_or_default(),
         full_count: None,
     }
 }
@@ -722,6 +734,7 @@ impl TransactionRepository for TransactionRepositoryImpl {
         fee_total: Decimal,
         partner_fixed_cash_in: Decimal,
         partner_percent_cashin: Decimal,
+        gateway_tx_id: &str,
     ) -> Result<i64, RepositoryError> {
         let (id,): (i64,) = sqlx::query_as(ddl::SQL_INSERT_PIX_IN_CREDIT)
             .bind(account_id)
@@ -744,8 +757,25 @@ impl TransactionRepository for TransactionRepositoryImpl {
             .bind(fee_total)
             .bind(partner_fixed_cash_in)
             .bind(partner_percent_cashin)
+            .bind(if gateway_tx_id.is_empty() { None::<&str> } else { Some(gateway_tx_id) })
             .fetch_one(self.write.as_ref())
             .await?;
         Ok(id)
+    }
+
+    async fn update_chain_tx_hash_by_gateway_tx_id(
+        &self,
+        gateway_tx_id: &str,
+        chain_tx_hash: &str,
+    ) -> Result<(), RepositoryError> {
+        let r = sqlx::query(ddl::SQL_UPDATE_CHAIN_TX_HASH_BY_GATEWAY_TX_ID)
+            .bind(chain_tx_hash)
+            .bind(gateway_tx_id)
+            .execute(self.write.as_ref())
+            .await?;
+        if r.rows_affected() == 0 {
+            return Err(RepositoryError::NotFound);
+        }
+        Ok(())
     }
 }

@@ -38,6 +38,10 @@ pub struct ReceivePixInRequest {
     pub idempotency_key: String,
     #[serde(default)]
     pub gateway: String,
+    /// Gateway's own transaction/payin id (e.g. BlindPay's `pi_...`), for audit + correlation
+    /// with a later on-chain settlement event.
+    #[serde(default)]
+    pub gateway_tx_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -377,6 +381,7 @@ impl PixWebhookService for PixWebhookServiceImpl {
                 fee_total_dec,
                 partner_fix_dec,
                 partner_pct_dec,
+                &req.gateway_tx_id,
             )
             .await
             .map_err(|e| e.to_string())?;
@@ -696,6 +701,8 @@ impl PixWebhookService for PixWebhookServiceImpl {
             try_count: 0,
             deleted_at: None,
             endtoend_id_temp: String::new(),
+            gateway_tx_id: String::new(),
+            chain_tx_hash: String::new(),
             full_count: None,
         };
 
