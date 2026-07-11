@@ -7,10 +7,13 @@ use apicash_custody::ReleaseConfirmation;
 use apicash_shared::OrderStatus;
 use apicash_shared::{ApiCashError, AuditEvent};
 use axum::extract::State;
+use axum::http::{header, HeaderMap};
 use axum::Extension;
 use axum::Json;
 use chrono::Utc;
+use serde::Deserialize;
 use tracing::{error, info, instrument, warn};
+use uuid::Uuid;
 
 use crate::dto::ReleaseRequestBody;
 use crate::error::ApiError;
@@ -75,9 +78,21 @@ pub async fn release_custody(
         c.sub
     };
 
+    finalize_release(&state, body.order_id, releasing_user_id, body.idempotency_key).await
+}
+
+/// Lógica compartilhada entre `release_custody` (JWT, comprador real) e
+/// `release_custody_internal` (dev/testnet, força liberação sem comprador logado).
+/// O caller já validou que `releasing_user_id` pode agir como comprador do pedido.
+async fn finalize_release(
+    state: &Arc<AppState>,
+    order_id: Uuid,
+    releasing_user_id: Uuid,
+    idempotency_key: String,
+) -> Result<Json<serde_json::Value>, ApiError> {
     let stored_order = state
         .orders
-        .get(body.order_id)
+        .get(order_id)
         .await
         .map_err(|e| {
             error!(error = %e, "order lookup failed");
@@ -87,13 +102,13 @@ pub async fn release_custody(
             let ts = Utc::now();
             let ev = AuditEvent::DeliveryConfirmed {
                 user_id: releasing_user_id,
-                order_id: body.order_id,
+                order_id,
                 success: false,
                 timestamp: ts,
             };
             warn!(
                 user_id = %releasing_user_id,
-                order_id = %body.order_id,
+                order_id = %order_id,
                 action = "DeliveryConfirmed",
                 success = false,
                 timestamp = %ts,
@@ -108,14 +123,14 @@ pub async fn release_custody(
         let ts = Utc::now();
         let ev = AuditEvent::UnauthorizedAttempt {
             user_id: Some(releasing_user_id),
-            order_id: Some(body.order_id),
+            order_id: Some(order_id),
             action: "DeliveryConfirmed".into(),
             reason: "user is not buyer for order".into(),
             timestamp: ts,
         };
         warn!(
             user_id = %releasing_user_id,
-            order_id = %body.order_id,
+            order_id = %order_id,
             action = "DeliveryConfirmed",
             success = false,
             timestamp = %ts,
@@ -127,7 +142,7 @@ pub async fn release_custody(
 
     let confirmation = ReleaseConfirmation {
         released_by: releasing_user_id,
-        idempotency_key: body.idempotency_key,
+        idempotency_key,
     };
 
     let result = state
@@ -142,13 +157,13 @@ pub async fn release_custody(
         let ts = Utc::now();
         let ev = AuditEvent::DeliveryConfirmed {
             user_id: releasing_user_id,
-            order_id: body.order_id,
+            order_id,
             success: true,
             timestamp: ts,
         };
         info!(
             user_id = %releasing_user_id,
-            order_id = %body.order_id,
+            order_id = %order_id,
             action = "DeliveryConfirmed",
             success = true,
             timestamp = %ts,
@@ -160,13 +175,13 @@ pub async fn release_custody(
         let ts = Utc::now();
         let ev = AuditEvent::FundsReleased {
             user_id: releasing_user_id,
-            order_id: body.order_id,
+            order_id,
             success: true,
             timestamp: ts,
         };
         info!(
             user_id = %releasing_user_id,
-            order_id = %body.order_id,
+            order_id = %order_id,
             action = "FundsReleased",
             success = true,
             timestamp = %ts,
@@ -183,7 +198,7 @@ pub async fn release_custody(
         error!(error = %e, "order completion persistence failed");
         ApiError::internal("order completion persistence failed")
     })?;
-    info!(order_id = %body.order_id, "order marked completed after custody release");
+    info!(order_id = %order_id, "order marked completed after custody release");
 
     // Auto off-ramp: se o vendedor registrou chave PIX, disparar transferência imediatamente.
     if completed_order.off_ramp_tx_hash.is_none() {
@@ -194,20 +209,20 @@ pub async fn release_custody(
                     .withdraw_to_pix(
                         order.amount,
                         pix_key.clone(),
-                        format!("order:{}:offramp:auto", body.order_id),
-                        format!("auto off-ramp order:{}", body.order_id),
+                        format!("order:{}:offramp:auto", order_id),
+                        format!("auto off-ramp order:{}", order_id),
                     )
                     .await
                 {
                     Ok(resp) => {
                         completed_order.off_ramp_tx_hash = Some(resp.tx_hash.clone());
                         if let Err(e) = state.orders.update(completed_order).await {
-                            warn!(order_id = %body.order_id, error = %e, "off-ramp hash persist failed");
+                            warn!(order_id = %order_id, error = %e, "off-ramp hash persist failed");
                         }
-                        info!(order_id = %body.order_id, tx = %resp.tx_hash, "auto off-ramp OK");
+                        info!(order_id = %order_id, tx = %resp.tx_hash, "auto off-ramp OK");
                     }
                     Err(e) => {
-                        warn!(order_id = %body.order_id, error = %e, "auto off-ramp failed (non-critical — manual off-ramp available)");
+                        warn!(order_id = %order_id, error = %e, "auto off-ramp failed (non-critical — manual off-ramp available)");
                     }
                 }
             }
@@ -219,4 +234,59 @@ pub async fn release_custody(
         "order_id": result.order_id,
         "yield_distributed": result.yield_distributed,
     })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InternalReleaseRequest {
+    pub order_id: Uuid,
+}
+
+/// Dev/testnet only: força a liberação de custódia (equivalente ao comprador confirmar entrega)
+/// sem exigir JWT — autenticado por `APICASH_API_KEY`, igual `settle_order_internal`.
+#[instrument(skip(state, headers), fields(order_id = %req.order_id))]
+pub async fn release_custody_internal(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(req): Json<InternalReleaseRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let expected = std::env::var("APICASH_API_KEY").unwrap_or_default();
+    if expected.is_empty() {
+        return Err(ApiError::internal("internal API key not configured"));
+    }
+    let got = headers
+        .get("x-api-key")
+        .and_then(|v| v.to_str().ok())
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            headers
+                .get(header::AUTHORIZATION)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|h| h.strip_prefix("Bearer ").or_else(|| h.strip_prefix("bearer ")))
+        });
+    if got != Some(expected.as_str()) {
+        return Err(ApiError::unauthorized("missing or invalid internal API key"));
+    }
+
+    let stored_order = state
+        .orders
+        .get(req.order_id)
+        .await
+        .map_err(|e| ApiError::internal(format!("order lookup failed: {e}")))?
+        .ok_or_else(|| ApiError::not_found("order not found"))?;
+
+    if stored_order.order.status == OrderStatus::Completed {
+        return Ok(Json(serde_json::json!({
+            "order_id": req.order_id,
+            "status": "already_completed"
+        })));
+    }
+    if stored_order.order.status != OrderStatus::InCustody {
+        return Err(ApiError::bad_request(
+            "order must be in_custody to release",
+        ));
+    }
+
+    let buyer_id = stored_order.order.buyer_id;
+    let idempotency_key = format!("dev-force-release:{}", req.order_id);
+    finalize_release(&state, req.order_id, buyer_id, idempotency_key).await
 }

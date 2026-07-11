@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText,
   AppBar, Toolbar, Typography, Avatar, Divider,
@@ -10,8 +11,10 @@ import GavelIcon from "@mui/icons-material/Gavel";
 import PeopleIcon from "@mui/icons-material/People";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import HubIcon from "@mui/icons-material/Hub";
+import BoltIcon from "@mui/icons-material/Bolt";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { adminKeyStore } from "./api";
+import { adminKeyStore, adminApi } from "./api";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
@@ -19,10 +22,12 @@ import Disputes from "./pages/Disputes";
 import Scores from "./pages/Scores";
 import YieldReport from "./pages/YieldReport";
 import StellarTransactions from "./pages/StellarTransactions";
+import Desenv from "./pages/Desenv";
+import Carteira from "./pages/Carteira";
 
 const DRAWER_WIDTH = 240;
 
-const NAV = [
+const BASE_NAV = [
   { label: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
   { label: "Pedidos", icon: <ReceiptLongIcon />, path: "/orders" },
   { label: "Disputas", icon: <GavelIcon />, path: "/disputes" },
@@ -34,6 +39,20 @@ const NAV = [
 function AdminLayout({ children }) {
   const navigate = useNavigate();
   const path = window.location.pathname;
+
+  const { data: devStatus } = useQuery({
+    queryKey: ["dev-status"],
+    queryFn: adminApi.devStatus,
+    staleTime: 60_000,
+  });
+
+  const nav = devStatus?.enabled
+    ? [
+        ...BASE_NAV,
+        { label: "Dev TestNet", icon: <BoltIcon />, path: "/desenv" },
+        { label: "Carteira TestNet", icon: <AccountBalanceWalletIcon />, path: "/carteira" },
+      ]
+    : BASE_NAV;
 
   const logout = () => {
     adminKeyStore.clear();
@@ -60,7 +79,7 @@ function AdminLayout({ children }) {
         }}
       >
         <List>
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <ListItemButton
               key={item.path}
               selected={path.startsWith(item.path)}
@@ -110,6 +129,8 @@ export default function App() {
                 <Route path="/scores" element={<Scores />} />
                 <Route path="/yield" element={<YieldReport />} />
                 <Route path="/stellar" element={<StellarTransactions />} />
+                <Route path="/desenv" element={<Desenv />} />
+                <Route path="/carteira" element={<Carteira />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </AdminLayout>

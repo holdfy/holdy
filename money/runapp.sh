@@ -1411,9 +1411,9 @@ site_start_all() {
   (
     cd "${SITE_ROOT}"
     if [ "${pm}" = bun ]; then
-      exec "${pm_bin}" run dev --host 127.0.0.1 --port "${SITE_PORT}"
+      exec "${pm_bin}" run dev --host 0.0.0.0 --port "${SITE_PORT}"
     else
-      exec "${pm_bin}" run dev -- --host 127.0.0.1 --port "${SITE_PORT}"
+      exec "${pm_bin}" run dev -- --host 0.0.0.0 --port "${SITE_PORT}"
     fi
   ) >>"${SITE_LOG}/vite.log" 2>&1 &
   local pid=$!
@@ -1496,9 +1496,9 @@ holdfy_admin_start() {
   (
     cd "${HOLDFY_ADMIN_ROOT}"
     if [ "${pm}" = bun ]; then
-      exec "${pm_bin}" run dev --host 127.0.0.1 --port "${HOLDFY_ADMIN_PORT}"
+      exec "${pm_bin}" run dev --host 0.0.0.0 --port "${HOLDFY_ADMIN_PORT}"
     else
-      exec "${pm_bin}" run dev -- --host 127.0.0.1 --port "${HOLDFY_ADMIN_PORT}"
+      exec "${pm_bin}" run dev -- --host 0.0.0.0 --port "${HOLDFY_ADMIN_PORT}"
     fi
   ) >>"${HOLDFY_ADMIN_LOG}/holdfy-admin.log" 2>&1 &
   printf '%s\n' $! >"${HOLDFY_ADMIN_LOG}/holdfy-admin.pid"

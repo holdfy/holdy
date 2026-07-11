@@ -106,6 +106,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/internal/orders/settle",
             post(order_handler::settle_order_internal),
         )
+        .route(
+            "/internal/orders/release",
+            post(custody_handler::release_custody_internal),
+        )
         .route("/internal/listings/import", post(importer_handler::import_listing))
         .route("/internal/listings/import/async", post(importer_handler::import_listing_async))
         .route("/internal/listings/jobs/{id}", get(importer_handler::get_import_job))

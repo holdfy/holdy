@@ -19,7 +19,8 @@ async function req(path, options = {}) {
     },
   });
   if (!resp.ok) {
-    const err = new Error(`HTTP ${resp.status}`);
+    const body = await resp.json().catch(() => null);
+    const err = new Error(body?.error || `HTTP ${resp.status}`);
     err.status = resp.status;
     throw err;
   }
@@ -48,4 +49,10 @@ export const adminApi = {
     ).toString();
     return req(`/admin/reports/yield${qs ? `?${qs}` : ""}`);
   },
+  devStatus: () => req("/admin/dev/status"),
+  devSettleOrder: (id) => req(`/admin/dev/orders/${id}/settle`, { method: "POST" }),
+  devReleaseOrder: (id) => req(`/admin/dev/orders/${id}/release`, { method: "POST" }),
+  devWallet: () => req("/admin/dev/wallet"),
+  devWalletMint: (amount) =>
+    req("/admin/dev/wallet/mint", { method: "POST", body: JSON.stringify({ amount }) }),
 };

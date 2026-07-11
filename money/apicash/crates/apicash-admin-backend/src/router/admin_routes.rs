@@ -8,8 +8,8 @@ use axum::Router;
 use apicash_auth::middleware::verify_admin;
 
 use crate::handlers::{
-    dashboard_handler, dispute_admin_handler, orders_handler, report_handler, seller_handler,
-    stellar_handler, yield_handler,
+    dashboard_handler, dev_handler, dev_wallet_handler, dispute_admin_handler, orders_handler,
+    report_handler, seller_handler, stellar_handler, yield_handler,
 };
 use crate::state::AdminState;
 
@@ -48,6 +48,17 @@ pub fn admin_router(state: AdminState) -> Router {
         .route("/admin/reports/yield", get(yield_handler::get_yield_report))
         .route("/admin/users/score", get(report_handler::list_user_scores))
         .route("/admin/stellar/transactions", get(stellar_handler::list_stellar_transactions))
+        .route("/admin/dev/status", get(dev_handler::dev_status))
+        .route(
+            "/admin/dev/orders/{id}/settle",
+            post(dev_handler::force_settle_order),
+        )
+        .route(
+            "/admin/dev/orders/{id}/release",
+            post(dev_handler::force_release_order),
+        )
+        .route("/admin/dev/wallet", get(dev_wallet_handler::get_wallet))
+        .route("/admin/dev/wallet/mint", post(dev_wallet_handler::mint_wallet))
         .layer(middleware::from_fn(move |req, next| {
             let auth = auth.clone();
             async move { verify_admin(&auth, req, next).await }

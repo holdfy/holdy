@@ -125,6 +125,17 @@ pub fn order_key_from_uuid(id: Uuid) -> u64 {
     u64::from_ne_bytes(b[0..8].try_into().unwrap_or([0u8; 8]))
 }
 
+/// Extrai o hash real da transação da stderr do `stellar` CLI (formato "Signing transaction:
+/// <hash>"). A stdout do `contract invoke` carrega o valor de retorno da função serializado em
+/// JSON (ex: `"null"` para `Result<(), _>`), não o hash — por isso nunca deve ser usada como tal.
+fn extract_tx_hash(stderr: &str) -> Option<String> {
+    stderr.lines().find_map(|line| {
+        line.trim()
+            .rsplit_once("Signing transaction: ")
+            .map(|(_, hash)| hash.trim().to_string())
+    })
+}
+
 fn require_testnet_on_chain() -> bool {
     std::env::var("APICASH_REQUIRE_TESTNET")
         .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
@@ -284,13 +295,14 @@ impl LiveSorobanBridge {
             .output()
             .await
             .map_err(|e| CustodyError::Soroban(e.to_string()))?;
+        let stderr = String::from_utf8_lossy(&out.stderr);
         if !out.status.success() {
-            let stderr = String::from_utf8_lossy(&out.stderr);
             return Err(CustodyError::Soroban(format!(
                 "stellar invoke lock_funds failed: {stderr}"
             )));
         }
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+        Ok(extract_tx_hash(&stderr)
+            .unwrap_or_else(|| String::from_utf8_lossy(&out.stdout).trim().to_string()))
     }
 }
 
@@ -380,8 +392,8 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
             .output()
             .await
             .map_err(|e| CustodyError::Soroban(e.to_string()))?;
+        let stderr = String::from_utf8_lossy(&out.stderr);
         if !out.status.success() {
-            let stderr = String::from_utf8_lossy(&out.stderr);
             if self.strict_live {
                 return Err(CustodyError::Soroban(format!(
                     "confirm_delivery failed: {stderr}"
@@ -393,9 +405,9 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
                 .invoke_confirm_delivery(order_key, escrow_contract_id)
                 .await;
         }
-        Ok(Some(
-            String::from_utf8_lossy(&out.stdout).trim().to_string(),
-        ))
+        Ok(Some(extract_tx_hash(&stderr).unwrap_or_else(|| {
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        })))
     }
 
     async fn invoke_release(
@@ -431,8 +443,8 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
             .output()
             .await
             .map_err(|e| CustodyError::Soroban(e.to_string()))?;
+        let stderr = String::from_utf8_lossy(&out.stderr);
         if !out.status.success() {
-            let stderr = String::from_utf8_lossy(&out.stderr);
             if self.strict_live {
                 return Err(CustodyError::Soroban(format!("release failed: {stderr}")));
             }
@@ -440,9 +452,9 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
             let mock = MockSorobanBridge;
             return mock.invoke_release(order_key, escrow_contract_id).await;
         }
-        Ok(Some(
-            String::from_utf8_lossy(&out.stdout).trim().to_string(),
-        ))
+        Ok(Some(extract_tx_hash(&stderr).unwrap_or_else(|| {
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        })))
     }
 
     async fn invoke_open_dispute(
@@ -494,8 +506,8 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
             .output()
             .await
             .map_err(|e| CustodyError::Soroban(e.to_string()))?;
+        let stderr = String::from_utf8_lossy(&out.stderr);
         if !out.status.success() {
-            let stderr = String::from_utf8_lossy(&out.stderr);
             if self.strict_live {
                 return Err(CustodyError::Soroban(format!(
                     "open_dispute failed: {stderr}"
@@ -507,8 +519,8 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
                 .invoke_open_dispute(order_key, escrow_contract_id)
                 .await;
         }
-        Ok(Some(
-            String::from_utf8_lossy(&out.stdout).trim().to_string(),
-        ))
+        Ok(Some(extract_tx_hash(&stderr).unwrap_or_else(|| {
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        })))
     }
 }

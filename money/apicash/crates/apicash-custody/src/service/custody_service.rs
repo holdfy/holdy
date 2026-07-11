@@ -263,6 +263,13 @@ impl CustodyService {
                     tracing::info!(order_id = %order_id, tx = %tx, "soroban: confirm_delivery ok")
                 }
                 Ok(None) => {}
+                // WrongStatus (contract error #5) on confirm_delivery means a prior attempt
+                // already advanced the on-chain escrow past `Locked` (e.g. release failed after
+                // confirm_delivery succeeded) — off-chain/on-chain state desync, not a real
+                // failure. Proceed to invoke_release instead of getting stuck forever.
+                Err(e) if is_escrow_wrong_status(&e) => {
+                    warn!(order_id = %order_id, error = %e, "soroban confirm_delivery: already confirmed on-chain, proceeding to release")
+                }
                 Err(e) if soroban_strict() => return Err(e),
                 Err(e) => warn!(error = %e, "soroban confirm_delivery skipped"),
             }
@@ -305,6 +312,12 @@ fn soroban_strict() -> bool {
     std::env::var("APICASH_SOROBAN_STRICT")
         .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
         .unwrap_or(false)
+}
+
+/// Detecta o contract error `WrongStatus` (#5) do escrow Soroban — indica que uma tentativa
+/// anterior já avançou o status on-chain (ex: confirm_delivery ok, release falhou depois).
+fn is_escrow_wrong_status(e: &CustodyError) -> bool {
+    matches!(e, CustodyError::Soroban(s) if s.contains("Contract, #5)"))
 }
 
 fn testnet_required() -> bool {
