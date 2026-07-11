@@ -3,7 +3,9 @@
 
 [package.metadata.leptos]
 output-name = "apicash_frontend"
-site-root = "."
+# Relativo ao cwd em runtime (money/apicash, onde runapp.sh/cargo run/make rodam o binário) —
+# não ao diretório do crate. "." apontava pra money/apicash/styles, que não existe (404 no CSS).
+site-root = "crates/apicash-frontend"
 site-pkg-dir = "pkg"
 site-addr = "0.0.0.0:3002"
 env = "DEV"
