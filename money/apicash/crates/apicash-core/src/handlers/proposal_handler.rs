@@ -188,6 +188,7 @@ pub async fn accept_proposal(
         actor_id
     };
 
+    let platform_origin = body.platform_origin();
     let cpf = body
         .cpf
         .as_deref()
@@ -204,6 +205,7 @@ pub async fn accept_proposal(
         &social_links,
         desc,
         false,
+        platform_origin,
     )
     .await?;
 
@@ -326,6 +328,7 @@ pub async fn force_accept_proposal_internal(
         &[],
         desc,
         true,
+        apicash_shared::PlatformOrigin::Site,
     )
     .await?;
 

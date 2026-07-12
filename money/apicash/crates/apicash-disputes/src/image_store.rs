@@ -49,7 +49,7 @@ impl DisputeImageStore {
         let key    = format!("disputes/{dispute_id}/{}.{ext}", Uuid::new_v4());
         let mime   = mime_for_ext(ext);
         self.put_object(&key, bytes, mime).await?;
-        let url = format!("{}/{}/{}", self.endpoint, self.bucket, key);
+        let url = apicash_shared::minio_object_url(&self.endpoint, &self.bucket, &key);
         Ok((key, url, sha256))
     }
 

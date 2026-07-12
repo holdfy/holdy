@@ -48,6 +48,7 @@ pub enum MsgKey {
     ColAmount,
     ColScore,
     ColDecision,
+    ColPlatform,
 
     // Disputas
     DisputesTitle,
@@ -209,6 +210,7 @@ const TABLE: &[(MsgKey, Triple)] = &[
     (MsgKey::ColAmount, msg!("Valor", "Amount", "Valor")),
     (MsgKey::ColScore, msg!("Score", "Score", "Puntuación")),
     (MsgKey::ColDecision, msg!("Decisão", "Decision", "Decisión")),
+    (MsgKey::ColPlatform, msg!("Plataforma", "Platform", "Plataforma")),
     (MsgKey::DisputesTitle, msg!("Disputas", "Disputes", "Disputas")),
     (
         MsgKey::DisputesSubtitle,

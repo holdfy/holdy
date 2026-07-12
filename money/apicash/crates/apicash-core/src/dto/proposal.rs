@@ -49,6 +49,19 @@ pub struct AcceptProposalRequest {
     /// Número de WhatsApp do comprador (ex.: `+5541999990000`) — salvo em wa_contacts para notificações de rastreio.
     #[serde(default)]
     pub buyer_phone: Option<String>,
+    /// Canal que originou o pedido: `whatsapp` | `site` | `app_ios` | `app_android`.
+    /// Omitido/desconhecido → `site` (fallback histórico).
+    #[serde(default)]
+    pub platform: Option<String>,
+}
+
+impl AcceptProposalRequest {
+    pub fn platform_origin(&self) -> apicash_shared::PlatformOrigin {
+        self.platform
+            .as_deref()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(apicash_shared::PlatformOrigin::Site)
+    }
 }
 
 /// Proposal status lifecycle.

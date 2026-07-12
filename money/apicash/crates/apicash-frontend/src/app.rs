@@ -32,10 +32,16 @@ fn Layout() -> impl IntoView {
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
+    // Em produção o app roda atrás de um proxy reverso em `/admin/` (nginx faz
+    // `location /admin/ { proxy_pass http://...:3002/; }`) — sem isso, links internos
+    // (<A href="/orders">) resolveriam pra `/orders` na raiz do domínio, que cai no site
+    // principal em vez de voltar pra cá. Localmente (sem proxy) fica vazio, servindo na raiz.
+    let base_path = std::env::var("APICASH_FRONTEND_BASE_PATH").unwrap_or_default();
+
     view! {
         <I18nProvider>
             <AuthProvider>
-                <Router>
+                <Router base=base_path>
                     <Routes fallback=|| {
                         view! { <p class="ap-muted"><T key=MsgKey::PageNotFound /></p> }
                     }>

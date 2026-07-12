@@ -70,6 +70,8 @@ pub struct StoredOrder {
     pub soroban_mode: String,
     /// Nome completo do comprador (obtido via NFS-e na criação do pedido).
     pub buyer_name: Option<String>,
+    /// Canal que originou o pedido (whatsapp / site / app_ios / app_android).
+    pub platform_origin: apicash_shared::PlatformOrigin,
 }
 
 /// Application state injected into Axum handlers.

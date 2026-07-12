@@ -1,9 +1,11 @@
 //! Shared helpers.
 
+pub mod media;
 pub mod stellar;
 pub mod testnet_policy;
 pub mod x402_policy;
 
+pub use media::minio_object_url;
 pub use stellar::{
     default_horizon_url, default_soroban_rpc_url, network_passphrase, parse_network_label,
     StellarNetworkKind,

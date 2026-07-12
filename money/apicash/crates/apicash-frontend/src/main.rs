@@ -28,6 +28,10 @@ impl axum::extract::FromRef<LeptosAppState> for LeptosOptions {
 fn shell(options: LeptosOptions) -> impl IntoView {
     #[cfg(not(feature = "hydrate"))]
     let _ = options;
+    // Mesmo `APICASH_FRONTEND_BASE_PATH` usado no Router (app.rs) — necessário aqui também
+    // porque o <head>/stylesheet é montado fora da árvore do Router.
+    let base_path = std::env::var("APICASH_FRONTEND_BASE_PATH").unwrap_or_default();
+    let css_href = format!("{base_path}/styles/tailwind.css");
     view! {
         <!DOCTYPE html>
         <html lang="pt-BR">
@@ -36,7 +40,7 @@ fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <Title text="HoldFy Admin" />
                 <MetaTags />
-                <Stylesheet id="apicash" href="/styles/tailwind.css" />
+                <Stylesheet id="apicash" href=css_href />
                 {#[cfg(feature = "hydrate")]
                 {
                     view! {
@@ -69,11 +73,21 @@ async fn main() {
     }
     .expect("ler configuração Leptos");
     let mut options = conf.leptos_options;
-    // Produção: sobrescreve com LEPTOS_SITE_ADDR se definida (get_configuration(None) usa default :3000)
+    // `Cargo.toml.leptos` só é lido quando o path (embutido em compile-time via CARGO_MANIFEST_DIR)
+    // existe na máquina que está RODANDO o binário — em produção (máquina de build != máquina de
+    // deploy) esse path nunca existe, então cai silenciosamente em get_configuration(None), que lê
+    // direto das env vars LEPTOS_*. Pra não depender dessa coincidência de path, sempre sobrescrevemos
+    // explicitamente com as env vars quando definidas — funciona igual local e em produção.
     if let Ok(env_addr) = std::env::var("LEPTOS_SITE_ADDR") {
         if let Ok(parsed) = env_addr.parse::<SocketAddr>() {
             options.site_addr = parsed;
         }
+    }
+    if let Ok(root) = std::env::var("LEPTOS_SITE_ROOT") {
+        options.site_root = root.into();
+    }
+    if let Ok(pkg_dir) = std::env::var("LEPTOS_SITE_PKG_DIR") {
+        options.site_pkg_dir = pkg_dir.into();
     }
     let addr: SocketAddr = options.site_addr;
 

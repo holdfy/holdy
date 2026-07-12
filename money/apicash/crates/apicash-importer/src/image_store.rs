@@ -65,7 +65,7 @@ impl MinioImageStore {
 
         self.put_object(&key, bytes.as_ref(), content_type).await?;
 
-        Ok(format!("{}/{}/{}", self.endpoint, self.bucket, key))
+        Ok(apicash_shared::minio_object_url(&self.endpoint, &self.bucket, &key))
     }
 
     async fn put_object(

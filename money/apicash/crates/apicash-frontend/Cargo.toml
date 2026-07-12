@@ -77,8 +77,10 @@ optional = true
 
 [package.metadata.leptos]
 output-name = "apicash_frontend"
-# Relativo ao cwd em runtime (money/apicash) — ver Cargo.toml.leptos.
-site-root = "crates/apicash-frontend"
+# `cargo-leptos build/watch` usa isto (não Cargo.toml.leptos) pra saber onde ESCREVER o bundle —
+# e apaga o conteúdo de site-root antes de gerar. NUNCA aponte pro diretório do crate (ver aviso
+# em Cargo.toml.leptos). Runtime real usa LEPTOS_SITE_ROOT via env var (main.rs), não isto aqui.
+site-root = "target/site-frontend"
 site-pkg-dir = "pkg"
 site-addr = "0.0.0.0:3002"
 env = "DEV"

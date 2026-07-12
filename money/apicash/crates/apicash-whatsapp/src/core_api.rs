@@ -222,6 +222,7 @@ impl CoreApiClient {
             "social_links": social_links,
             "description": description,
             "buyer_name": buyer_name,
+            "platform": "whatsapp",
         });
         tracing::info!(%buyer_id, %seller_id, %amount, "core_api: POST /orders (pedido protegido + antifraude)");
         self.post_json("/orders", &body, bearer).await

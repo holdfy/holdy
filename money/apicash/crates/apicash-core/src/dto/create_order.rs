@@ -18,6 +18,10 @@ pub struct CreateOrderRequest {
     /// Nome completo do comprador (opcional, obtido via NFS-e).
     #[serde(default)]
     pub buyer_name: Option<String>,
+    /// Canal que originou o pedido: `whatsapp` | `site` | `app_ios` | `app_android`.
+    /// Omitido/desconhecido → `site` (fallback histórico, ver migration `platform_origin`).
+    #[serde(default)]
+    pub platform: Option<String>,
 }
 
 impl CreateOrderRequest {
@@ -30,5 +34,12 @@ impl CreateOrderRequest {
             return Err("amount is required");
         }
         Ok(())
+    }
+
+    pub fn platform_origin(&self) -> apicash_shared::PlatformOrigin {
+        self.platform
+            .as_deref()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(apicash_shared::PlatformOrigin::Site)
     }
 }

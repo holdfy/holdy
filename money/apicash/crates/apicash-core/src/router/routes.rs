@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use axum::extract::DefaultBodyLimit;
 use axum::middleware;
 use axum::routing::{get, post};
 use axum::Router;
@@ -10,9 +11,9 @@ use tower_governor::GovernorLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::handlers::{
-    auth_handler, custody_handler, importer_handler, kyc_handler, logistics_handler, oauth_handler,
-    order_handler, payment_handler, proposal_handler, reputation_handler, testnet_handler,
-    webhook_handler,
+    auth_handler, custody_handler, importer_handler, kyc_handler, logistics_handler, media_handler,
+    oauth_handler, order_handler, payment_handler, proposal_handler, reputation_handler,
+    testnet_handler, webhook_handler,
 };
 use crate::middleware::{auth_middleware, build_x402_layer};
 use crate::state::AppState;
@@ -137,6 +138,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/", get(order_handler::root))
         .route("/health", get(order_handler::health))
         .route("/ready", get(order_handler::ready))
+        .route("/media/{bucket}/{*key}", get(media_handler::proxy_media))
         .route(
             "/testnet/transactions",
             get(testnet_handler::recent_testnet_transactions),
@@ -149,6 +151,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .merge(protected)
         .merge(webhooks)
         .layer(TraceLayer::new_for_http())
+        // Padrão do axum é 2MB — evidências de disputa (fotos/vídeos em base64) precisam de mais.
+        .layer(DefaultBodyLimit::max(30 * 1024 * 1024))
         .with_state(state)
 }
 

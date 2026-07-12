@@ -2,5 +2,5 @@
 
 pub use crate::{
     ApiCashError, AppConfig, Custody, CustodyStatus, Dispute, DisputeStatus, Money, Order,
-    OrderStatus, Payment, PaymentStatus, User, UserScore,
+    OrderStatus, Payment, PaymentStatus, PlatformOrigin, User, UserScore,
 };

@@ -1,6 +1,6 @@
 //! Lista de pedidos com metadados administrativos.
 
-use apicash_shared::OrderStatus;
+use apicash_shared::{OrderStatus, PlatformOrigin};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -24,6 +24,7 @@ pub struct AdminOrderRow {
     pub risk_decision: String,
     pub custody_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
+    pub platform_origin: PlatformOrigin,
 }
 
 #[derive(Debug, Serialize)]

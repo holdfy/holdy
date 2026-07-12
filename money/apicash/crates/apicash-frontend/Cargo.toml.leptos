@@ -1,11 +1,15 @@
 # Configuração lida por `leptos_config::get_configuration` e por `cargo-leptos`.
 # Mantido alinhado a `[package.metadata.leptos]` do Cargo.toml.
+#
+# ATENÇÃO: `cargo-leptos build`/`watch` APAGA o conteúdo de `site-root` antes de gerar o bundle.
+# NUNCA aponte `site-root` para o diretório do crate (já aconteceu — apagou src/, Cargo.toml etc.
+# de `apicash-frontend` inteiro). `site-root` deve ser SEMPRE um diretório de build descartável.
+# Em runtime (main.rs), `LEPTOS_SITE_ROOT`/`LEPTOS_SITE_PKG_DIR` (env vars) sempre sobrescrevem o
+# valor daqui quando definidas — ver `money/.env` (local) e `config/.env` (produção).
 
 [package.metadata.leptos]
 output-name = "apicash_frontend"
-# Relativo ao cwd em runtime (money/apicash, onde runapp.sh/cargo run/make rodam o binário) —
-# não ao diretório do crate. "." apontava pra money/apicash/styles, que não existe (404 no CSS).
-site-root = "crates/apicash-frontend"
+site-root = "target/site-frontend"
 site-pkg-dir = "pkg"
 site-addr = "0.0.0.0:3002"
 env = "DEV"

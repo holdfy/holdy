@@ -32,6 +32,7 @@ fn OrderTableInner(rows: Vec<OrderRow>) -> impl IntoView {
                         <th><T key=MsgKey::ColAmount /></th>
                         <th><T key=MsgKey::ColScore /></th>
                         <th><T key=MsgKey::ColDecision /></th>
+                        <th><T key=MsgKey::ColPlatform /></th>
                         <th>""</th>
                     </tr>
                 </thead>
@@ -47,6 +48,7 @@ fn OrderTableInner(rows: Vec<OrderRow>) -> impl IntoView {
                                     <td>{r.amount_minor.clone()}</td>
                                     <td>{r.risk_score}</td>
                                     <td>{r.risk_decision.clone()}</td>
+                                    <td>{r.platform_origin.clone()}</td>
                                     <td><span class="ap-muted"><T key=MsgKey::Detail /></span></td>
                                 </tr>
                             }

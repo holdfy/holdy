@@ -6,6 +6,7 @@ pub mod oauth_handler;
 pub mod importer_handler;
 pub mod kyc_handler;
 pub mod logistics_handler;
+pub mod media_handler;
 pub mod order_handler;
 pub mod payment_handler;
 pub mod proposal_handler;

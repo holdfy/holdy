@@ -31,6 +31,41 @@ impl fmt::Display for OrderStatus {
     }
 }
 
+/// Client channel that originated an order (analytics — "de onde vem a venda").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlatformOrigin {
+    Whatsapp,
+    Site,
+    AppIos,
+    AppAndroid,
+}
+
+impl fmt::Display for PlatformOrigin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PlatformOrigin::Whatsapp => write!(f, "whatsapp"),
+            PlatformOrigin::Site => write!(f, "site"),
+            PlatformOrigin::AppIos => write!(f, "app_ios"),
+            PlatformOrigin::AppAndroid => write!(f, "app_android"),
+        }
+    }
+}
+
+impl std::str::FromStr for PlatformOrigin {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "whatsapp" => Ok(PlatformOrigin::Whatsapp),
+            "site" => Ok(PlatformOrigin::Site),
+            "app_ios" => Ok(PlatformOrigin::AppIos),
+            "app_android" => Ok(PlatformOrigin::AppAndroid),
+            _ => Err(format!("unknown platform origin: {s}")),
+        }
+    }
+}
+
 /// Payment rail state (fiat or on-chain leg).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

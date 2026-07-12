@@ -49,6 +49,7 @@ pub async fn list_orders(
             risk_decision: s.risk_decision.clone(),
             custody_id: s.custody_id,
             created_at: s.order.created_at,
+            platform_origin: s.platform_origin,
         });
     }
 

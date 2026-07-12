@@ -63,6 +63,7 @@ pub struct OrderRow {
     pub risk_decision: String,
     pub custody_id: Option<String>,
     pub created_at: String,
+    pub platform_origin: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

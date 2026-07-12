@@ -309,6 +309,7 @@ pub async fn create_order(
         soroban_lock_tx_hash: None,
         soroban_mode,
         buyer_name: req.buyer_name.clone(),
+        platform_origin: req.platform_origin(),
     };
 
     state.orders.save(stored).await.map_err(|e| {
@@ -848,6 +849,7 @@ pub(crate) async fn create_escrow_order_core(
     social_links: &[String],
     description: Option<&str>,
     bypass_block: bool,
+    platform: apicash_shared::PlatformOrigin,
 ) -> Result<crate::dto::OrderResponse, ApiError> {
     let amount = Money::from_str_strict(amount_str.trim()).map_err(|e| {
         error!(error = %e, "invalid amount");
@@ -951,6 +953,7 @@ pub(crate) async fn create_escrow_order_core(
         soroban_lock_tx_hash: None,
         soroban_mode,
         buyer_name: None,
+        platform_origin: platform,
     };
 
     state.orders.save(stored).await.map_err(|e| {
