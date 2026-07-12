@@ -9,6 +9,7 @@ pub mod facebook;
 pub mod json_ld;
 pub mod llm;
 pub mod mercado_livre;
+pub mod olx;
 pub mod open_graph;
 pub mod tiktok;
 
@@ -16,6 +17,7 @@ pub use facebook::FacebookExtractor;
 pub use json_ld::JsonLdExtractor;
 pub use llm::LlmExtractor;
 pub use mercado_livre::MercadoLivreExtractor;
+pub use olx::OlxExtractor;
 pub use open_graph::OpenGraphExtractor;
 pub use tiktok::TikTokExtractor;
 

@@ -14,6 +14,7 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 chromium.use(StealthPlugin());
 import { scrapeTikTok } from "./scrapers/tiktok";
 import { scrapeFacebook } from "./scrapers/facebook";
+import { scrapeOlx } from "./scrapers/olx";
 
 const PORT = parseInt(process.env.SCRAPER_PORT || "4000");
 const API_KEY = process.env.SCRAPER_API_KEY || "";
@@ -56,18 +57,36 @@ function isFacebook(url: string): boolean {
   return url.includes("facebook.com") || url.includes("fb.com");
 }
 
+function isOlx(url: string): boolean {
+  return url.includes("olx.com");
+}
+
 async function scrape(url: string): Promise<unknown> {
   const b = await getBrowser();
-  const context = await b.newContext({
-    userAgent:
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
-    viewport: { width: 390, height: 844 },
-    locale: "pt-BR",
-    timezoneId: "America/Sao_Paulo",
-    extraHTTPHeaders: {
-      "Accept-Language": "pt-BR,pt;q=0.9",
-    },
-  });
+  // OLX: challenge do Cloudflare foi validado com UA/viewport desktop — mobile não foi testado.
+  const context = await b.newContext(
+    isOlx(url)
+      ? {
+          userAgent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          viewport: { width: 1366, height: 900 },
+          locale: "pt-BR",
+          timezoneId: "America/Sao_Paulo",
+          extraHTTPHeaders: {
+            "Accept-Language": "pt-BR,pt;q=0.9",
+          },
+        }
+      : {
+          userAgent:
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+          viewport: { width: 390, height: 844 },
+          locale: "pt-BR",
+          timezoneId: "America/Sao_Paulo",
+          extraHTTPHeaders: {
+            "Accept-Language": "pt-BR,pt;q=0.9",
+          },
+        }
+  );
 
   try {
     const page = await context.newPage();
@@ -139,6 +158,11 @@ async function scrape(url: string): Promise<unknown> {
     if (isFacebook(url)) {
       console.log(`[scraper] Facebook URL: ${url.substring(0, 100)}`);
       return await scrapeFacebook(page, url);
+    }
+
+    if (isOlx(url)) {
+      console.log(`[scraper] OLX URL: ${url.substring(0, 100)}`);
+      return await scrapeOlx(page, url);
     }
 
     return { error: "platform not supported", url };
