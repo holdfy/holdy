@@ -53,6 +53,14 @@ impl DisputeImageStore {
         Ok((key, url, sha256))
     }
 
+    /// Extrai o minio_key de uma URL já hospedada (ex: enviada pelo WhatsApp,
+    /// que faz o upload por conta própria e manda a URL pronta), removendo o
+    /// prefixo `{endpoint}/{bucket}/`. `None` se a URL não bater com este store.
+    pub fn key_from_url(&self, url: &str) -> Option<String> {
+        let prefix = format!("{}/{}/", self.endpoint, self.bucket);
+        url.strip_prefix(&prefix).map(|s| s.to_string())
+    }
+
     async fn put_object(&self, key: &str, body: &[u8], content_type: &str)
         -> Result<(), DisputeError>
     {

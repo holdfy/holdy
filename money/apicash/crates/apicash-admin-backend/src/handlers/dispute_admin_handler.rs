@@ -17,23 +17,48 @@ pub struct ResolveDisputeBody {
     pub notes: Option<String>,
 }
 
+/// `Dispute.evidence` é o campo JSONB legado (sempre `[]` na prática — `open_dispute`
+/// sempre insere `vec![]`). A evidência real mora na tabela `dispute_evidence`,
+/// exposta via `get_dispute_with_evidence`. Sobrescrevemos a chave `evidence` do
+/// JSON com as `EvidenceRow` reais antes de devolver ao admin.
+async fn dispute_json_with_evidence(
+    state: &AdminState,
+    dispute: Dispute,
+) -> Result<serde_json::Value, AdminError> {
+    let dispute_id = dispute.id;
+    let mut value = serde_json::to_value(dispute)
+        .map_err(|e| AdminError::internal(e.to_string()))?;
+    let (_, evidence) = state
+        .disputes
+        .get_dispute_with_evidence(dispute_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("dispute {dispute_id}")))?;
+    value["evidence"] = serde_json::to_value(evidence)
+        .map_err(|e| AdminError::internal(e.to_string()))?;
+    Ok(value)
+}
+
 pub async fn list_disputes(
     State(state): State<AdminState>,
-) -> Result<Json<Vec<Dispute>>, AdminError> {
+) -> Result<Json<Vec<serde_json::Value>>, AdminError> {
     let list = state.disputes.list_all_disputes().await?;
-    Ok(Json(list))
+    let mut out = Vec::with_capacity(list.len());
+    for dispute in list {
+        out.push(dispute_json_with_evidence(&state, dispute).await?);
+    }
+    Ok(Json(out))
 }
 
 pub async fn get_dispute(
     State(state): State<AdminState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Dispute>, AdminError> {
+) -> Result<Json<serde_json::Value>, AdminError> {
     let d = state
         .disputes
         .get_dispute(id)
         .await?
         .ok_or_else(|| AdminError::NotFound(format!("dispute {id}")))?;
-    Ok(Json(d))
+    Ok(Json(dispute_json_with_evidence(&state, d).await?))
 }
 
 pub async fn resolve_dispute(

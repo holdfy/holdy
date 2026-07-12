@@ -57,6 +57,10 @@ pub fn admin_router(state: AdminState) -> Router {
             "/admin/dev/orders/{id}/release",
             post(dev_handler::force_release_order),
         )
+        .route(
+            "/admin/dev/proposals/{id}/force-accept",
+            post(dev_handler::force_accept_proposal),
+        )
         .route("/admin/dev/wallet", get(dev_wallet_handler::get_wallet))
         .route("/admin/dev/wallet/mint", post(dev_wallet_handler::mint_wallet))
         .layer(middleware::from_fn(move |req, next| {

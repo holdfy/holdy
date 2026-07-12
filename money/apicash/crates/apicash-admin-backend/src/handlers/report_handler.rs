@@ -25,6 +25,8 @@ pub async fn list_user_scores(
             user_id: s.user_id,
             score: s.score,
             risk_level: s.risk_level,
+            decision: s.decision,
+            factors: s.factors,
         })
         .collect();
 

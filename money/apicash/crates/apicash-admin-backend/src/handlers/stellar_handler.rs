@@ -14,6 +14,8 @@ pub struct StellarTxRow {
     pub buyer_name:                  String,
     pub buyer_document:              String,
     pub seller_id:                   String,
+    pub seller_name:                 String,
+    pub seller_document:             String,
     pub amount_brl:                  String,
     pub order_status:                String,
     pub custody_status:              Option<String>,
@@ -62,17 +64,21 @@ pub async fn list_stellar_transactions(
         }
     };
 
-    // Junta orders + custody + wa_contacts para obter nome e documento do comprador.
+    // Junta orders + custody para hashes on-chain, e wa_contacts + users (nessa ordem de
+    // prioridade) para nome/documento — cobre tanto identidade coletada via WhatsApp quanto
+    // via cadastro web (social/e-mail+senha), que não passa por wa_contacts.
     let rows = sqlx::query(r#"
         SELECT
-            o.id::text                          AS order_id,
-            COALESCE(o.buyer_name, wc.name, '')  AS buyer_name,
-            COALESCE(wc.document, '')             AS buyer_document,
-            o.seller_id::text                    AS seller_id,
-            o.amount::text                       AS amount_brl,
-            o.status                             AS order_status,
-            c.status                             AS custody_status,
-            COALESCE(o.soroban_mode, 'simulated') AS soroban_mode,
+            o.id::text                                        AS order_id,
+            COALESCE(o.buyer_name, wc.name, u.name, '')        AS buyer_name,
+            COALESCE(wc.document, u.document, '')              AS buyer_document,
+            o.seller_id::text                                  AS seller_id,
+            COALESCE(swc.name, su.name, '')                    AS seller_name,
+            COALESCE(swc.document, su.document, '')            AS seller_document,
+            o.amount::text                                     AS amount_brl,
+            o.status                                           AS order_status,
+            c.status                                           AS custody_status,
+            COALESCE(o.soroban_mode, 'simulated')               AS soroban_mode,
             o.soroban_escrow_contract_id,
             o.soroban_lock_tx_hash,
             c.soroban_release_tx_hash,
@@ -81,6 +87,9 @@ pub async fn list_stellar_transactions(
         FROM orders o
         LEFT JOIN custody c ON c.order_id = o.id
         LEFT JOIN wa_contacts wc ON wc.user_id = o.buyer_id
+        LEFT JOIN users u ON u.id = o.buyer_id
+        LEFT JOIN wa_contacts swc ON swc.user_id = o.seller_id
+        LEFT JOIN users su ON su.id = o.seller_id
         WHERE o.soroban_mode IS NOT NULL
            OR o.soroban_lock_tx_hash IS NOT NULL
            OR o.fiat_rail = 'anchor'
@@ -116,6 +125,8 @@ pub async fn list_stellar_transactions(
             buyer_name:                r.try_get("buyer_name").unwrap_or_default(),
             buyer_document:            r.try_get("buyer_document").unwrap_or_default(),
             seller_id:                 r.try_get("seller_id").unwrap_or_default(),
+            seller_name:               r.try_get("seller_name").unwrap_or_default(),
+            seller_document:           r.try_get("seller_document").unwrap_or_default(),
             amount_brl:                r.try_get("amount_brl").unwrap_or_default(),
             order_status:              r.try_get("order_status").unwrap_or_default(),
             custody_status:            r.try_get("custody_status").unwrap_or(None),

@@ -237,8 +237,9 @@ pub async fn create_order(
             audit = ?ev,
             "order rejected by risk policy"
         );
-        return Err(ApiError::forbidden(
+        return Err(ApiError::forbidden_coded(
             "on-ramp blocked by anti-fraud policy for this user",
+            "antifraud_block",
         ));
     }
 
@@ -524,12 +525,30 @@ pub async fn seller_dashboard(
     })))
 }
 
-/// Pré-cálculo de score anti-fraude com fatores detalhados (sem criar pedido).
+/// Resposta pública de score — sem `factors`. O breakdown detalhado (fatores/pesos)
+/// é dado sensível: expô-lo ensina o próprio usuário avaliado a burlar o modelo
+/// (ex.: "espere 24h entre pedidos", "não abra disputa"). Fica reservado ao admin
+/// (`GET /admin/users/score`).
+#[derive(Debug, Serialize)]
+pub struct PublicUserScore {
+    pub score: u32,
+    pub risk_level: apicash_antifraude::RiskLevel,
+    pub decision: OnRampDecision,
+}
+
+impl From<UserScore> for PublicUserScore {
+    fn from(s: UserScore) -> Self {
+        Self { score: s.score, risk_level: s.risk_level, decision: s.decision }
+    }
+}
+
+/// Pré-cálculo de score anti-fraude (sem criar pedido). Não devolve `factors`
+/// — ver `PublicUserScore`.
 #[instrument(skip(state, req), fields(user_id = %req.user_id))]
 pub async fn calculate_risk_score(
     State(state): State<Arc<AppState>>,
     Json(req): Json<RiskScoreRequest>,
-) -> Result<Json<UserScore>, ApiError> {
+) -> Result<Json<PublicUserScore>, ApiError> {
     req.validate().map_err(ApiError::bad_request)?;
     let cpf: String = req.cpf.chars().filter(|c| c.is_ascii_digit()).collect();
     let score = state
@@ -540,10 +559,10 @@ pub async fn calculate_risk_score(
             error!(error = %e, "antifraude risk score failed");
             ApiError::from(e)
         })?;
-    Ok(Json(score))
+    Ok(Json(score.into()))
 }
 
-fn extract_bearer(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn extract_bearer(headers: &HeaderMap) -> Option<&str> {
     headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
@@ -553,7 +572,7 @@ fn extract_bearer(headers: &HeaderMap) -> Option<&str> {
         })
 }
 
-fn extract_x_api_key(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn extract_x_api_key(headers: &HeaderMap) -> Option<&str> {
     headers
         .get("x-api-key")
         .and_then(|v| v.to_str().ok())
@@ -814,6 +833,11 @@ fn resolve_escrow_contract_id() -> Result<String, &'static str> {
 ///
 /// Skips JWT binding (caller must verify identity before invoking). Performs anti-fraud scoring,
 /// PIX on-ramp, and persistence; returns the full order response on success.
+///
+/// `bypass_block`: pula a rejeição por `OnRampDecision::Block` (o score ainda é calculado e
+/// logado normalmente). Usado **só** pela ferramenta dev/testnet de forçar aceite de proposta
+/// (`/internal/proposals/{id}/force-accept`, nunca acessível em mainnet) — nunca `true` nos
+/// fluxos normais de `POST /orders` / `POST /proposals/{id}/accept`.
 #[instrument(skip(state, social_links, description), fields(%buyer_id, %seller_id))]
 pub(crate) async fn create_escrow_order_core(
     state: &Arc<AppState>,
@@ -823,6 +847,7 @@ pub(crate) async fn create_escrow_order_core(
     cpf: &str,
     social_links: &[String],
     description: Option<&str>,
+    bypass_block: bool,
 ) -> Result<crate::dto::OrderResponse, ApiError> {
     let amount = Money::from_str_strict(amount_str.trim()).map_err(|e| {
         error!(error = %e, "invalid amount");
@@ -841,16 +866,25 @@ pub(crate) async fn create_escrow_order_core(
             ApiError::from(e)
         })?;
 
-    if score.decision == OnRampDecision::Block {
+    if score.decision == OnRampDecision::Block && !bypass_block {
         warn!(
             %buyer_id,
             %order_id,
             score = score.score,
             "order creation blocked by anti-fraud policy"
         );
-        return Err(ApiError::forbidden(
+        return Err(ApiError::forbidden_coded(
             "on-ramp blocked by anti-fraud policy for this user",
+            "antifraud_block",
         ));
+    }
+    if score.decision == OnRampDecision::Block && bypass_block {
+        warn!(
+            %buyer_id,
+            %order_id,
+            score = score.score,
+            "anti-fraud block bypassed via dev/testnet force-accept"
+        );
     }
 
     let now = Utc::now();
@@ -1191,6 +1225,37 @@ pub async fn add_dispute_evidence(
         Some("photo") | _     => apicash_disputes::EvidenceKind::Photo,
     };
 
+    // Fotos/vídeos chegam de duas formas: (a) já hospedadas — o WhatsApp faz o
+    // upload pro MinIO por conta própria e manda a URL pronta em `content`; ou
+    // (b) bytes crus em base64 — o site manda o arquivo direto, sem hospedar antes.
+    let is_media = matches!(
+        kind,
+        apicash_disputes::EvidenceKind::Photo | apicash_disputes::EvidenceKind::Video
+    );
+    let mut hosted_url = None;
+    let mut bytes = None;
+    let mut content = body.content.clone();
+
+    if is_media {
+        if let Some(raw) = body.content.as_deref() {
+            if raw.starts_with("http://") || raw.starts_with("https://") {
+                hosted_url = Some(raw.to_string());
+                content = None;
+            } else {
+                use base64::Engine as _;
+                match base64::engine::general_purpose::STANDARD.decode(raw) {
+                    Ok(decoded) => {
+                        bytes = Some(decoded);
+                        content = None;
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "add_dispute_evidence: base64 decode failed, storing as text");
+                    }
+                }
+            }
+        }
+    }
+
     let row = state
         .disputes
         .add_evidence(
@@ -1199,8 +1264,10 @@ pub async fn add_dispute_evidence(
             party,
             kind,
             body.ext.as_deref(),
-            None, // binary bytes via multipart handled separately
-            body.content.clone(),
+            bytes,
+            content,
+            hosted_url,
+            body.sha256_override.clone(),
         )
         .await
         .map_err(|e| {
@@ -1228,6 +1295,8 @@ pub struct EvidenceBody {
     pub kind:    Option<String>,
     pub ext:     Option<String>,
     pub content: Option<String>,
+    #[serde(default)]
+    pub sha256_override: Option<String>,
 }
 
 /// Trigger IA analysis for a dispute (fire-and-forget from WhatsApp background task).
@@ -1294,12 +1363,27 @@ use rust_decimal::prelude::ToPrimitive;
 ///
 /// Deve ser chamado após `custody.release_funds_override()` (que libera o Soroban).
 /// `verdict`: "favor_buyer" (refund ao comprador) ou "favor_seller" (pagamento ao vendedor).
-#[instrument(skip(state), fields(order_id = %id))]
+///
+/// Endpoint interno (service-to-service): chamado por `apicash-disputes` (auto-resolve IA)
+/// e `apicash-admin-backend` (resolução manual) via `x-api-key`, nunca por um usuário final.
+#[instrument(skip(state, headers), fields(order_id = %id))]
 pub async fn dispute_complete(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Path(id): Path<Uuid>,
     Json(body): Json<DisputeCompleteBody>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
+    let expected = std::env::var("APICASH_API_KEY").unwrap_or_default();
+    if expected.is_empty() {
+        return Err(ApiError::internal("internal API key not configured"));
+    }
+    let got = extract_x_api_key(&headers).or_else(|| extract_bearer(&headers));
+    if got != Some(expected.as_str()) {
+        return Err(ApiError::unauthorized(
+            "missing or invalid internal API key",
+        ));
+    }
+
     let mut stored = state
         .orders
         .get(id)

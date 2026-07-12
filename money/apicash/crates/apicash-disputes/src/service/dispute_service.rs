@@ -159,6 +159,9 @@ impl DisputeService {
     /// Adiciona evidência a uma disputa existente.
     /// `bytes`: conteúdo binário (foto/vídeo) ou `None` para textos.
     /// `content`: texto livre (rastreio, mensagem) ou `None` para mídias.
+    /// `hosted_url`: URL já hospedada (ex.: WhatsApp, que faz o upload por conta
+    /// própria e manda a URL pronta) — usada só quando `bytes` é `None`.
+    /// `sha256_override`: hash real do conteúdo original, quando o chamador já o calculou.
     #[instrument(skip(self, bytes), fields(dispute_id = %dispute_id))]
     pub async fn add_evidence(
         &self,
@@ -169,6 +172,8 @@ impl DisputeService {
         ext: Option<&str>,
         bytes: Option<Vec<u8>>,
         content: Option<String>,
+        hosted_url: Option<String>,
+        sha256_override: Option<String>,
     ) -> Result<EvidenceRow, DisputeError> {
         let d = self.repo.get(dispute_id).await?
             .ok_or(DisputeError::NotFound(dispute_id))?;
@@ -179,19 +184,24 @@ impl DisputeService {
             ));
         }
 
-        let (minio_key, minio_url, sha256) = if let (Some(b), Some(ext)) = (&bytes, ext) {
+        let (minio_key, minio_url, content, sha256) = if let (Some(b), Some(ext)) = (&bytes, ext) {
             if let Some(store) = &self.image_store {
                 let (k, u, h) = store.upload(dispute_id, ext, b).await?;
-                (Some(k), Some(u), h)
+                (Some(k), Some(u), None, sha256_override.unwrap_or(h))
             } else {
                 let h = hex_sha256(b);
                 tracing::warn!(dispute_id = %dispute_id, "MinIO not configured — storing evidence hash only");
-                (None, None, h)
+                (None, None, content, sha256_override.unwrap_or(h))
             }
+        } else if let Some(url) = hosted_url {
+            let key = self.image_store.as_ref().and_then(|s| s.key_from_url(&url));
+            let fallback_content = if key.is_none() { Some(url.clone()) } else { None };
+            let sha = sha256_override.unwrap_or_else(|| hex_sha256(url.as_bytes()));
+            (key, Some(url), fallback_content, sha)
         } else {
             let text = content.as_deref().unwrap_or("");
             let h = hex_sha256(text.as_bytes());
-            (None, None, h)
+            (None, None, content, sha256_override.unwrap_or(h))
         };
 
         let row = EvidenceRow {

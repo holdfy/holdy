@@ -6,7 +6,9 @@ use apicash_custody::{
     CustodyRepository, CustodyService, CustodyStatus, InMemoryCustodyRepository, YieldCalculator,
 };
 use apicash_disputes::models::{DisputeParty, DisputeStatus, Evidence, EvidenceKind};
-use apicash_disputes::repository::{DisputeRepository, InMemoryDisputeRepository};
+use apicash_disputes::repository::{
+    DisputeRepository, EvidenceRepository, InMemoryDisputeRepository, InMemoryEvidenceRepository,
+};
 use apicash_disputes::service::NoopDisputeEventSink;
 use apicash_disputes::{DisputeService, ResolutionType};
 use apicash_shared::{Money, Order, OrderStatus};
@@ -38,8 +40,15 @@ async fn open_dispute_marks_custody_disputed_and_persists() {
     custody.lock_funds(&order).await.expect("lock");
 
     let dr: Arc<dyn DisputeRepository> = Arc::new(InMemoryDisputeRepository::new());
+    let er: Arc<dyn EvidenceRepository> = Arc::new(InMemoryEvidenceRepository::new());
     let events = Arc::new(NoopDisputeEventSink);
-    let svc = DisputeService::new(dr.clone(), custody.clone(), events, Default::default());
+    let svc = DisputeService::new(
+        dr.clone(),
+        er,
+        custody.clone(),
+        events,
+        Default::default(),
+    );
 
     let ev = vec![Evidence {
         kind: EvidenceKind::Message,
@@ -54,6 +63,7 @@ async fn open_dispute_marks_custody_disputed_and_persists() {
             order.buyer_id,
             "not delivered".into(),
             ev,
+            None,
         )
         .await
         .expect("open");
@@ -78,8 +88,10 @@ async fn resolve_release_releases_custody() {
     custody.lock_funds(&order).await.expect("lock");
 
     let dr: Arc<dyn DisputeRepository> = Arc::new(InMemoryDisputeRepository::new());
+    let er: Arc<dyn EvidenceRepository> = Arc::new(InMemoryEvidenceRepository::new());
     let svc = DisputeService::new(
         dr,
+        er,
         custody.clone(),
         Arc::new(NoopDisputeEventSink),
         Default::default(),
@@ -92,6 +104,7 @@ async fn resolve_release_releases_custody() {
             order.buyer_id,
             "defect".into(),
             vec![],
+            None,
         )
         .await
         .expect("open");
@@ -123,8 +136,10 @@ async fn manual_resolution_does_not_release() {
     custody.lock_funds(&order).await.expect("lock");
 
     let dr: Arc<dyn DisputeRepository> = Arc::new(InMemoryDisputeRepository::new());
+    let er: Arc<dyn EvidenceRepository> = Arc::new(InMemoryEvidenceRepository::new());
     let svc = DisputeService::new(
         dr,
+        er,
         custody.clone(),
         Arc::new(NoopDisputeEventSink),
         Default::default(),
@@ -137,6 +152,7 @@ async fn manual_resolution_does_not_release() {
             order.seller_id,
             "buyer claim".into(),
             vec![],
+            None,
         )
         .await
         .expect("open");

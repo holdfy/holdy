@@ -10,10 +10,11 @@ use std::sync::Arc;
 
 use apicash_auth::JwtClaims;
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::Extension;
 use axum::Json;
 use chrono::{Duration, Utc};
+use serde::Deserialize;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
@@ -24,7 +25,7 @@ use crate::dto::{
 use crate::error::ApiError;
 use crate::state::AppState;
 
-use super::order_handler::create_escrow_order_core;
+use super::order_handler::{create_escrow_order_core, extract_bearer, extract_x_api_key};
 
 const PROPOSAL_TTL_MINUTES: i64 = 60;
 const DEFAULT_CPF_PLACEHOLDER: &str = "52998224725";
@@ -202,6 +203,7 @@ pub async fn accept_proposal(
         cpf,
         &social_links,
         desc,
+        false,
     )
     .await?;
 
@@ -244,6 +246,115 @@ pub async fn accept_proposal(
         order_id = %order.id,
         buyer_id = %buyer_id,
         "proposal accepted → order created"
+    );
+
+    Ok(Json(AcceptProposalResponse {
+        proposal_id: id,
+        order_id: order.id,
+        pix_br_code,
+        amount: proposal.amount,
+        status: ProposalStatus::Accepted,
+        funding_instruction,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ForceAcceptProposalBody {
+    /// Comprador a usar quando a proposta é "aberta" (sem `buyer_id` definido).
+    /// Ignorado se a proposta já tiver um comprador vinculado.
+    #[serde(default)]
+    pub buyer_id: Option<Uuid>,
+    #[serde(default)]
+    pub cpf: Option<String>,
+}
+
+/// Endpoint interno (service-to-service, `x-api-key`), **nunca** exposto ao browser.
+/// Igual a `accept_proposal`, mas ignora bloqueio anti-fraude (`bypass_block: true`) — é a
+/// ferramenta dev/testnet ("Forçar aceite") pra destravar testes quando a política de risco
+/// bloqueia legitimamente um comprador de teste (velocidade/volume/CPF). O score continua
+/// sendo calculado e logado normalmente, só a rejeição é pulada.
+///
+/// Nunca chamado pelo fluxo normal do site — só pelo painel admin (`apicash-admin-backend`),
+/// que por sua vez só libera esse botão fora de mainnet.
+#[instrument(skip(state, headers, body), fields(proposal_id = %id))]
+pub async fn force_accept_proposal_internal(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(body): Json<ForceAcceptProposalBody>,
+) -> Result<Json<AcceptProposalResponse>, ApiError> {
+    let expected = std::env::var("APICASH_API_KEY").unwrap_or_default();
+    if expected.is_empty() {
+        return Err(ApiError::internal("internal API key not configured"));
+    }
+    let got = extract_x_api_key(&headers).or_else(|| extract_bearer(&headers));
+    if got != Some(expected.as_str()) {
+        return Err(ApiError::unauthorized(
+            "missing or invalid internal API key",
+        ));
+    }
+
+    let mut proposal = load_proposal(&state, id).await?;
+
+    if proposal.is_expired() {
+        return Err(ApiError::bad_request("proposal has expired"));
+    }
+    if proposal.status != ProposalStatus::Pending {
+        return Err(ApiError::bad_request(format!(
+            "proposal is not pending (current status: {})",
+            proposal.status
+        )));
+    }
+
+    let buyer_id = if !proposal.buyer_id.is_nil() {
+        proposal.buyer_id
+    } else {
+        body.buyer_id.ok_or_else(|| {
+            ApiError::bad_request("buyer_id required to force-accept an open proposal")
+        })?
+    };
+
+    let cpf = body.cpf.as_deref().unwrap_or(DEFAULT_CPF_PLACEHOLDER);
+    let desc = proposal.description.as_deref();
+
+    let order = create_escrow_order_core(
+        &state,
+        buyer_id,
+        proposal.seller_id,
+        &proposal.amount,
+        cpf,
+        &[],
+        desc,
+        true,
+    )
+    .await?;
+
+    let pix_br_code = order.pix_br_code.clone().unwrap_or_default();
+    let funding_instruction = order
+        .funding_instruction
+        .clone()
+        .unwrap_or_else(|| "PIX copia-e-cola disponível em pix_br_code.".to_string());
+
+    proposal.status = ProposalStatus::Accepted;
+    proposal.order_id = Some(order.id);
+    state.proposals.update(proposal.clone()).await.map_err(|e| {
+        error!(error = %e, "proposal update failed");
+        ApiError::internal("proposal persistence failed")
+    })?;
+
+    if let (Some(listing_id), Some(repo)) = (proposal.listing_id, &state.listing_repo) {
+        if let Err(e) = repo.set_order_id(listing_id, order.id).await {
+            warn!(%listing_id, order_id = %order.id, error = %e, "listing→order link failed (non-critical)");
+        } else {
+            info!(%listing_id, order_id = %order.id, "listing linked to order");
+        }
+    }
+
+    warn!(
+        proposal_id = %id,
+        order_id = %order.id,
+        buyer_id = %buyer_id,
+        "proposal force-accepted via dev/testnet tool (anti-fraud bypassed)"
     );
 
     Ok(Json(AcceptProposalResponse {

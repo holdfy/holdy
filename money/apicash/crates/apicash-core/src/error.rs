@@ -10,6 +10,10 @@ use serde_json::json;
 pub struct ApiError {
     pub status: StatusCode,
     pub message: String,
+    /// Código estável opcional para o frontend distinguir o motivo sem parsear
+    /// a mensagem (ex.: escolher uma mensagem amigável traduzida no lugar do
+    /// texto cru de erro).
+    pub code: Option<&'static str>,
 }
 
 impl ApiError {
@@ -17,6 +21,7 @@ impl ApiError {
         Self {
             status: StatusCode::BAD_REQUEST,
             message: msg.into(),
+            code: None,
         }
     }
 
@@ -24,6 +29,16 @@ impl ApiError {
         Self {
             status: StatusCode::FORBIDDEN,
             message: msg.into(),
+            code: None,
+        }
+    }
+
+    /// Como `forbidden`, mas com um `code` estável no corpo JSON (`{"error": ..., "code": ...}`).
+    pub fn forbidden_coded(msg: impl Into<String>, code: &'static str) -> Self {
+        Self {
+            status: StatusCode::FORBIDDEN,
+            message: msg.into(),
+            code: Some(code),
         }
     }
 
@@ -31,6 +46,7 @@ impl ApiError {
         Self {
             status: StatusCode::UNAUTHORIZED,
             message: msg.into(),
+            code: None,
         }
     }
 
@@ -38,6 +54,7 @@ impl ApiError {
         Self {
             status: StatusCode::NOT_FOUND,
             message: msg.into(),
+            code: None,
         }
     }
 
@@ -45,6 +62,7 @@ impl ApiError {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             message: msg.into(),
+            code: None,
         }
     }
 
@@ -52,6 +70,7 @@ impl ApiError {
         Self {
             status: StatusCode::CONFLICT,
             message: msg.into(),
+            code: None,
         }
     }
 
@@ -60,6 +79,7 @@ impl ApiError {
         Self {
             status: StatusCode::BAD_GATEWAY,
             message: msg.into(),
+            code: None,
         }
     }
 }
@@ -101,7 +121,10 @@ impl From<apicash_auth::AuthError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let body = json!({ "error": self.message });
+        let body = match self.code {
+            Some(code) => json!({ "error": self.message, "code": code }),
+            None => json!({ "error": self.message }),
+        };
         (self.status, Json(body)).into_response()
     }
 }

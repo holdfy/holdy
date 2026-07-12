@@ -52,7 +52,6 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/orders/{id}/dispute", get(order_handler::get_dispute))
         .route("/orders/{id}/dispute/evidence", post(order_handler::add_dispute_evidence))
         .route("/orders/{id}/dispute/analyze", post(order_handler::analyze_dispute))
-        .route("/orders/{id}/dispute/complete", post(order_handler::dispute_complete))
         .route("/risk/score", post(order_handler::calculate_risk_score))
         .route("/reputation/{user_id}", get(reputation_handler::get_reputation))
         .route("/kyc/document/{document}", get(kyc_handler::lookup_document))
@@ -109,6 +108,14 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route(
             "/internal/orders/release",
             post(custody_handler::release_custody_internal),
+        )
+        .route(
+            "/orders/{id}/dispute/complete",
+            post(order_handler::dispute_complete),
+        )
+        .route(
+            "/internal/proposals/{id}/force-accept",
+            post(proposal_handler::force_accept_proposal_internal),
         )
         .route("/internal/listings/import", post(importer_handler::import_listing))
         .route("/internal/listings/import/async", post(importer_handler::import_listing_async))

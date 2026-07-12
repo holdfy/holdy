@@ -1,6 +1,6 @@
 //! Query params para relatórios.
 
-use apicash_antifraude::RiskLevel;
+use apicash_antifraude::{OnRampDecision, RiskFactor, RiskLevel};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -37,4 +37,9 @@ pub struct UserScoreRow {
     pub user_id: uuid::Uuid,
     pub score: u32,
     pub risk_level: RiskLevel,
+    /// Decisão (approve/review/block) — só exposta aqui, no admin.
+    pub decision: OnRampDecision,
+    /// Breakdown detalhado dos fatores que compuseram o score — dado sensível,
+    /// nunca deve ser exposto em endpoints de usuário final (comprador/vendedor).
+    pub factors: Vec<RiskFactor>,
 }

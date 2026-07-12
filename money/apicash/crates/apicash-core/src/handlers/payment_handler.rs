@@ -91,8 +91,9 @@ pub async fn create_pix_payment(
 
     if score.decision == OnRampDecision::Block {
         info!(user_id = %req.user_id, "PIX flow blocked by risk policy");
-        return Err(ApiError::forbidden(
+        return Err(ApiError::forbidden_coded(
             "on-ramp blocked by anti-fraud policy for this user",
+            "antifraud_block",
         ));
     }
 
