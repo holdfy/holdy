@@ -32,16 +32,16 @@ fn Layout() -> impl IntoView {
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    // Em produção o app roda atrás de um proxy reverso em `/admin/` (nginx faz
-    // `location /admin/ { proxy_pass http://...:3002/; }`) — sem isso, links internos
-    // (<A href="/orders">) resolveriam pra `/orders` na raiz do domínio, que cai no site
-    // principal em vez de voltar pra cá. Localmente (sem proxy) fica vazio, servindo na raiz.
-    let base_path = std::env::var("APICASH_FRONTEND_BASE_PATH").unwrap_or_default();
-
+    // NÃO usar o prop `base` do <Router> aqui: o nginx já remove o prefixo `/admin/`
+    // antes de repassar a requisição pro backend (`proxy_pass http://...:3002/`), então
+    // o servidor sempre recebe paths sem prefixo — `base` mudaria o que o router casa
+    // no servidor e quebraria toda rota (testado: gera 404 em tudo). O prefixo só
+    // precisa aparecer no HTML devolvido ao navegador — ver `APICASH_FRONTEND_BASE_PATH`
+    // usado em `sidebar.rs` e no `<Stylesheet>` de `main.rs`.
     view! {
         <I18nProvider>
             <AuthProvider>
-                <Router base=base_path>
+                <Router>
                     <Routes fallback=|| {
                         view! { <p class="ap-muted"><T key=MsgKey::PageNotFound /></p> }
                     }>
