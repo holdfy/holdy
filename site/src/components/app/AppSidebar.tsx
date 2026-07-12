@@ -1,4 +1,4 @@
-import { LayoutGrid, FileText, Wallet, User, Shield, LogOut } from "lucide-react";
+import { LayoutGrid, FileText, Wallet, User, Shield, LogOut, AlertTriangle } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
@@ -27,6 +27,7 @@ export function AppSidebar() {
     () => [
       { title: t("navBuyer.home"), url: "/buyer", icon: LayoutGrid },
       { title: t("navBuyer.orders"), url: "/buyer/orders", icon: FileText },
+      { title: t("navBuyer.disputes"), url: "/buyer/disputes", icon: AlertTriangle },
       { title: t("navBuyer.wallet"), url: "/buyer/wallet", icon: Wallet },
       { title: t("navBuyer.profile"), url: "/buyer/profile", icon: User },
     ],

@@ -7,6 +7,7 @@ import AppLogin from "@/pages/app/AppLogin";
 import RequireAuth from "@/components/RequireAuth";
 
 import BuyerLayout from "@/pages/buyer/BuyerLayout";
+import BuyerDisputes from "@/pages/buyer/BuyerDisputes";
 import AppHome from "@/pages/app/AppHome";
 import AppOrders from "@/pages/app/AppOrders";
 import AppOrderDetail from "@/pages/app/AppOrderDetail";
@@ -33,6 +34,7 @@ const routes: RouteObject[] = [
       { index: true, element: <AppHome /> },
       { path: "orders", element: <AppOrders /> },
       { path: "orders/:id", element: <AppOrderDetail /> },
+      { path: "disputes", element: <BuyerDisputes /> },
       { path: "wallet", element: <AppWallet /> },
       { path: "profile", element: <AppProfile /> },
       { path: "payment", element: <AppPayment /> },

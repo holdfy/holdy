@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import type { ApiError, ImportedProductDraft } from "@/lib/api-client";
 import { useUserRole } from "@/contexts/UserRoleContext";
-import { getPublicSiteUrl } from "@/lib/utils";
+import { getPublicSiteUrl, copyToClipboard } from "@/lib/utils";
 import { detectPixKeyType, maskCurrencyBR, unmaskCurrencyBR, decimalToMaskedBR } from "@/lib/format";
 
 export default function SellerNewProposal() {
@@ -122,13 +122,16 @@ export default function SellerNewProposal() {
     },
   });
 
-  const copyLink = () => {
+  const copyLink = async () => {
     if (!proposalLink) return;
-    navigator.clipboard.writeText(proposalLink).then(() => {
+    const ok = await copyToClipboard(proposalLink);
+    if (ok) {
       setCopied(true);
       toast.success(t("common.copied", "Link copiado!"));
       setTimeout(() => setCopied(false), 2000);
-    });
+    } else {
+      toast.error(t("common.copyError", "Não foi possível copiar. Selecione e copie manualmente."));
+    }
   };
 
   const handleCreate = () => {

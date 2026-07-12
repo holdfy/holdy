@@ -25,3 +25,35 @@ export function getPublicSiteUrl(): string {
   }
   return origin;
 }
+
+/**
+ * Copia texto pra área de transferência. `navigator.clipboard` só existe em
+ * contexto seguro (HTTPS ou localhost) — acessando o site pelo IP da rede via
+ * HTTP (comum em dev), `navigator.clipboard` é `undefined` e `.writeText`
+ * quebra silenciosamente (o botão "parece" não fazer nada). Cai pro truque
+ * clássico de `textarea` + `execCommand("copy")` nesse caso.
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // cai pro fallback abaixo
+    }
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}

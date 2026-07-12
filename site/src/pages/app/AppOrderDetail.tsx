@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Shield, ArrowLeft, CheckCircle2, HelpCircle, CheckCheck, Loader2, Paperclip, X, AlertTriangle, PackageSearch, Bot, User } from "lucide-react";
+import { Shield, ArrowLeft, CheckCircle2, HelpCircle, CheckCheck, Loader2, Paperclip, AlertTriangle, PackageSearch, Bot, User } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +31,7 @@ import { api } from "@/lib/api-client";
 import { useUserRole } from "@/contexts/UserRoleContext";
 import type { ApiError, TrackingInfo, DisputeResponse } from "@/lib/api-client";
 import { TrackingCard } from "@/components/TrackingCard";
+import { DisputeEvidenceTimeline } from "@/components/dispute/DisputeEvidenceTimeline";
 
 // Steps: 0=Pago 1=Retido(custódia) 2=Enviado 3=Entregue 4=Liberado.
 // 2 e 3 vêm do status real da transportadora (simulador de rastreio), não só do escrow.
@@ -54,8 +55,69 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-function DisputeCard({ dispute, isSeller }: { dispute: DisputeResponse; isSeller: boolean }) {
+function DisputeCard({ dispute, isSeller, orderId }: { dispute: DisputeResponse; isSeller: boolean; orderId: string }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [trackingInput, setTrackingInput] = useState("");
+  const currentParty: "buyer" | "seller" = isSeller ? "seller" : "buyer";
+  const canAddEvidence = dispute.status === "open";
+
+  const refetchDispute = () => queryClient.invalidateQueries({ queryKey: ["dispute", orderId] });
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).slice(0, Math.max(0, 5 - dispute.evidence.length));
+    e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const base64 = await fileToBase64(file);
+        const kind = file.type.startsWith("video/") ? "video" : "photo";
+        const ext = file.name.split(".").pop();
+        await api.addDisputeEvidence(orderId, kind, base64, ext);
+      }
+      toast.success(t("order.toastEvidenceAdded", "Evidência adicionada."));
+      refetchDispute();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      toast.error(apiErr?.error ?? "Erro ao adicionar evidência");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const addTracking = async () => {
+    if (!trackingInput.trim()) return;
+    setUploading(true);
+    try {
+      await api.addDisputeEvidence(orderId, "tracking_code", trackingInput.trim());
+      setTrackingInput("");
+      toast.success(t("order.toastEvidenceAdded", "Evidência adicionada."));
+      refetchDispute();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      toast.error(apiErr?.error ?? "Erro ao adicionar evidência");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const finishAndAnalyze = async () => {
+    setAnalyzing(true);
+    try {
+      await api.analyzeDispute(orderId);
+      toast.success(t("order.toastAnalysisStarted", "Enviado para análise. Você será avisado quando sair um resultado."));
+      refetchDispute();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      toast.error(apiErr?.error ?? t("order.toastAnalysisError", "Erro ao enviar para análise"));
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const statusLabel: Record<string, string> = {
     open: t("order.disputeStatusOpen", "Aberta"),
     under_review: t("order.disputeStatusReview", "Em análise pela IA"),
@@ -118,6 +180,58 @@ function DisputeCard({ dispute, isSeller }: { dispute: DisputeResponse; isSeller
         </div>
       )}
 
+      <div className="border-t border-border pt-3 space-y-2">
+        <DisputeEvidenceTimeline evidence={dispute.evidence} currentParty={currentParty} />
+      </div>
+
+      {canAddEvidence && (
+        <div className="border-t border-border pt-3 space-y-2">
+          <p className="text-xs font-semibold text-foreground">{t("order.addEvidence", "Adicionar evidência")}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {t("order.addEvidenceHint", "Envie fotos, vídeos ou o código de rastreio. Você pode enviar aos poucos.")}
+          </p>
+          <label className="flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl p-3 cursor-pointer hover:bg-muted/50 transition text-xs text-muted-foreground">
+            <Paperclip className="h-3.5 w-3.5" />
+            <span>Fotos ou vídeos</span>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={handleFiles}
+              disabled={uploading || dispute.evidence.length >= 5}
+            />
+          </label>
+          <div className="flex gap-2">
+            <Input
+              value={trackingInput}
+              onChange={(e) => setTrackingInput(e.target.value)}
+              placeholder={t("order.evidenceKindTracking", "Código de rastreio")}
+              className="h-9 text-xs"
+              disabled={uploading}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={addTracking}
+              disabled={uploading || !trackingInput.trim()}
+            >
+              +
+            </Button>
+          </div>
+          <Button
+            type="button"
+            className="w-full h-10 rounded-xl vault-card border-0 text-white text-xs font-semibold hover:opacity-90"
+            onClick={finishAndAnalyze}
+            disabled={analyzing || uploading}
+          >
+            {analyzing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+            {t("order.finishAndAnalyze", "Concluir e enviar para análise")}
+          </Button>
+        </div>
+      )}
+
       {dispute.resolution_notes && (
         <div className="text-xs text-muted-foreground border-t border-border pt-3">
           <p className="font-semibold text-foreground mb-0.5">{t("order.resolutionNotes", "Notas da resolução")}</p>
@@ -161,6 +275,7 @@ export default function AppOrderDetail() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useUserRole();
+  const queryClient = useQueryClient();
   const isSeller = location.pathname.startsWith("/seller");
   const ordersPath = isSeller ? "/seller/orders" : "/buyer/orders";
   const profilePath = isSeller ? "/seller/profile" : "/buyer/profile";
@@ -168,7 +283,6 @@ export default function AppOrderDetail() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeNote, setDisputeNote] = useState("");
-  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [releaseLoading, setReleaseLoading] = useState(false);
@@ -299,20 +413,12 @@ export default function AppOrderDetail() {
     const fullReason = disputeNote.trim() ? `${reasonLabel}: ${disputeNote.trim()}` : reasonLabel;
     try {
       await api.openDispute(id!, fullReason);
-
-      // Upload each evidence file
-      for (const file of disputeFiles) {
-        const base64 = await fileToBase64(file);
-        const kind = file.type.startsWith("video/") ? "video" : "photo";
-        const ext = file.name.split(".").pop();
-        await api.addDisputeEvidence(id!, kind, base64, ext);
-      }
+      queryClient.invalidateQueries({ queryKey: ["dispute", id] });
 
       toast.success(t("order.toastDisputeSent"));
       setDisputeOpen(false);
       setDisputeReason("");
       setDisputeNote("");
-      setDisputeFiles([]);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       toast.error(apiErr?.error ?? t("order.toastDisputeError", "Erro ao abrir disputa"));
@@ -344,16 +450,6 @@ export default function AppOrderDetail() {
     } finally {
       setReleaseLoading(false);
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files ?? []).slice(0, 5);
-    setDisputeFiles((prev) => [...prev, ...selected].slice(0, 5));
-    e.target.value = "";
-  };
-
-  const removeFile = (index: number) => {
-    setDisputeFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const displayAmount = order ? parseFloat(order.amount) : 0;
@@ -570,7 +666,7 @@ export default function AppOrderDetail() {
 
           {/* Card de disputa com veredito da IA */}
           {dispute && (
-            <DisputeCard dispute={dispute} isSeller={isSeller} />
+            <DisputeCard dispute={dispute} isSeller={isSeller} orderId={id!} />
           )}
 
           <div className="flex gap-3">
@@ -584,26 +680,28 @@ export default function AppOrderDetail() {
               <HelpCircle className="mr-2 h-4 w-4" />
               {t("order.openDispute")}
             </Button>
-            <Button
-              type="button"
-              className="flex-1 h-14 rounded-xl vault-card border-0 text-white text-sm font-semibold hover:opacity-90"
-              onClick={() => setConfirmOpen(true)}
-              disabled={!isInCustody || releaseLoading}
-            >
-              {releaseLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCheck className="mr-2 h-4 w-4" />
-              )}
-              {t("order.confirmDelivery")}
-            </Button>
+            {!isSeller && (
+              <Button
+                type="button"
+                className="flex-1 h-14 rounded-xl vault-card border-0 text-white text-sm font-semibold hover:opacity-90"
+                onClick={() => setConfirmOpen(true)}
+                disabled={!isInCustody || releaseLoading}
+              >
+                {releaseLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCheck className="mr-2 h-4 w-4" />
+                )}
+                {t("order.confirmDelivery")}
+              </Button>
+            )}
           </div>
         </>
       )}
 
       <div className="h-4" />
 
-      {/* Dispute dialog com upload de evidências */}
+      {/* Dispute dialog — motivo apenas; evidência é enviada depois, aos poucos, no card da disputa */}
       <Dialog open={disputeOpen} onOpenChange={(o) => { if (!disputeSubmitting) { setDisputeOpen(o); if (!o) { setDisputeReason(""); setDisputeNote(""); } } }}>
         <DialogContent>
           <DialogHeader>
@@ -652,46 +750,10 @@ export default function AppOrderDetail() {
               />
             </div>
 
-            {/* Upload de evidências */}
-            <div className="space-y-2">
-              <Label>Evidências (opcional — até 5 arquivos)</Label>
-              <label className="flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl p-4 cursor-pointer hover:bg-muted/50 transition text-sm text-muted-foreground">
-                <Paperclip className="h-4 w-4" />
-                <span>Adicionar fotos ou vídeos</span>
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileChange}
-                  disabled={disputeFiles.length >= 5}
-                />
-              </label>
-
-              {disputeFiles.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {disputeFiles.map((file, i) => (
-                    <div key={i} className="flex items-center gap-1 bg-muted text-xs px-2 py-1 rounded-full max-w-[160px]">
-                      <span className="truncate">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(i)}
-                        className="shrink-0 ml-0.5 text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span>{t("order.addEvidenceHint", "Envie fotos, vídeos ou o código de rastreio. Você pode enviar aos poucos.")}</span>
             </div>
-
-            {disputeFiles.length > 0 && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                <span>As evidências serão enviadas junto com a disputa.</span>
-              </div>
-            )}
           </div>
 
           <DialogFooter className="gap-2">
@@ -705,32 +767,34 @@ export default function AppOrderDetail() {
               disabled={disputeSubmitting}
             >
               {disputeSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {t("seller.respond")}
+              {t("order.openDispute")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("order.confirmDelivery")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("order.paidPix")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="vault-card border-0 text-white hover:opacity-90"
-              onClick={(e) => {
-                e.preventDefault();
-                confirmDelivery();
-              }}
-            >
-              {t("order.confirmDelivery")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {!isSeller && (
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("order.confirmDelivery")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("order.paidPix")}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                className="vault-card border-0 text-white hover:opacity-90"
+                onClick={(e) => {
+                  e.preventDefault();
+                  confirmDelivery();
+                }}
+              >
+                {t("order.confirmDelivery")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

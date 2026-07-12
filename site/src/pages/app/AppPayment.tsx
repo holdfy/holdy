@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatCurrency, maskCpfCnpj, maskPhone, stripDoc, validateCpf, validateCnpj } from "@/lib/format";
+import { copyToClipboard } from "@/lib/utils";
 import { toast } from "sonner";
 import { api } from "@/lib/api-client";
 import type { ApiError } from "@/lib/api-client";
@@ -248,6 +249,15 @@ export default function AppPayment() {
       toast.success(t("payment.proposalAccepted", "Proposta aceita! Pague o PIX abaixo."));
     },
     onError: (err: ApiError) => {
+      if (err?.code === "antifraud_block") {
+        toast.error(
+          t(
+            "payment.acceptBlockedRisk",
+            "Não foi possível processar seu pagamento agora. Tente novamente mais tarde ou fale com o suporte.",
+          ),
+        );
+        return;
+      }
       toast.error(err?.error ?? t("payment.acceptError", "Erro ao aceitar proposta"));
     },
   });
@@ -271,11 +281,13 @@ export default function AppPayment() {
     acceptMutation.mutate(digits);
   };
 
-  const copyPixCode = () => {
-    if (pixBrCode) {
-      navigator.clipboard.writeText(pixBrCode).then(() => {
-        toast.success(t("payment.copied"));
-      });
+  const copyPixCode = async () => {
+    if (!pixBrCode) return;
+    const ok = await copyToClipboard(pixBrCode);
+    if (ok) {
+      toast.success(t("payment.copied"));
+    } else {
+      toast.error(t("common.copyError", "Não foi possível copiar. Selecione e copie manualmente."));
     }
   };
 

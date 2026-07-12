@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { formatCurrency, maskPhone, maskCurrencyBR, unmaskCurrencyBR, decimalToMaskedBR } from "@/lib/format";
+import { copyToClipboard } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,11 +122,13 @@ export default function SellerOrders() {
     proposalMutation.mutate();
   };
 
-  const copyProposalId = () => {
-    if (createdProposal) {
-      navigator.clipboard.writeText(createdProposal.id).then(() => {
-        toast.success(t("seller.proposalIdCopied", "ID da proposta copiado"));
-      });
+  const copyProposalId = async () => {
+    if (!createdProposal) return;
+    const ok = await copyToClipboard(createdProposal.id);
+    if (ok) {
+      toast.success(t("seller.proposalIdCopied", "ID da proposta copiado"));
+    } else {
+      toast.error(t("common.copyError", "Não foi possível copiar. Selecione e copie manualmente."));
     }
   };
 

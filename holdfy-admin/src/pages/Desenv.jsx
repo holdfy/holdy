@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Box, Typography, Alert, Chip, Button, Snackbar,
+  Box, Typography, Alert, Chip, Button, Snackbar, Stack, TextField,
 } from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import GavelIcon from "@mui/icons-material/Gavel";
 import { DataGrid } from "@mui/x-data-grid";
 import { adminApi } from "../api";
 
@@ -37,6 +38,13 @@ const NEXT_STEP = {
 export default function Desenv() {
   const queryClient = useQueryClient();
   const [toast, setToast] = useState(null);
+  // advanceMutation é uma única instância compartilhada por todas as linhas da grid —
+  // `isPending`/`variables` só refletem a ÚLTIMA chamada de mutate(), então não dá pra usá-los
+  // pra saber se UMA linha específica está em voo quando várias são disparadas em paralelo.
+  // Rastreamos os pedidos pendentes à parte, via onMutate/onSettled (que disparam por chamada).
+  const [pendingIds, setPendingIds] = useState(() => new Set());
+  const [proposalIdInput, setProposalIdInput] = useState("");
+  const [buyerIdInput, setBuyerIdInput] = useState("");
 
   const { data: devStatus, isLoading: statusLoading } = useQuery({
     queryKey: ["dev-status"],
@@ -52,9 +60,33 @@ export default function Desenv() {
 
   const advanceMutation = useMutation({
     mutationFn: ({ id, status }) => NEXT_STEP[status].call(id),
+    onMutate: ({ id }) => {
+      setPendingIds((prev) => new Set(prev).add(id));
+    },
+    onSettled: (_data, _err, { id }) => {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    },
     onSuccess: (resp, { id }) => {
       const nextStatus = resp.status ?? "ok";
       setToast({ severity: "success", message: `Pedido ${id.slice(0, 8)}… → ${nextStatus}` });
+      queryClient.invalidateQueries({ queryKey: ["dev-orders"] });
+    },
+    onError: (err) => {
+      setToast({ severity: "error", message: err.message });
+    },
+  });
+
+  // Aceita uma proposta pendente ignorando bloqueio anti-fraude (velocidade/volume/CPF) —
+  // destrava testes quando a política de risco bloqueia legitimamente um comprador de teste.
+  const forceAcceptMutation = useMutation({
+    mutationFn: () => adminApi.devForceAcceptProposal(proposalIdInput.trim(), buyerIdInput.trim()),
+    onSuccess: (resp) => {
+      setToast({ severity: "success", message: `Proposta aceita → pedido ${resp.order_id?.slice(0, 8)}…` });
+      setProposalIdInput("");
       queryClient.invalidateQueries({ queryKey: ["dev-orders"] });
     },
     onError: (err) => {
@@ -117,16 +149,17 @@ export default function Desenv() {
             </Button>
           );
         }
+        const isRowPending = pendingIds.has(p.row.order_id);
         return (
           <Button
             size="small"
             variant="contained"
             color="warning"
             startIcon={step.icon}
-            disabled={advanceMutation.isPending}
+            disabled={isRowPending}
             onClick={() => advanceMutation.mutate({ id: p.row.order_id, status: p.row.status })}
           >
-            {step.label}
+            {isRowPending ? "Aguarde…" : step.label}
           </Button>
         );
       },
@@ -145,6 +178,37 @@ export default function Desenv() {
         se ele tiver chave cadastrada).
       </Alert>
       {error && <Alert severity="error" sx={{ mb: 2 }}>Erro: {error.message}</Alert>}
+
+      <Alert severity="warning" sx={{ mb: 1 }}>
+        Forçar aceite de proposta — ignora bloqueio anti-fraude (velocidade/volume/CPF).
+        Use pra destravar um comprador de teste que a política de risco bloqueou de propósito.
+      </Alert>
+      <Stack direction="row" spacing={1.5} alignItems="center" mb={3} flexWrap="wrap" rowGap={1.5}>
+        <TextField
+          size="small"
+          label="ID da proposta"
+          value={proposalIdInput}
+          onChange={(e) => setProposalIdInput(e.target.value)}
+          sx={{ minWidth: 320 }}
+        />
+        <TextField
+          size="small"
+          label="ID do comprador (se proposta aberta)"
+          value={buyerIdInput}
+          onChange={(e) => setBuyerIdInput(e.target.value)}
+          sx={{ minWidth: 320 }}
+        />
+        <Button
+          variant="contained"
+          color="warning"
+          startIcon={<GavelIcon />}
+          disabled={!proposalIdInput.trim() || forceAcceptMutation.isPending}
+          onClick={() => forceAcceptMutation.mutate()}
+        >
+          {forceAcceptMutation.isPending ? "Forçando…" : "Forçar aceite"}
+        </Button>
+      </Stack>
+
       <DataGrid
         rows={rows}
         columns={columns}

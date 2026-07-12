@@ -97,6 +97,8 @@ export interface ReleaseCustodyRequest {
 export interface ApiError {
   error: string;
   status: number;
+  /** Código estável opcional (ex.: "antifraud_block") — usar em vez de parsear `error`. */
+  code?: string;
 }
 
 export interface ProfileResponse {
@@ -270,7 +272,7 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    const err: ApiError = { error: body.error ?? res.statusText, status: res.status };
+    const err: ApiError = { error: body.error ?? res.statusText, status: res.status, code: body.code };
     throw err;
   }
 
@@ -390,6 +392,13 @@ export const api = {
     request<{ evidence_id: string; dispute_id: string; kind: string; message: string }>(
       `/orders/${orderId}/dispute/evidence`,
       { method: "POST", body: JSON.stringify({ kind, content, ext }) },
+    ),
+
+  // Dispara a análise da IA sobre a evidência já enviada (fire-and-forget no backend)
+  analyzeDispute: (orderId: string) =>
+    request<{ dispute_id: string; order_id: string; status: string; message: string }>(
+      `/orders/${orderId}/dispute/analyze`,
+      { method: "POST", body: JSON.stringify({}) },
     ),
 
   // Logistics — tracking

@@ -43,7 +43,8 @@
     "copyright": "© {{year}} Holdfy. Pagamentos protegidos.",
     "save": "Salvar",
     "optional": "opcional",
-    "copied": "Link copiado!"
+    "copied": "Link copiado!",
+    "copyError": "Não foi possível copiar. Selecione e copie manualmente."
   },
   "nav": {
     "problem": "Problema",
@@ -210,10 +211,12 @@
   "navBuyer": {
     "home": "Início",
     "orders": "Pedidos",
+    "disputes": "Disputas",
     "wallet": "Carteira",
     "profile": "Perfil",
     "homeShort": "INÍCIO",
     "ordersShort": "PEDIDOS",
+    "disputesShort": "DISPUTAS",
     "walletShort": "CARTEIRA",
     "profileShort": "PERFIL"
   },
@@ -386,7 +389,29 @@
     "toastReleaseError": "Erro ao liberar pagamento",
     "toastReleaseSeller": "Confirmado! Seu PIX está sendo enviado para a chave cadastrada.",
     "buyerData": "Dados do comprador",
-    "notFound": "Pedido não encontrado"
+    "notFound": "Pedido não encontrado",
+    "evidenceEmpty": "Nenhuma evidência enviada ainda.",
+    "evidenceYou": "Você",
+    "evidenceBuyer": "Comprador",
+    "evidenceSeller": "Vendedor",
+    "evidenceFlagged": "Suspeita",
+    "evidenceUnavailable": "Arquivo indisponível",
+    "evidenceKindPhoto": "Foto",
+    "evidenceKindVideo": "Vídeo",
+    "evidenceKindTracking": "Código de rastreio",
+    "evidenceKindMessage": "Mensagem",
+    "evidenceKindOther": "Outro",
+    "addEvidence": "Adicionar evidência",
+    "addEvidenceHint": "Envie fotos, vídeos ou o código de rastreio. Você pode enviar aos poucos.",
+    "finishAndAnalyze": "Concluir e enviar para análise",
+    "toastEvidenceAdded": "Evidência adicionada.",
+    "toastAnalysisStarted": "Enviado para análise. Você será avisado quando sair um resultado.",
+    "toastAnalysisError": "Erro ao enviar para análise",
+    "disputesTitle": "Minhas disputas",
+    "noDisputes": "Sem disputas",
+    "noDisputesDesc": "Nenhuma disputa em aberto ou resolvida.",
+    "disputesActiveTab": "Ativas",
+    "disputesResolvedTab": "Resolvidas"
   },
   "payment": {
     "title": "Pagamento Seguro",
@@ -406,6 +431,7 @@
     "acceptProposal": "Aceitar Proposta e Gerar PIX",
     "proposalAccepted": "Proposta aceita! Pague o PIX abaixo.",
     "acceptError": "Erro ao aceitar proposta. Tente novamente.",
+    "acceptBlockedRisk": "Não foi possível processar seu pagamento agora. Tente novamente mais tarde ou fale com o suporte.",
     "paymentConfirmed": "Pagamento confirmado! Redirecionando…",
     "waitingPayment": "Aguardando confirmação automática",
     "autoConfirmDesc": "Você será redirecionado automaticamente após o pagamento ser detectado.",

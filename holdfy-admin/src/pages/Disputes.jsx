@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box, Typography, Alert, Chip, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Stack,
-  Slider, Divider, Grid, Tooltip, Paper,
+  Grid, Tooltip, Paper,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -32,7 +32,7 @@ const VERDICT_LABELS = {
 const RESOLUTION_OPTS = [
   { value: "refund_buyer",      label: "Reembolsar Comprador" },
   { value: "release_to_seller", label: "Liberar ao Vendedor" },
-  { value: "split",             label: "Dividir" },
+  { value: "split",             label: "Dividir (ainda libera 100% ao vendedor)" },
   { value: "manual",            label: "Manual (admin externo)" },
 ];
 
@@ -40,7 +40,6 @@ export default function Disputes() {
   const [resolveDialog, setResolveDialog] = useState(null);
   const [evidenceDialog, setEvidenceDialog] = useState(null);
   const [resolution, setResolution] = useState("refund_buyer");
-  const [splitPct, setSplitPct] = useState(50);
   const [notes, setNotes] = useState("");
   const qc = useQueryClient();
 
@@ -54,7 +53,6 @@ export default function Disputes() {
     mutationFn: ({ id }) =>
       adminApi.resolveDispute(id, {
         resolution,
-        split_pct: resolution === "split" ? splitPct : undefined,
         notes: notes || null,
       }),
     onSuccess: () => {
@@ -340,18 +338,10 @@ export default function Disputes() {
               ))}
             </TextField>
             {resolution === "split" && (
-              <Box>
-                <Typography gutterBottom>
-                  % para o comprador: <strong>{splitPct}%</strong> (vendedor: {100 - splitPct}%)
-                </Typography>
-                <Slider
-                  value={splitPct}
-                  onChange={(_, v) => setSplitPct(v)}
-                  min={10} max={90} step={5}
-                  marks
-                  valueLabelDisplay="auto"
-                />
-              </Box>
+              <Alert severity="info">
+                Divisão real de custódia ainda não está implementada — esta opção hoje
+                faz liberação total ao vendedor, igual "Liberar ao Vendedor".
+              </Alert>
             )}
             <TextField
               label="Notas (visível para o time)"

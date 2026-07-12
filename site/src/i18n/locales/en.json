@@ -43,7 +43,8 @@
     "copyright": "© {{year}} Holdfy. Protected payments.",
     "save": "Save",
     "optional": "optional",
-    "copied": "Link copied!"
+    "copied": "Link copied!",
+    "copyError": "Couldn't copy. Select and copy manually."
   },
   "nav": {
     "problem": "Problem",
@@ -210,10 +211,12 @@
   "navBuyer": {
     "home": "Home",
     "orders": "Orders",
+    "disputes": "Disputes",
     "wallet": "Wallet",
     "profile": "Profile",
     "homeShort": "HOME",
     "ordersShort": "ORDERS",
+    "disputesShort": "DISPUTES",
     "walletShort": "WALLET",
     "profileShort": "PROFILE"
   },
@@ -386,7 +389,29 @@
     "toastReleaseError": "Failed to release payment",
     "toastReleaseSeller": "Confirmed! Your PIX is being sent to the registered key.",
     "buyerData": "Buyer information",
-    "notFound": "Order not found"
+    "notFound": "Order not found",
+    "evidenceEmpty": "No evidence submitted yet.",
+    "evidenceYou": "You",
+    "evidenceBuyer": "Buyer",
+    "evidenceSeller": "Seller",
+    "evidenceFlagged": "Suspicious",
+    "evidenceUnavailable": "File unavailable",
+    "evidenceKindPhoto": "Photo",
+    "evidenceKindVideo": "Video",
+    "evidenceKindTracking": "Tracking code",
+    "evidenceKindMessage": "Message",
+    "evidenceKindOther": "Other",
+    "addEvidence": "Add evidence",
+    "addEvidenceHint": "Send photos, videos, or the tracking code. You can send them one at a time.",
+    "finishAndAnalyze": "Finish and send for analysis",
+    "toastEvidenceAdded": "Evidence added.",
+    "toastAnalysisStarted": "Sent for analysis. You'll be notified when a result is ready.",
+    "toastAnalysisError": "Error sending for analysis",
+    "disputesTitle": "My disputes",
+    "noDisputes": "No disputes",
+    "noDisputesDesc": "No open or resolved disputes.",
+    "disputesActiveTab": "Active",
+    "disputesResolvedTab": "Resolved"
   },
   "payment": {
     "title": "Secure Payment",
@@ -406,6 +431,7 @@
     "acceptProposal": "Accept Proposal & Generate PIX",
     "proposalAccepted": "Proposal accepted! Pay the PIX below.",
     "acceptError": "Failed to accept proposal. Please try again.",
+    "acceptBlockedRisk": "We couldn't process your payment right now. Please try again later or contact support.",
     "paymentConfirmed": "Payment confirmed! Redirecting…",
     "waitingPayment": "Awaiting automatic confirmation",
     "autoConfirmDesc": "You will be redirected automatically once your payment is detected.",

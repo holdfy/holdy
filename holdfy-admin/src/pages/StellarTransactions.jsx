@@ -38,8 +38,6 @@ function NetworkChip({ network }) {
 function ModeChip({ mode }) {
   if (mode === "real")
     return <Chip label="On-chain real" size="small" color="success" sx={{ fontWeight: 700, fontSize: 11 }} />;
-  if (mode === "mock")
-    return <Chip label="Mock" size="small" color="warning" sx={{ fontWeight: 700, fontSize: 11 }} />;
   return <Chip label="Simulado" size="small" sx={{ bgcolor: "#e5e7eb", fontSize: 11 }} />;
 }
 
@@ -91,7 +89,21 @@ const columns = [
     ),
   },
   {
-    field: "buyer_document", headerName: "CPF / CNPJ", width: 145,
+    field: "buyer_document", headerName: "CPF / CNPJ (comprador)", width: 165,
+    renderCell: (p) => <span style={{ fontFamily: "monospace", fontSize: 11 }}>{fmtDoc(p.value)}</span>,
+  },
+  {
+    field: "seller_name", headerName: "Vendedor", width: 160,
+    renderCell: (p) => (
+      <Tooltip title={p.value || ""} placement="top">
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+          {p.value || "—"}
+        </span>
+      </Tooltip>
+    ),
+  },
+  {
+    field: "seller_document", headerName: "CPF / CNPJ (vendedor)", width: 165,
     renderCell: (p) => <span style={{ fontFamily: "monospace", fontSize: 11 }}>{fmtDoc(p.value)}</span>,
   },
   {
@@ -220,7 +232,6 @@ export default function StellarTransactions() {
       <Stack direction="row" spacing={2} mt={2} flexWrap="wrap" rowGap={1}>
         <Typography variant="caption" color="text.secondary">Legenda:</Typography>
         <Chip label="On-chain real" size="small" color="success" sx={{ fontSize: 11 }} />
-        <Chip label="Mock (hash fake)" size="small" color="warning" sx={{ fontSize: 11 }} />
         <Chip label="Simulado (sem Soroban)" size="small" sx={{ bgcolor: "#e5e7eb", fontSize: 11 }} />
         <Chip label="Testnet" size="small" sx={{ bgcolor: "#7c3aed", color: "#fff", fontSize: 11 }} />
         <Chip label="Mainnet" size="small" sx={{ bgcolor: "#059669", color: "#fff", fontSize: 11 }} />

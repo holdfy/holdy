@@ -52,6 +52,11 @@ export const adminApi = {
   devStatus: () => req("/admin/dev/status"),
   devSettleOrder: (id) => req(`/admin/dev/orders/${id}/settle`, { method: "POST" }),
   devReleaseOrder: (id) => req(`/admin/dev/orders/${id}/release`, { method: "POST" }),
+  devForceAcceptProposal: (id, buyerId) =>
+    req(`/admin/dev/proposals/${id}/force-accept`, {
+      method: "POST",
+      body: JSON.stringify({ buyer_id: buyerId || undefined }),
+    }),
   devWallet: () => req("/admin/dev/wallet"),
   devWalletMint: (amount) =>
     req("/admin/dev/wallet/mint", { method: "POST", body: JSON.stringify({ amount }) }),
