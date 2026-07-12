@@ -128,6 +128,7 @@ pub fn order_key_from_uuid(id: Uuid) -> u64 {
 /// Extrai o hash real da transação da stderr do `stellar` CLI (formato "Signing transaction:
 /// <hash>"). A stdout do `contract invoke` carrega o valor de retorno da função serializado em
 /// JSON (ex: `"null"` para `Result<(), _>`), não o hash — por isso nunca deve ser usada como tal.
+#[cfg(feature = "soroban")]
 fn extract_tx_hash(stderr: &str) -> Option<String> {
     stderr.lines().find_map(|line| {
         line.trim()
