@@ -1,4 +1,7 @@
-const BASE = "";
+// apicash-frontend (Leptos, :3002) expõe /svc/admin/* como proxy reverso pro
+// apicash-admin-backend (:3001), stripando o prefixo /svc/admin antes de repassar.
+// Porta 3001 não é alcançável direto entre nós no load balancer — só via essa ponte.
+const BASE = "/svc/admin";
 
 const KEY_STORAGE = "holdfy_admin_key";
 

@@ -23,7 +23,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+        <BrowserRouter basename="/holdfy-admin">
           <App />
         </BrowserRouter>
       </QueryClientProvider>

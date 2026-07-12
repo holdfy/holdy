@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -38,7 +38,7 @@ const BASE_NAV = [
 
 function AdminLayout({ children }) {
   const navigate = useNavigate();
-  const path = window.location.pathname;
+  const path = useLocation().pathname;
 
   const { data: devStatus } = useQuery({
     queryKey: ["dev-status"],
