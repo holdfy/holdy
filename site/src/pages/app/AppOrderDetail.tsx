@@ -67,7 +67,7 @@ function DisputeCard({ dispute, isSeller, orderId }: { dispute: DisputeResponse;
   const refetchDispute = () => queryClient.invalidateQueries({ queryKey: ["dispute", orderId] });
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []).slice(0, Math.max(0, 5 - dispute.evidence.length));
+    const files = Array.from(e.target.files ?? []).slice(0, Math.max(0, 10 - dispute.evidence.length));
     e.target.value = "";
     if (!files.length) return;
     setUploading(true);
@@ -199,7 +199,7 @@ function DisputeCard({ dispute, isSeller, orderId }: { dispute: DisputeResponse;
               multiple
               className="hidden"
               onChange={handleFiles}
-              disabled={uploading || dispute.evidence.length >= 5}
+              disabled={uploading || dispute.evidence.length >= 10}
             />
           </label>
           <div className="flex gap-2">

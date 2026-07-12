@@ -303,7 +303,7 @@ export const api = {
   createOrder: (data: CreateOrderRequest) =>
     request<OrderResponse>("/orders", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, platform: "site" }),
     }),
 
   listOrders: (role: "buyer" | "seller" = "buyer") =>
@@ -342,7 +342,7 @@ export const api = {
   acceptProposal: (id: string, cpf?: string, buyerPhone?: string) =>
     request<AcceptProposalResponse>(`/proposals/${id}/accept`, {
       method: "POST",
-      body: JSON.stringify({ cpf, buyer_phone: buyerPhone || undefined }),
+      body: JSON.stringify({ cpf, buyer_phone: buyerPhone || undefined, platform: "site" }),
     }),
 
   rejectProposal: (id: string) =>

@@ -90,7 +90,7 @@ export default function SellerDisputes() {
     evidenceCount: number,
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const files = Array.from(e.target.files ?? []).slice(0, Math.max(0, 5 - evidenceCount));
+    const files = Array.from(e.target.files ?? []).slice(0, Math.max(0, 10 - evidenceCount));
     e.target.value = "";
     if (!files.length) return;
     setUploadingId(orderId);
@@ -313,7 +313,7 @@ export default function SellerDisputes() {
                         multiple
                         className="hidden"
                         onChange={(e) => handleFiles(order.id, dispute.evidence.length, e)}
-                        disabled={isBusy || dispute.evidence.length >= 5}
+                        disabled={isBusy || dispute.evidence.length >= 10}
                       />
                     </label>
                     <div className="flex gap-2">

@@ -15,6 +15,20 @@ const STATUS_COLORS = {
   Cancelled: "default",
 };
 
+const PLATFORM_LABELS = {
+  whatsapp: "WhatsApp",
+  site: "Site",
+  app_ios: "App iOS",
+  app_android: "App Android",
+};
+
+const PLATFORM_COLORS = {
+  whatsapp: "success",
+  site: "info",
+  app_ios: "default",
+  app_android: "default",
+};
+
 const columns = [
   { field: "order_id", headerName: "ID", width: 280, renderCell: (p) => p.value?.slice(0, 8) + "…" },
   {
@@ -42,6 +56,18 @@ const columns = [
   { field: "risk_score", headerName: "Score", width: 90, type: "number" },
   { field: "risk_decision", headerName: "Decisão", width: 100 },
   {
+    field: "platform_origin",
+    headerName: "Plataforma",
+    width: 130,
+    renderCell: (p) => (
+      <Chip
+        label={PLATFORM_LABELS[p.value] ?? p.value ?? "—"}
+        color={PLATFORM_COLORS[p.value] ?? "default"}
+        size="small"
+      />
+    ),
+  },
+  {
     field: "created_at",
     headerName: "Criado em",
     width: 180,
@@ -55,9 +81,15 @@ function matchesPersonFilter(order, filter) {
   return filter === "pj" ? isPJ : !isPJ;
 }
 
+function matchesPlatformFilter(order, filter) {
+  if (filter === "all") return true;
+  return order.platform_origin === filter;
+}
+
 export default function Orders() {
   const [status, setStatus] = useState("");
   const [personFilter, setPersonFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState("all");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["orders", status],
@@ -67,6 +99,7 @@ export default function Orders() {
 
   const rows = (data?.orders ?? [])
     .filter((o) => matchesPersonFilter(o, personFilter))
+    .filter((o) => matchesPlatformFilter(o, platformFilter))
     .map((o, i) => ({ id: i, ...o }));
 
   return (
@@ -97,6 +130,18 @@ export default function Orders() {
           <ToggleButton value="all">Todos</ToggleButton>
           <ToggleButton value="pf">PF</ToggleButton>
           <ToggleButton value="pj">PJ</ToggleButton>
+        </ToggleButtonGroup>
+        <ToggleButtonGroup
+          value={platformFilter}
+          exclusive
+          onChange={(_, v) => v && setPlatformFilter(v)}
+          size="small"
+        >
+          <ToggleButton value="all">Todas plataformas</ToggleButton>
+          <ToggleButton value="whatsapp">WhatsApp</ToggleButton>
+          <ToggleButton value="site">Site</ToggleButton>
+          <ToggleButton value="app_ios">App iOS</ToggleButton>
+          <ToggleButton value="app_android">App Android</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
       {error && <Alert severity="error" sx={{ mb: 2 }}>Erro: {error.message}</Alert>}
