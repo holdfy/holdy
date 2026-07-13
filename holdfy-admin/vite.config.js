@@ -7,8 +7,12 @@ export default defineConfig({
   server: {
     port: 3011,
     proxy: {
-      "/admin": { target: "http://localhost:3001", changeOrigin: true },
-      "/health": { target: "http://localhost:3001", changeOrigin: true },
+      // Espelha o proxy do apicash-frontend em produção: /svc/admin/* -> :3001, stripando o prefixo.
+      "/svc/admin": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/svc\/admin/, ""),
+      },
     },
   },
 });

@@ -122,13 +122,28 @@ WEBHOOK_URL="${WEBHOOK_URL:-http://${MONEY_LAN_HOST}:${GB_API_PORT}}"
 # Compose money: Postgres único (5432); Pulsar e Redis partilhados. scripts/start-infra.sh só se UNIFIED_SKIP_GATEBOX_INFRA=0.
 UNIFIED_SKIP_GATEBOX_INFRA="${UNIFIED_SKIP_GATEBOX_INFRA:-1}"
 
+# Domínio de produção (SaveInCloud, ver money/scripts/deploy-prod.sh) — usado só para
+# imprimir o resumo de URLs do servidor no final do status; não afeta nada local.
+RUNAPP_PROD_HOST="${RUNAPP_PROD_HOST:-holdfy.com.br}"
+
 log() { printf '[money/runapp] %s\n' "$*" >&2; }
 warn() { printf '[money/runapp][warn] %s\n' "$*" >&2; }
+
+# Acumula label+url de cada aba aberta (ou tentada) no browser durante a execução,
+# para o resumo final em print_opened_browsers_summary.
+RUNAPP_OPENED_URLS=()
+runapp_track_opened_url() {
+  local label="$1"
+  local url="$2"
+  [ -n "${url}" ] || return 0
+  RUNAPP_OPENED_URLS+=("${label}|${url}")
+}
 
 # Abre URL no browser do ambiente gráfico (xdg-open / gio).
 runapp_open_in_browser() {
   local label="$1"
   local url="$2"
+  runapp_track_opened_url "${label}" "${url}"
   if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
     warn "sem DISPLAY/WAYLAND — abra manualmente (${label}): ${url}"
     return 0
@@ -151,6 +166,8 @@ runapp_open_two_browser_tabs() {
   if [ -z "${qr_url}" ] && [ -z "${site_url}" ]; then
     return 0
   fi
+  runapp_track_opened_url "Pareamento WhatsApp (QR)" "${qr_url}"
+  runapp_track_opened_url "Site HoldFy" "${site_url}"
   if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
     [ -n "${qr_url}" ] && warn "sem DISPLAY/WAYLAND — QR: ${qr_url}"
     [ -n "${site_url}" ] && warn "sem DISPLAY/WAYLAND — site: ${site_url}"
@@ -620,19 +637,21 @@ runapp_open_startup_browsers() {
 
   # Site HoldFy
   if truthy "${RUNAPP_AUTO_SITE:-1}" && site_present && truthy "${RUNAPP_OPEN_SITE_BROWSER:-1}"; then
-    site_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
+    local site_health_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
+    local site_ready=1
     if command -v curl >/dev/null 2>&1; then
       local waited=0
-      while ! curl -fsS --max-time 1 "${site_url}" >/dev/null 2>&1; do
+      while ! curl -fsS --max-time 1 "${site_health_url}" >/dev/null 2>&1; do
         if [ "${waited}" -ge 90 ]; then
           warn "site não respondeu — não abri o browser do site"
-          site_url=""
+          site_ready=0
           break
         fi
         sleep 1
         waited=$((waited + 1))
       done
     fi
+    [ "${site_ready}" = 1 ] && site_url="http://${MONEY_LAN_HOST}:${SITE_PORT}/"
   fi
 
   # QR do WhatsApp (só se ainda não pareado)
@@ -647,21 +666,21 @@ runapp_open_startup_browsers() {
   # holdfy-admin — 1 aba (raiz do dashboard)
   if holdfy_admin_present; then
     sleep 0.4
-    local admin_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
+    local admin_url="http://${MONEY_LAN_HOST}:${HOLDFY_ADMIN_PORT}/holdfy-admin/login"
     runapp_open_in_browser "holdfy-admin" "${admin_url}" || true
   fi
 
   # front-gatebox — 1 aba (login)
   if front_gatebox_present; then
     sleep 0.4
-    local fg_base="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${FRONT_GATEBOX_PORT}"
+    local fg_base="http://${MONEY_LAN_HOST}:${FRONT_GATEBOX_PORT}"
     runapp_open_in_browser "GateBox" "${fg_base}/#/" || true
   fi
 
   # Rastreio — 1 aba
   if rastreio_present; then
     sleep 0.4
-    local rastreio_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${RASTREIO_PORT}/"
+    local rastreio_url="http://${MONEY_LAN_HOST}:${RASTREIO_PORT}/"
     runapp_open_in_browser "Rastreio" "${rastreio_url}trackers" || true
   fi
 
@@ -680,7 +699,7 @@ runapp_open_startup_browsers() {
       echo $! > "${MONEY}/.runapp/dev-dash/server.pid"
       sleep 0.3
     fi
-    runapp_open_in_browser "referência dev Holdfy" "http://127.0.0.1:${dash_port}/dev-dashboard.html" || true
+    runapp_open_in_browser "referência dev Holdfy" "http://${MONEY_LAN_HOST}:${dash_port}/dev-dashboard.html" || true
   fi
 
   if [ -n "${qr_url}" ]; then
@@ -695,21 +714,21 @@ site_maybe_open_browser() {
   if ! truthy "${RUNAPP_OPEN_SITE_BROWSER:-1}"; then
     return 0
   fi
-  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
+  local health_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${SITE_PORT}/"
   command -v curl >/dev/null 2>&1 || {
-    warn "curl ausente — não abri o browser do site (${url})"
+    warn "curl ausente — não abri o browser do site (${health_url})"
     return 0
   }
   local waited=0
-  while ! curl -fsS --max-time 1 "${url}" >/dev/null 2>&1; do
+  while ! curl -fsS --max-time 1 "${health_url}" >/dev/null 2>&1; do
     if [ "${waited}" -ge 90 ]; then
-      warn "site não respondeu — não abri o browser (${url})"
+      warn "site não respondeu — não abri o browser (${health_url})"
       return 0
     fi
     sleep 1
     waited=$((waited + 1))
   done
-  runapp_open_in_browser "site HoldFy" "${url}"
+  runapp_open_in_browser "site HoldFy" "http://${MONEY_LAN_HOST}:${SITE_PORT}/"
 }
 
 # Após subir o core: avisa se PIX pelo Gatebox está ligado mas a API não responde.
@@ -1507,11 +1526,12 @@ holdfy_admin_start() {
 }
 
 holdfy_admin_print_status() {
-  local url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
+  local health_url="http://${RUNAPP_LOOPBACK:-127.0.0.1}:${HOLDFY_ADMIN_PORT}/"
+  local url="http://${MONEY_LAN_HOST}:${HOLDFY_ADMIN_PORT}/holdfy-admin/login"
   printf '\n== holdfy-admin (APICash admin — Vite) ==\n'
   if command -v curl >/dev/null 2>&1; then
     local code
-    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 1 "${url}" 2>/dev/null || true)"
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 1 "${health_url}" 2>/dev/null || true)"
     printf '  http=%s  url=%s  log=%s/holdfy-admin.log\n' "${code:-000}" "${url}" "${HOLDFY_ADMIN_LOG}"
   else
     printf '  url=%s  log=%s/holdfy-admin.log\n' "${url}" "${HOLDFY_ADMIN_LOG}"
@@ -1801,6 +1821,7 @@ Env útil:
   RUNAPP_OPEN_SITE_BROWSER=1 (defeito) — abre http://127.0.0.1:5173/ após subir o site (como o QR WhatsApp)
   APICASH_WA_OPEN_BROWSER=1 (defeito) — abre file://…/whatsapp_qrcode/pair.html
   RUNAPP_LOOPBACK=127.0.0.1 (defeito) — host para health checks locais (runapp); MONEY_LAN_HOST continua para URLs na LAN
+  RUNAPP_PROD_HOST=holdfy.com.br (defeito) — domínio do servidor SaveInCloud; status mostra URLs locais + servidor lado a lado
   RUNAPP_AUTO_GATEBOX=1 (defeito) — com stack all, iniciar também gatebox-rust antes do APICash; RUNAPP_AUTO_GATEBOX=0 desliga
   APICASH_FRONTEND_PORT — dashboard HoldFy (Leptos SSR), defeito 3002
   APICASH_GATEBOX_ENABLED — defeito 1 no runapp (PIX EMV via Gatebox); 0 = desativa Gatebox (rail simulado falha sem PIX)
@@ -1965,6 +1986,129 @@ run_status() {
     print_infra_hint
     ;;
   esac
+  print_urls_summary
+  print_prod_urls_summary
+  print_opened_browsers_summary
+}
+
+# Resumo final: só as URLs das abas efetivamente abertas (ou tentadas) no browser nesta execução.
+print_opened_browsers_summary() {
+  [ "${#RUNAPP_OPENED_URLS[@]}" -gt 0 ] || return 0
+  printf '\n== Abas abertas no browser nesta execução ==\n'
+  local entry label url
+  for entry in "${RUNAPP_OPENED_URLS[@]}"; do
+    label="${entry%%|*}"
+    url="${entry#*|}"
+    printf '  %-28s %s\n' "${label}" "${url}"
+  done
+}
+
+# Resumo final: uma URL por aplicação, usando MONEY_LAN_HOST (ip da máquina) em vez do loopback
+# usado nos health-checks acima — pensado para copiar/colar ou abrir de outra máquina na LAN.
+print_urls_summary() {
+  local host="${MONEY_LAN_HOST:-192.168.0.10}"
+  printf '\n== HoldFy — URLs (host %s) ==\n' "${host}"
+
+  case "${SCOPE}" in
+  all | apicash)
+    printf '  %-20s http://%s:%s/health\n' "APICash Core" "${host}" "$(ac_core_port)"
+    printf '  %-20s http://%s:%s/health\n' "APICash Admin API" "${host}" "${ADMIN_PORT:-3001}"
+    printf '  %-20s http://%s:%s/\n' "APICash Frontend" "${host}" "${APICASH_FRONTEND_PORT:-3002}"
+    printf '  %-20s http://%s:%s/health\n' "APICash WhatsApp" "${host}" "$(ac_wa_port)"
+    ;;
+  esac
+  case "${SCOPE}" in
+  all | gatebox)
+    if gb_gatebox_rust_dir >/dev/null 2>&1; then
+      printf '  %-20s http://%s:%s/health\n' "Gatebox PIX API" "${host}" "${GB_API_PORT:-8081}"
+    fi
+    ;;
+  esac
+  case "${SCOPE}" in
+  all | gatebox | sulcred)
+    if sulcred_dir >/dev/null 2>&1; then
+      printf '  %-20s http://%s:%s/health\n' "Sulcred Simulator" "${host}" "7020"
+    fi
+    ;;
+  esac
+  case "${SCOPE}" in
+  all | anchor-sim)
+    if anchor_sim_present; then
+      printf '  %-20s http://%s:%s/health\n' "Anchor Simulator" "${host}" "${ANCHOR_SIM_PORT}"
+    fi
+    ;;
+  esac
+  case "${SCOPE}" in
+  all | banco)
+    if [ -d "${BANCO_BE}" ]; then
+      printf '  %-20s http://%s:%s/health\n' "Banco Saczuck API" "${host}" "$(bb_http_port)"
+    fi
+    ;;
+  esac
+  case "${SCOPE}" in
+  all | site)
+    if site_present; then
+      printf '  %-20s http://%s:%s/\n' "Site HoldFy" "${host}" "${SITE_PORT}"
+    fi
+    ;;
+  esac
+  case "${SCOPE}" in
+  all | rastreio)
+    if rastreio_present; then
+      printf '  %-20s http://%s:%s/\n' "Rastreio (logistica)" "${host}" "${RASTREIO_PORT}"
+    fi
+    ;;
+  esac
+  case "${SCOPE}" in
+  all)
+    if holdfy_admin_present; then
+      printf '  %-20s http://%s:%s/holdfy-admin/login\n' "holdfy-admin" "${host}" "${HOLDFY_ADMIN_PORT}"
+    fi
+    if front_gatebox_present; then
+      printf '  %-20s http://%s:%s/\n' "front-gatebox" "${host}" "${FRONT_GATEBOX_PORT}"
+    fi
+    if scraper_present; then
+      printf '  %-20s http://%s:%s/health\n' "scraper-service" "${host}" "${SCRAPER_PORT}"
+    fi
+    ;;
+  esac
+}
+
+# Resumo final: as mesmas aplicações, mas nas URLs públicas do servidor SaveInCloud
+# (${RUNAPP_PROD_HOST}, ver money/scripts/deploy-prod.sh) — só informativo, não faz requests.
+print_prod_urls_summary() {
+  local host="${RUNAPP_PROD_HOST}"
+  printf '\n== HoldFy — URLs (servidor %s) ==\n' "${host}"
+
+  # Só páginas navegáveis — APIs puras (core, admin API, whatsapp, gatebox, banco)
+  # não têm UI própria e ficam de fora daqui (health-checks continuam via status.sh no servidor).
+  case "${SCOPE}" in
+  all | apicash)
+    printf '  %-20s https://%s/admin/\n' "APICash Frontend" "${host}"
+    ;;
+  esac
+  case "${SCOPE}" in
+  all | site)
+    if site_present; then
+      printf '  %-20s https://%s/\n' "Site HoldFy" "${host}"
+    fi
+    ;;
+  esac
+  case "${SCOPE}" in
+  all | rastreio)
+    if rastreio_present; then
+      printf '  %-20s https://%s/svc/tracking/trackers\n' "Rastreio (logistica)" "${host}"
+    fi
+    ;;
+  esac
+  case "${SCOPE}" in
+  all)
+    if holdfy_admin_present; then
+      printf '  %-20s https://%s/holdfy-admin/login\n' "holdfy-admin" "${host}"
+    fi
+    printf '  %-20s https://%s/svc/whatsapp/qrcode/pair.html\n' "WhatsApp QR (prod)" "${host}"
+    ;;
+  esac
 }
 
 logs_testnet() {
@@ -2033,10 +2177,12 @@ testnet | mainnet)
 open-browsers)
   ac_setup_whatsapp_qr_dir || true
   runapp_open_startup_browsers || true
+  print_opened_browsers_summary
   ;;
 whatsapp-pair)
   ac_prepare_runtime_env
   ac_whatsapp_pair_reset
+  print_opened_browsers_summary
   ;;
 restart)
   ac_setup_whatsapp_qr_dir || true
