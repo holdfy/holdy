@@ -63,7 +63,7 @@ impl OlxExtractor {
             .client
             .post(&endpoint)
             .json(&body)
-            .timeout(std::time::Duration::from_secs(45)); // Playwright + challenge Cloudflare pode demorar
+            .timeout(std::time::Duration::from_secs(75)); // Playwright + challenge Cloudflare + retentativa de boot do Chromium pode demorar
 
         if let Some(key) = api_key {
             req = req.header("x-api-key", key);

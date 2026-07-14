@@ -19,34 +19,40 @@ import { scrapeOlx } from "./scrapers/olx";
 const PORT = parseInt(process.env.SCRAPER_PORT || "4000");
 const API_KEY = process.env.SCRAPER_API_KEY || "";
 
-let browser: Browser | null = null;
+// Um processo Chromium NOVO por scrape (não reaproveitado entre requisições).
+// Confirmado empiricamente (2026-07-14): reaproveitar o mesmo processo browser
+// entre requisições faz a OLX bloquear via Cloudflare a partir da 2a navegação
+// nesse processo (mesmo com contexto novo, mesmo esperando minutos de cooldown)
+// — só um processo Chromium recém-lançado passa pelo challenge de forma
+// confiável. O custo extra (~2-4s de boot do Chromium por request) é aceitável
+// frente à falha sistemática do reaproveitamento.
+async function launchBrowser(): Promise<Browser> {
+  // Usar Chrome do sistema se disponível, senão o Chromium do Playwright
+  const executablePath = [
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ].find((p) => {
+    try { return Bun.spawnSync(["test", "-f", p]).exitCode === 0; } catch { return false; }
+  });
 
-async function getBrowser(): Promise<Browser> {
-  if (!browser || !browser.isConnected()) {
-    // Usar Chrome do sistema se disponível, senão o Chromium do Playwright
-    const executablePath = [
-      "/usr/bin/google-chrome-stable",
-      "/usr/bin/google-chrome",
-      "/usr/bin/chromium-browser",
-      "/usr/bin/chromium",
-    ].find((p) => {
-      try { return Bun.spawnSync(["test", "-f", p]).exitCode === 0; } catch { return false; }
-    });
-
-    browser = await (chromium as typeof chromiumBase).launch({
-      headless: true,
-      executablePath,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-blink-features=AutomationControlled",
-        "--disable-web-security",
-        "--disable-features=IsolateOrigins,site-per-process",
-      ],
-    });
-  }
-  return browser;
+  return await (chromium as typeof chromiumBase).launch({
+    headless: true,
+    executablePath,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-blink-features=AutomationControlled",
+      "--disable-web-security",
+      "--disable-features=IsolateOrigins,site-per-process",
+    ],
+    // Boot ocasionalmente trava (devtools pipe fecha antes de conectar, ver
+    // launchBrowserWithRetry) — timeout curto pra falhar rápido e liberar a retentativa
+    // dentro do orçamento do client HTTP do apicash-importer (ver SCRAPER_URL timeout).
+    timeout: 20000,
+  });
 }
 
 function isTikTok(url: string): boolean {
@@ -61,8 +67,20 @@ function isOlx(url: string): boolean {
   return url.includes("olx.com");
 }
 
+async function launchBrowserWithRetry(): Promise<Browser> {
+  try {
+    return await launchBrowser();
+  } catch (e) {
+    // Boot do Chromium falha esporadicamente neste ambiente (devtools pipe
+    // fecha antes de conectar, processo morre com exitCode=0) — uma retentativa
+    // resolve na prática.
+    console.error(`[scraper] launch falhou, retentando: ${e instanceof Error ? e.message : String(e)}`);
+    return await launchBrowser();
+  }
+}
+
 async function scrape(url: string): Promise<unknown> {
-  const b = await getBrowser();
+  const b = await launchBrowserWithRetry();
   // OLX: challenge do Cloudflare foi validado com UA/viewport desktop — mobile não foi testado.
   const context = await b.newContext(
     isOlx(url)
@@ -168,6 +186,7 @@ async function scrape(url: string): Promise<unknown> {
     return { error: "platform not supported", url };
   } finally {
     await context.close();
+    await b.close();
   }
 }
 
@@ -220,12 +239,6 @@ const server = Bun.serve({
 
 console.log(`[scraper-service] listening on :${PORT}`);
 
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  if (browser) await browser.close();
-  server.stop();
-});
-process.on("SIGINT", async () => {
-  if (browser) await browser.close();
-  server.stop();
-});
+// Graceful shutdown — cada scrape() já fecha seu próprio browser, nada global a limpar aqui.
+process.on("SIGTERM", () => server.stop());
+process.on("SIGINT", () => server.stop());
