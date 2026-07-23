@@ -28,8 +28,9 @@ pub struct StellarTxRow {
     /// "testnet" | "mainnet" | "simulated"
     pub network:                     String,
     pub created_at:                  String,
-    /// URL directa no Stellar Expert (None quando soroban_mode != "real")
+    /// URL directa no Stellar Expert (None quando soroban_mode != "soroban")
     pub explorer_lock_url:           Option<String>,
+    pub explorer_release_url:        Option<String>,
     pub explorer_contract_url:       Option<String>,
 }
 
@@ -107,13 +108,18 @@ pub async fn list_stellar_transactions(
         let mode: String = r.try_get("soroban_mode").unwrap_or_else(|_| "simulated".into());
         let contract: Option<String> = r.try_get("soroban_escrow_contract_id").unwrap_or(None);
         let lock_hash: Option<String> = r.try_get("soroban_lock_tx_hash").unwrap_or(None);
+        let release_hash: Option<String> = r.try_get("soroban_release_tx_hash").unwrap_or(None);
 
         let explorer_lock_url = lock_hash.as_deref()
             .filter(|h| !h.starts_with("mock"))
             .map(|h| format!("{explorer_base}/tx/{h}"));
 
+        let explorer_release_url = release_hash.as_deref()
+            .filter(|h| !h.starts_with("mock"))
+            .map(|h| format!("{explorer_base}/tx/{h}"));
+
         let explorer_contract_url = contract.as_deref()
-            .filter(|_| mode == "real")
+            .filter(|_| mode == "soroban")
             .map(|c| format!("{explorer_base}/contract/{c}"));
 
         let created_at: chrono::DateTime<chrono::Utc> = r
@@ -133,11 +139,12 @@ pub async fn list_stellar_transactions(
             soroban_mode:              mode,
             soroban_escrow_contract_id: contract,
             soroban_lock_tx_hash:      lock_hash,
-            soroban_release_tx_hash:   r.try_get("soroban_release_tx_hash").unwrap_or(None),
+            soroban_release_tx_hash:   release_hash,
             brlx_transfer_tx_hash:     r.try_get("brlx_escrow_transfer_tx_hash").unwrap_or(None),
             network:                   network.clone(),
             created_at:                created_at.to_rfc3339(),
             explorer_lock_url,
+            explorer_release_url,
             explorer_contract_url,
         }
     }).collect();

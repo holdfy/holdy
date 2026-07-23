@@ -72,7 +72,8 @@ export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="${MUSL_LINKER}"
   cargo build --release --target "${MUSL_TARGET}" \
     -p apicash-core \
     -p apicash-admin-backend \
-    -p apicash-whatsapp
+    -p apicash-whatsapp \
+    --features soroban
   cargo build --release --target "${MUSL_TARGET}" \
     -p apicash-frontend --no-default-features --features ssr
 )

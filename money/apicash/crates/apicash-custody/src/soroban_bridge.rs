@@ -320,6 +320,11 @@ impl LiveSorobanBridge {
 impl SorobanCustodyBridge for LiveSorobanBridge {
     async fn deploy_escrow_contract(&self) -> Result<SorobanDeployOutcome, CustodyError> {
         if self.missing_for_deploy() {
+            if self.strict_live {
+                return Err(CustodyError::Soroban(
+                    "Soroban live: credenciais incompletas para deploy (APICASH_SOROBAN_RPC_URL/APICASH_SOROBAN_BUYER_SOURCE) — strict mode, mock proibido".into(),
+                ));
+            }
             tracing::warn!("Soroban live: credenciais incompletas — deploy mock");
             let mock = MockSorobanBridge;
             return mock.deploy_escrow_contract().await;
@@ -340,6 +345,11 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
         params: LockInvokeParams,
     ) -> Result<SorobanLockOutcome, CustodyError> {
         if self.missing_for_live() {
+            if self.strict_live {
+                return Err(CustodyError::Soroban(
+                    "Soroban live: credenciais incompletas para invoke_lock (RPC/escrow_contract_id/source) — strict mode, mock proibido".into(),
+                ));
+            }
             tracing::warn!("Soroban live: fallback mock lock");
             let mock = MockSorobanBridge;
             return mock.invoke_lock(params).await;
@@ -367,6 +377,11 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
         escrow_contract_id: &str,
     ) -> Result<Option<String>, CustodyError> {
         if self.missing_for_live() {
+            if self.strict_live {
+                return Err(CustodyError::Soroban(
+                    "Soroban live: credenciais incompletas para invoke_confirm_delivery — strict mode, mock proibido".into(),
+                ));
+            }
             let mock = MockSorobanBridge;
             return mock
                 .invoke_confirm_delivery(order_key, escrow_contract_id)
@@ -426,6 +441,11 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
         escrow_contract_id: &str,
     ) -> Result<Option<String>, CustodyError> {
         if self.missing_for_live() {
+            if self.strict_live {
+                return Err(CustodyError::Soroban(
+                    "Soroban live: credenciais incompletas para invoke_release — strict mode, mock proibido".into(),
+                ));
+            }
             let mock = MockSorobanBridge;
             return mock.invoke_release(order_key, escrow_contract_id).await;
         }
@@ -474,6 +494,11 @@ impl SorobanCustodyBridge for LiveSorobanBridge {
         escrow_contract_id: &str,
     ) -> Result<Option<String>, CustodyError> {
         if self.missing_for_live() {
+            if self.strict_live {
+                return Err(CustodyError::Soroban(
+                    "Soroban live: credenciais incompletas para invoke_open_dispute — strict mode, mock proibido".into(),
+                ));
+            }
             let mock = MockSorobanBridge;
             return mock
                 .invoke_open_dispute(order_key, escrow_contract_id)

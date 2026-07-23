@@ -119,13 +119,17 @@ export default function AdminPixTransactionDetail() {
                 <MDBox>
                   <MDTypography variant="button" color="text">Hash on-chain</MDTypography>
                   <MDTypography variant="caption" sx={{ wordBreak: "break-all" }}>
-                    <a
-                      href={`https://stellar.expert/explorer/testnet/tx/${tx.chain_tx_hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {tx.chain_tx_hash}
-                    </a>
+                    {tx.chain_tx_hash.startsWith("mock") || tx.chain_tx_hash.startsWith("simulated") ? (
+                      tx.chain_tx_hash
+                    ) : (
+                      <a
+                        href={`https://stellar.expert/explorer/testnet/tx/${tx.chain_tx_hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {tx.chain_tx_hash}
+                      </a>
+                    )}
                   </MDTypography>
                 </MDBox>
               )}

@@ -36,7 +36,7 @@ function NetworkChip({ network }) {
 }
 
 function ModeChip({ mode }) {
-  if (mode === "real")
+  if (mode === "soroban")
     return <Chip label="On-chain real" size="small" color="success" sx={{ fontWeight: 700, fontSize: 11 }} />;
   return <Chip label="Simulado" size="small" sx={{ bgcolor: "#e5e7eb", fontSize: 11 }} />;
 }
@@ -135,7 +135,10 @@ const columns = [
   },
   {
     field: "soroban_release_tx_hash", headerName: "TX Release", width: 140,
-    renderCell: (p) => <HashCell hash={p.value} url={null} />,
+    renderCell: (p) => {
+      const row = p.row;
+      return <HashCell hash={p.value} url={row.explorer_release_url} />;
+    },
   },
   {
     field: "soroban_escrow_contract_id", headerName: "Contrato Escrow", width: 145,

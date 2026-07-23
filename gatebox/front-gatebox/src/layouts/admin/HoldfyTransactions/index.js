@@ -60,7 +60,7 @@ function shortHash(hash) {
 }
 
 function stellarExplorerUrl(network, hash) {
-  if (!hash) return null;
+  if (!hash || hash.startsWith("mock") || hash.startsWith("simulated")) return null;
   const net = network === "mainnet" ? "public" : "testnet";
   return `https://stellar.expert/explorer/${net}/tx/${hash}`;
 }
